@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Admin\ProductVariantController as AdminProductVariantController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -34,5 +37,31 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Admin / staff routes
+|--------------------------------------------------------------------------
+|
+| role:staff admits staff AND admin — see EnsureUserHasRole's hierarchy.
+| 'verified' matches the pattern the /dashboard route already uses.
+|
+*/
+Route::middleware(['auth', 'verified', 'role:staff'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
+
+        Route::resource('products', AdminProductController::class)
+            ->except(['show']); // No customer-facing product page yet.
+
+        Route::post('products/{product}/variants', [AdminProductVariantController::class, 'store'])
+            ->name('products.variants.store');
+        Route::patch('products/{product}/variants/{variant}', [AdminProductVariantController::class, 'update'])
+            ->name('products.variants.update');
+        Route::delete('products/{product}/variants/{variant}', [AdminProductVariantController::class, 'destroy'])
+            ->name('products.variants.destroy');
+    });
 
 require __DIR__.'/auth.php';

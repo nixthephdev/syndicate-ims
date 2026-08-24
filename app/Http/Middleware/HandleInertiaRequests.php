@@ -39,6 +39,12 @@ class HandleInertiaRequests extends Middleware
                     'location' => $request->url(),
                 ]);
             },
+            // Admin CRUD flashes ->with('success', ...) and validation
+            // ->withErrors(['variant' => ...]) — without this share, those
+            // never reach the page and would sit silently in the session.
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+            ],
         ]);
     }
 }

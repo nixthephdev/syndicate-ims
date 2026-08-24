@@ -100,6 +100,41 @@ Fixed by pointing tests at `syndicate_ims_test`. **MySQL rather than sqlite
 locking, and sqlite does not model MySQL's locking — tests for the core stock
 behaviour would pass against a different concurrency model than production.
 
+## Admin panel: dark sidebar + light content, one accent, light mode only
+
+**Decision:** the admin/staff backend is a clean utility dashboard, not a
+reskin of the eventual customer storefront. Dark sidebar for navigation, light
+content area for data, one accent color, no dark-mode variant for now.
+
+**Why:** a defense panel is grading whether this is a competent management
+system. A loud street-brand skin on a data table competes with that judgment
+rather than supporting it. Dark sidebar + light content is also the pattern
+most inventory tools (Shopify, Linear) already use, so it needs no
+justification to a reviewer.
+
+**Why light-mode only:** dark mode done properly means designing every state
+twice — tables, focus rings, status pills. Real work with no payoff yet on a
+first CRUD screen. Add it later if there's time.
+
+**Accent color is blue, chosen without client input.** No brand assets exist
+anywhere in the project — no logo, no palette, nothing in the capstone paper.
+Rejected red (the obvious "skate shop" choice) because `DangerButton` already
+uses red for destructive actions; a red brand accent would make "Save" and
+"Delete" read as the same level of importance next to each other. Also
+rejected: reusing red/amber/green, since those are already doing semantic work
+as stock-status colors (out/low/healthy) and needed to stay legible regardless
+of whatever the brand accent turned out to be. Blue was the color nothing else
+in the system was already using.
+
+This is explicitly a placeholder, not a brand decision — aliased through one
+Tailwind token (`colors.brand`) specifically so it's a one-line swap if the
+group supplies real brand colors later.
+
+**The customer-facing storefront is a separate design problem**, deliberately
+deferred. It should carry real "skate shop" personality — bold, high contrast
+— which is exactly the treatment ruled out for the admin panel above. Don't
+let the admin's restraint bleed into that decision when it comes up.
+
 ## Build backbone before 3D
 
 The 3D customizer is what gets attention in a demo, but the failure mode at

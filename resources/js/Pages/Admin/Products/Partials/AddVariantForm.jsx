@@ -1,0 +1,99 @@
+import InputError from '@/Components/InputError';
+import { useForm } from '@inertiajs/react';
+
+export default function AddVariantForm({ productId }) {
+    const { data, setData, post, processing, errors, reset } = useForm({
+        size: '',
+        color: '',
+        sku: '',
+        price: '',
+        stock: 0,
+        low_stock_threshold: 5,
+        is_active: true,
+    });
+
+    function submit(e) {
+        e.preventDefault();
+        post(route('admin.products.variants.store', productId), {
+            preserveScroll: true,
+            onSuccess: () => reset(),
+        });
+    }
+
+    return (
+        <form onSubmit={submit} className="px-4 py-4 bg-gray-50 border-t border-gray-200">
+            <div className="flex flex-wrap items-end gap-3">
+                <div>
+                    <label className="block text-xs text-gray-500 mb-1">Size</label>
+                    <input
+                        className="w-16 rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500"
+                        value={data.size}
+                        onChange={(e) => setData('size', e.target.value)}
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs text-gray-500 mb-1">Color</label>
+                    <input
+                        className="w-24 rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500"
+                        value={data.color}
+                        onChange={(e) => setData('color', e.target.value)}
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs text-gray-500 mb-1">SKU *</label>
+                    <input
+                        className="w-32 rounded border-gray-300 text-sm font-mono focus:border-brand-500 focus:ring-brand-500"
+                        value={data.sku}
+                        onChange={(e) => setData('sku', e.target.value)}
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs text-gray-500 mb-1">Price override (₱)</label>
+                    <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="inherit"
+                        className="w-24 rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500"
+                        value={data.price}
+                        onChange={(e) => setData('price', e.target.value)}
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs text-gray-500 mb-1">Stock *</label>
+                    <input
+                        type="number"
+                        min="0"
+                        className="w-20 rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500"
+                        value={data.stock}
+                        onChange={(e) => setData('stock', e.target.value)}
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs text-gray-500 mb-1">Low-stock at</label>
+                    <input
+                        type="number"
+                        min="0"
+                        className="w-20 rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500"
+                        value={data.low_stock_threshold}
+                        onChange={(e) => setData('low_stock_threshold', e.target.value)}
+                    />
+                </div>
+                <button
+                    type="submit"
+                    disabled={processing}
+                    className="inline-flex items-center px-4 py-2 bg-brand-600 rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-brand-700 disabled:opacity-50 transition"
+                >
+                    Add Variant
+                </button>
+            </div>
+
+            <div className="flex flex-wrap gap-4 mt-2">
+                <InputError message={errors.sku} />
+                <InputError message={errors.size} />
+                <InputError message={errors.stock} />
+                <InputError message={errors.price} />
+            </div>
+        </form>
+    );
+}

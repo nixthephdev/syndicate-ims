@@ -53,10 +53,13 @@ class ProductVariant extends Model implements Purchasable
 
     public function displayName(): string
     {
+        // Nullsafe: if the parent product was archived (SoftDeletes), the
+        // default relation query excludes it and this would otherwise throw.
+        $productName = $this->product?->name ?? '(archived product)';
         $parts = array_filter([$this->size, $this->color]);
 
         return $parts
-            ? sprintf('%s (%s)', $this->product->name, implode(' / ', $parts))
-            : $this->product->name;
+            ? sprintf('%s (%s)', $productName, implode(' / ', $parts))
+            : $productName;
     }
 }

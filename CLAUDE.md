@@ -3,12 +3,13 @@
 ## Current state — KEEP THIS UPDATED
 This is the only section that goes stale. Everything below it is stable intent.
 
-- **Phases 1 (data layer) and 2 (RBAC): DONE.** Models, migrations, factories, seeders, role middleware, and the atomic stock-commit service all in place and tested.
-- **Phase 3 (admin product CRUD) is the next work.** No admin controllers or routes exist yet — `role` middleware is registered and tested but not yet applied to any real route group.
-- **Breeze + Inertia + React + Tailwind: INSTALLED and verified.** Breeze v1.19.2, Inertia 0.6.3, Ziggy. `/` and `/login` serve HTTP 200 with Inertia mounting.
-- **Tests: 43 passing** (`php artisan test`).
+- **Phases 1 (data layer), 2 (RBAC), and a first slice of 3 (admin product management): DONE.** Product CRUD with inline variant management (stock, price override, low-stock threshold) is live at `/admin`, gated by `role:staff`.
+- **Not yet built in Phase 3:** SkateboardComponent admin CRUD (only seeded via the seeder, no UI), order management, reports.
+- **Breeze + Inertia + React + Tailwind: INSTALLED and verified.** Breeze v1.19.2, Inertia 0.6.3, Ziggy.
+- **Tests: 61 passing** (`php artisan test`), including `assertInertia()` checks on every new admin page — these verify the actual component name and props Laravel returns, the closest thing to a browser check available without one.
 - **DB works.** `syndicate_ims` (dev, seeded) and `syndicate_ims_test` (tests) both exist.
-- **Seeded logins** (password `password`): `admin@syndicate.test`, `staff@syndicate.test`, `customer@syndicate.test`.
+- **Seeded logins** (password `password`): `admin@syndicate.test`, `staff@syndicate.test`, `customer@syndicate.test`. Logging in as staff/admin shows an "Open Admin →" link on the regular Dashboard.
+- **Admin UI direction is locked** (see Design section below): dark sidebar + light content, one blue accent, light mode only.
 - **Git:** live at `github.com/nixthephdev/syndicate-ims` (private), branch `main`.
 - **3D:** raw client `.glb` files on disk but git-ignored and uncompressed. Nothing integrated.
 
@@ -97,8 +98,17 @@ Consequences — these are facts, not opinions:
 - Raw `.glb` are **not in git** — back them up outside the project or they're gone.
 - Reference loader: `reference/skate-demo/main.js` (loads root-absolute `/board.glb`, `/wheels.glb`). Folder is intact and still runs standalone: `cd reference/skate-demo && npm install && npx vite`.
 
+## Design — admin panel
+Two different UI jobs, not one skin:
+- **Admin/staff backend** (built): clean utility dashboard, dark sidebar (`bg-gray-900`) + light content, ONE accent — `brand` in `tailwind.config.js`, aliased to Tailwind's blue. Light mode only. Reads as a competent management tool first.
+- **Customer storefront** (not built): should carry actual "skate shop" brand personality — bold, high contrast. Deliberately NOT designed yet; don't reuse the admin's restrained palette for it without revisiting.
+
+**Why blue, not red or green:** `DangerButton` already owns red for destructive actions (`resources/js/Components/DangerButton.jsx`) — a red brand accent would put "Save" and "Delete" in the same hue next to a delete button. Stock-status badges (`Components/Admin/StockBadge.jsx`) already own red/amber/green for out-of-stock/low/healthy. Blue was free.
+
+No real brand assets exist anywhere in the project (no logo, no client-supplied palette) — this was a from-scratch call, not a derived one. If the group supplies real brand colors later, swap them in `tailwind.config.js`'s `colors.brand` — every admin page reads from that token, nothing is hardcoded per-page.
+
 ## Data layer — the rules that matter
-- **`InventoryService` is the ONLY place stock is ever written.** Nothing else may touch a `stock` column. It marks paid and decrements in one transaction, locks each row, re-checks inside the lock, aggregates duplicate lines, and no-ops on a repeat webhook.
+- **`InventoryService` is the only place ORDER-DRIVEN stock decrements happen.** Nothing in the checkout/payment path may touch a `stock` column except through it — it marks paid and decrements in one transaction, locks each row, re-checks inside the lock, aggregates duplicate lines, and no-ops on a repeat webhook. Admin CRUD (restocking, correcting a count) is a separate, legitimate direct write — see `Admin\ProductVariantController`. The rule is about the *concurrency-sensitive* path, not every write to the column.
 - **`role` is NOT in `User::$fillable`** — deliberately. Breeze's `/register` mass-assigns request input, so a fillable `role` would let anyone POST `role=admin` and self-promote. There's a test pinning this (`RoleAssignmentTest`). Assign roles explicitly.
 - **Role middleware is hierarchical**: `role:staff` admits staff *and* admin. Unknown roles fail closed.
 - **Order lines are polymorphic** (`purchasable` → ProductVariant | SkateboardComponent), and snapshot `name_snapshot` + `unit_price_centavos`. Never render an order from live product records.

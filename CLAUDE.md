@@ -3,10 +3,12 @@
 ## Current state — KEEP THIS UPDATED
 This is the only section that goes stale. Everything below it is stable intent.
 
-- **Phase: 1 (data layer), NOT STARTED — this is the next work.** Only the 4 default Laravel migrations exist. `app/Models/` has just `User.php`. No `role` column yet.
-- **Breeze + Inertia + React + Tailwind: INSTALLED and verified.** Breeze v1.19.2, Inertia 0.6.3, Ziggy. `/` and `/login` serve HTTP 200 with Inertia mounting. Auth scaffolding, `resources/js/Pages/`, `routes/auth.php` all in place.
-- **Tests: 24 passing** (`php artisan test`) — Breeze's auth suite.
-- **DB works.** `syndicate_ims` (dev) and `syndicate_ims_test` (tests) both exist, `php artisan migrate` runs clean.
+- **Phases 1 (data layer) and 2 (RBAC): DONE.** Models, migrations, factories, seeders, role middleware, and the atomic stock-commit service all in place and tested.
+- **Phase 3 (admin product CRUD) is the next work.** No admin controllers or routes exist yet — `role` middleware is registered and tested but not yet applied to any real route group.
+- **Breeze + Inertia + React + Tailwind: INSTALLED and verified.** Breeze v1.19.2, Inertia 0.6.3, Ziggy. `/` and `/login` serve HTTP 200 with Inertia mounting.
+- **Tests: 43 passing** (`php artisan test`).
+- **DB works.** `syndicate_ims` (dev, seeded) and `syndicate_ims_test` (tests) both exist.
+- **Seeded logins** (password `password`): `admin@syndicate.test`, `staff@syndicate.test`, `customer@syndicate.test`.
 - **Git:** live at `github.com/nixthephdev/syndicate-ims` (private), branch `main`.
 - **3D:** raw client `.glb` files on disk but git-ignored and uncompressed. Nothing integrated.
 
@@ -94,6 +96,13 @@ Consequences — these are facts, not opinions:
 - **136 MB is unshippable.** Must be Draco/meshopt compressed (`gltf-transform`, `gltfpack`) to single-digit MB before Phase 5. Highest technical risk in the project.
 - Raw `.glb` are **not in git** — back them up outside the project or they're gone.
 - Reference loader: `reference/skate-demo/main.js` (loads root-absolute `/board.glb`, `/wheels.glb`). Folder is intact and still runs standalone: `cd reference/skate-demo && npm install && npx vite`.
+
+## Data layer — the rules that matter
+- **`InventoryService` is the ONLY place stock is ever written.** Nothing else may touch a `stock` column. It marks paid and decrements in one transaction, locks each row, re-checks inside the lock, aggregates duplicate lines, and no-ops on a repeat webhook.
+- **`role` is NOT in `User::$fillable`** — deliberately. Breeze's `/register` mass-assigns request input, so a fillable `role` would let anyone POST `role=admin` and self-promote. There's a test pinning this (`RoleAssignmentTest`). Assign roles explicitly.
+- **Role middleware is hierarchical**: `role:staff` admits staff *and* admin. Unknown roles fail closed.
+- **Order lines are polymorphic** (`purchasable` → ProductVariant | SkateboardComponent), and snapshot `name_snapshot` + `unit_price_centavos`. Never render an order from live product records.
+- `ProductVariant.price_centavos` is nullable — null means inherit `Product.base_price_centavos`.
 
 ## Layout — non-obvious directories
 | Path | What | In git? |

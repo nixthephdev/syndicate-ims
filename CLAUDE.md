@@ -1,58 +1,102 @@
-# CLAUDE.md — Syndicate IMS Project Context
+# CLAUDE.md — Syndicate IMS
+
+## Current state — KEEP THIS UPDATED
+This is the only section that goes stale. Everything below it is stable intent.
+
+- **Phase: 1 (data layer), not started.** Only the 4 default Laravel migrations exist. `app/Models/` has just `User.php`. No `role` column yet.
+- **Breeze / Inertia / React / Tailwind: NOT INSTALLED.** `composer.json` has no `laravel/breeze` or `inertiajs/inertia-laravel`; `package.json` is the stock Laravel skeleton. Do not write Inertia responses or `.jsx` until this is done.
+- **DB works.** `syndicate_ims` exists, `php artisan migrate` runs clean.
+- **Git:** live at `github.com/nixthephdev/syndicate-ims` (private), branch `main`.
+- **3D:** raw client `.glb` files on disk but git-ignored and uncompressed. Nothing integrated.
 
 ## What this project is
-A **Web-Based Retail Management System with Interactive 3D Product Visualization and Inventory Monitoring** for an apparel + skateboarding shop (**Syndicate Supply Co.**), Legazpi, Philippines. This is a college capstone project (STI College Legazpi, BS Information Technology). I am a freelance/full-stack developer building this for the student group.
+Web-Based Retail Management System with Interactive 3D Product Visualization and Inventory Monitoring, for **Syndicate Supply Co.** — an apparel + skateboarding shop in Legazpi, Philippines. College capstone (STI College Legazpi, BSIT). I'm the freelance full-stack dev building it for the student group; they are the client.
 
-## Who I am
-Laravel developer. I'm building the whole system from scratch. Prefer Laravel/PHP for the backend — it's my strength. The student group confirmed the tech stack is a free choice (their paper says JS, but "free naman palitan" / swappable), so we are NOT bound to the JS stack in their proposal.
+## Environment — exact versions, not "8.x"
+| | |
+|---|---|
+| PHP | **8.0.30** (EOL since Nov 2023) |
+| Laravel | 9.52.22 |
+| Node | 22.16.0 |
+| MySQL | via XAMPP, `root`, no password |
+| DB name | `syndicate_ims` |
+| OS | Windows 10 + XAMPP |
 
-## Chosen stack (LOCKED)
-- **Backend/framework:** Laravel 9 (9.52.22) — PHP
-- **Frontend:** React via **Inertia.js** (installed through Laravel Breeze, React variant)
-- **Build tool:** Vite (ships with Laravel/Breeze)
-- **Styling:** Tailwind CSS
+**PHP 8.0 constrains us:** no enums, no readonly properties, no `never` return type. Use class constants for `role` and order status instead of enums. Blocks Laravel 10+.
+
+Run it:
+```
+php artisan serve     # http://localhost:8000
+npm run dev           # Vite, :5173
+```
+**Do NOT serve through XAMPP Apache.** XAMPP is only for MySQL.
+
+## Stack — LOCKED
+- **Backend:** Laravel 9 + PHP
+- **Frontend:** React via Inertia.js, installed through Laravel Breeze (React variant) — *pending*
+- **Build:** Vite · **Styling:** Tailwind
 - **3D:** Three.js + @react-three/fiber + @react-three/drei
-- **3D models:** PROVIDED BY THE CLIENT. The student group already has the 3D models (from their existing "Skateboard Studio" demo). I do NOT model from scratch in Blender — my job is to INTEGRATE their supplied models into the system. Expect .glb/.gltf assets from them; if they send another format, convert to .glb for web. (Blender only needed for minor cleanup/format conversion, not full modeling.)
-- **Database:** MySQL (database name: `syndicate_ims`, user `root`, no password — XAMPP local)
-- **Auth/roles:** Laravel Breeze + a `role` column on users (customer / staff / admin)
-- **Payments:** PayMongo (PHP SDK) — **TEST/sandbox mode, DEPLOYED (LOCKED DECISION).** GCash QR checkout using PayMongo test API keys. The system WILL be deployed online with a live URL, but payments stay in test mode — real GCash QR flow shows, but transactions are fake/sandbox. NO real money is processed. This is the chosen approach: it's free, legal, fulfills the proposal's "GCash QR payment" objective, and looks legit to the defense panel because it's a genuine gateway integration (not a faked status-change). If the shop ever wants real live payments, that requires the SHOP OWNER to register their own PayMongo business account (DTI/SEC docs + KYC) and provide live keys — NOT the developer's account. That is out of scope for the capstone; only a key swap would be needed later.
-- **Realtime stock (optional/later):** Laravel Reverb
+- **Auth/roles:** Breeze + `role` column on users (customer / staff / admin)
+- **Payments:** PayMongo, **test keys only**, GCash QR. Deployed live but no real money. Live keys would be the shop owner's own business account — out of scope. See DECISIONS.md.
+- **Realtime:** none. ~~Laravel Reverb~~ requires Laravel 11 + PHP 8.2 — **impossible on this stack.** If live stock updates are needed, poll or use Pusher's free tier.
 
-## Environment
-- Windows + XAMPP. Project lives at `C:\xampp\htdocs\syndicate-ims`.
-- IMPORTANT: run Laravel via `php artisan serve` (localhost:8000) + `npm run dev` (Vite). Do NOT serve through XAMPP Apache. XAMPP is only used for MySQL.
-- PHP 8.x, Composer, Node 18+, MySQL all installed.
+## Conventions — LOCKED
+- **Money: integer centavos.** Columns named `*_centavos`, type `unsignedBigInteger`. Never float, never `decimal`. PayMongo's API takes centavos, so this avoids a conversion layer and float drift. Format for display only.
+- **Timezone:** `Asia/Manila` (`APP_TIMEZONE` in `.env`, wired into `config/app.php`). Reports are for a PH shop — UTC would be 8 hours off.
+- Laravel 9 structure: middleware registers in `app/Http/Kernel.php`, *not* the Laravel 11 style.
+- Eloquent + Form Request validation. Scaffold with `php artisan make:model X -mcr`.
+- **All inventory writes go inside `DB::transaction()`**, with the stock re-checked *inside* the transaction.
 
-## Core objectives the system must hit (from the proposal)
-1. Interactive 3D product visualization — view apparel + assemble skateboard components (deck, trucks, wheels, bearings, grip tape, hardware) before purchase; 360° rotation + zoom.
-2. Product customization/preview — clothing combos + compatible skateboard setups; color pickers, patterns, custom text/graphics.
-3. Automated inventory monitoring — stock syncs INSTANTLY after every completed transaction (do this atomically in a DB transaction).
-4. Restocking/low-stock notification for admins at a critical threshold.
+## Open decisions — ASK ME, don't assume
+1. **When does stock decrement?** On order placed, or on PayMongo webhook confirming payment? This defines all of Phase 4. *Recommended:* decrement on payment confirmed; cart does not reserve stock; re-check availability inside the transaction and fail gracefully if another shopper won the race.
+2. **Upgrade XAMPP's PHP to 8.2?** Laravel 9 supports it, and it would unlock enums. Cheap now, annoying mid-build.
+3. **Apparel in 3D — get models, or downscope to 2D images?** See the asset gap below.
+
+## Core objectives (from the proposal)
+1. Interactive 3D product visualization — apparel + skateboard assembly; 360° rotate + zoom.
+2. Product customization/preview — color pickers, patterns, custom text/graphics. **⚠ see asset gap**
+3. Automated inventory monitoring — stock syncs instantly on completed transaction, atomically.
+4. Low-stock/restock notification for admins at a critical threshold.
 5. Online checkout with GCash QR (PayMongo).
-6. Centralized product management module (listings, pricing, stock, orders).
+6. Centralized product management (listings, pricing, stock, orders).
 7. Role-based access control (customer / staff / admin).
 8. Reporting — inventory summaries, order details, sales; printable.
-9. Responsive web interface (desktop + mobile browsers). No native mobile app.
+9. Responsive web (desktop + mobile browsers). No native app.
 10. Transaction history for admins.
 
-## Explicitly OUT of scope
-No native mobile app, no AR/virtual fitting, no AI/demand forecasting, no courier/logistics integration, no payment methods other than GCash (via PayMongo).
+**Out of scope:** native mobile app, AR/virtual fitting, AI/demand forecasting, courier integration, any payment method other than GCash via PayMongo.
 
-## Build order (priority — DO NOT jump straight to 3D)
-The 3D is the flashy part but the RISK is a half-baked management system at defense. Build the backbone first.
-- **Phase 1:** Data layer — models + migrations: Product, ProductVariant (size/color/stock), SkateboardComponent (type, name, price, stock, glb_path), Order, OrderItem. Add `role` to users.
-- **Phase 2:** Role-based access (role column + middleware gating admin routes).
-- **Phase 3:** Product management (admin CRUD).
-- **Phase 4:** Customer storefront — browse, cart, checkout; inventory auto-decrements on completed order (atomic DB transaction).
-- **Phase 5:** 3D customizer — React Three Fiber, load the CLIENT-PROVIDED .glb boards, color/component pickers (mirrors the group's existing "Skateboard Studio" demo). Integration work, not modeling.
-- **Phase 6:** PayMongo TEST-MODE checkout (deployed), reports, low-stock alerts, transaction history.
+## Build order — DO NOT jump to 3D
+3D is the flashy part; the *risk* is a half-baked management system at defense. Backbone first.
 
-## Notes / reminders
-- The group already has a working Three.js "Skateboard Studio" customizer demo (ran on Vite localhost:5173) AND already has the 3D models. My job is to INTEGRATE their supplied models, not build them. Get the actual model files (.glb/.gltf ideally) + the list of which boards/components they cover.
-- Deployment: the system will be DEPLOYED ONLINE (live URL) with PayMongo in TEST mode. Need a Laravel-capable host (e.g. Railway, Hostinger, or a VPS). Keep 3D scope tight so it doesn't starve the inventory/order modules.
-- The group must update their paper's Technical Background + Table 6.0 to say Laravel/PHP (currently contradicts itself: Table says PHP, write-up says Node.js). Panel compares doc vs. live system.
+1. **Data layer** — Product, ProductVariant (size/color/stock), SkateboardComponent, Order, OrderItem. Add `role` to users.
+2. **Role-based access** — middleware gating admin routes.
+3. **Product management** — admin CRUD.
+4. **Storefront** — browse, cart, checkout; atomic stock decrement.
+5. **3D customizer** — R3F, client-supplied models. Integration, not modeling.
+6. **PayMongo test checkout, reports, low-stock alerts, transaction history.**
 
-## Coding conventions
-- Laravel 9 structure (has app/Http/Kernel.php — middleware registered there, NOT the Laravel 11 style).
-- Use `php artisan make:model X -mcr` to scaffold model + migration + controller together.
-- Eloquent + form request validation. Keep inventory decrement logic inside DB transactions.
+## 3D asset reality — read before touching Phase 5
+Full inventory in [public/models/README.md](public/models/README.md). The short version:
+
+**Two files only** (git-ignored, raw, at `public/Skate/Skate/public/`):
+- `board.glb` — **61.7 MB** — 14 pre-textured board meshes matched *by mesh name* (`abstract`, `clash`, `moon`, `neonpalmtree`, `ogre`, `spicy`, `tiedye`, `syndicate{BLACK,BLUE,GREEN,PURPLE,RED,WHITE,YELLOW}`), plus objects `Bolts` and `Trucks`.
+- `wheels.glb` — **74.6 MB** — 18 wheel variants as `<name>1`/`<name>2` pairs: `{bb,eye,star}{BLUE,GREEN,PURPLE,RED,WHITE,YELLOW}`.
+
+Consequences — these are facts, not opinions:
+- **Customization is mesh-visibility toggling over baked variants**, not free assembly with arbitrary colors. The boards are baked textures.
+- `SkateboardComponent` needs **`glb_file` + `mesh_name`**, not a single `glb_path`.
+- **No bearings.** No separately swappable grip tape (grip is only a roughness tweak on meshes named `grip`/`tape`/`top`/`sand`).
+- **No apparel models at all** — objective 1 promises apparel in 3D. Open decision #3.
+- **Objective 2's "custom text/graphics" has zero asset support.** Decals on baked-texture boards is real work. Flag or cut.
+- **136 MB is unshippable.** Must be Draco/meshopt compressed (`gltf-transform`, `gltfpack`) to single-digit MB before Phase 5. Highest technical risk in the project.
+- Raw `.glb` are **not in git** — back them up outside the project or they're gone.
+- Reference loader: `public/Skate/Skate/main.js` (loads root-absolute `/board.glb`, `/wheels.glb`).
+
+## Housekeeping owed
+- Move `public/Skate/` demo source out of the web root (reference only, shouldn't be publicly served).
+- `public/files/` holds the group's capstone paper PDF **inside the web root** — move it out before deploying.
+- The group must fix their paper: Technical Background says Node.js, Table 6.0 says PHP. It's Laravel/PHP. The panel compares doc against live system.
+
+## Deployment
+Live URL, PayMongo in test mode. Needs a Laravel-capable host (Railway, Hostinger, VPS). Keep 3D scope tight so it doesn't starve the inventory/order modules.

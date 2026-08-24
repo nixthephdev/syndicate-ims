@@ -30,6 +30,6 @@ node_modules/
 *.glb
 *.gltf
 
-# The group's capstone paper and other documents. Not source code, and it
-# should not be sitting in the web root either.
-/public/files
+# The group's capstone paper and other client documents. Not source code.
+# Moved out of the web root. docs/ itself IS tracked — only docs/client/ isn't.
+/docs/client

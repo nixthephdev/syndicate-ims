@@ -8,8 +8,8 @@ where the web-ready (compressed) models belong once they exist.
 Supplied by the student group, currently at:
 
 ```
-public/Skate/Skate/public/board.glb     61.7 MB
-public/Skate/Skate/public/wheels.glb    74.6 MB
+reference/skate-demo/public/board.glb     61.7 MB
+reference/skate-demo/public/wheels.glb    74.6 MB
 ```
 
 Keep a backup outside the project (Drive / external disk). They are not
@@ -54,5 +54,6 @@ Customization is therefore *mesh visibility toggling over baked variants*, not
 free assembly with arbitrary colors. `SkateboardComponent` needs
 `glb_file` + `mesh_name`, not a single `glb_path`.
 
-Reference implementation: `public/Skate/Skate/main.js` (loads from root-absolute
-`/board.glb` and `/wheels.glb`).
+Reference implementation: `reference/skate-demo/main.js` (loads from
+root-absolute `/board.glb` and `/wheels.glb`). Still runs standalone:
+`cd reference/skate-demo && npm install && npx vite`.

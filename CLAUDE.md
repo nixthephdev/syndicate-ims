@@ -79,7 +79,7 @@ npm run dev           # Vite, :5173
 ## 3D asset reality — read before touching Phase 5
 Full inventory in [public/models/README.md](public/models/README.md). The short version:
 
-**Two files only** (git-ignored, raw, at `public/Skate/Skate/public/`):
+**Two files only** (git-ignored, raw, at `reference/skate-demo/public/`):
 - `board.glb` — **61.7 MB** — 14 pre-textured board meshes matched *by mesh name* (`abstract`, `clash`, `moon`, `neonpalmtree`, `ogre`, `spicy`, `tiedye`, `syndicate{BLACK,BLUE,GREEN,PURPLE,RED,WHITE,YELLOW}`), plus objects `Bolts` and `Trucks`.
 - `wheels.glb` — **74.6 MB** — 18 wheel variants as `<name>1`/`<name>2` pairs: `{bb,eye,star}{BLUE,GREEN,PURPLE,RED,WHITE,YELLOW}`.
 
@@ -91,12 +91,18 @@ Consequences — these are facts, not opinions:
 - **Objective 2's "custom text/graphics" has zero asset support.** Decals on baked-texture boards is real work. Flag or cut.
 - **136 MB is unshippable.** Must be Draco/meshopt compressed (`gltf-transform`, `gltfpack`) to single-digit MB before Phase 5. Highest technical risk in the project.
 - Raw `.glb` are **not in git** — back them up outside the project or they're gone.
-- Reference loader: `public/Skate/Skate/main.js` (loads root-absolute `/board.glb`, `/wheels.glb`).
+- Reference loader: `reference/skate-demo/main.js` (loads root-absolute `/board.glb`, `/wheels.glb`). Folder is intact and still runs standalone: `cd reference/skate-demo && npm install && npx vite`.
+
+## Layout — non-obvious directories
+| Path | What | In git? |
+|---|---|---|
+| `reference/skate-demo/` | The group's original Three.js demo, intact and runnable. Reference only, deliberately outside the web root. | source yes, `.glb` no |
+| `public/models/` | Where **compressed** web-ready models will go. Empty but for its README. | yes |
+| `docs/client/` | The group's capstone paper + client documents. | no |
 
 ## Housekeeping owed
-- Move `public/Skate/` demo source out of the web root (reference only, shouldn't be publicly served).
-- `public/files/` holds the group's capstone paper PDF **inside the web root** — move it out before deploying.
 - The group must fix their paper: Technical Background says Node.js, Table 6.0 says PHP. It's Laravel/PHP. The panel compares doc against live system.
+- **Back up `reference/skate-demo/public/*.glb` outside the project.** Git-ignored — GitHub is not protecting them.
 
 ## Deployment
 Live URL, PayMongo in test mode. Needs a Laravel-capable host (Railway, Hostinger, VPS). Keep 3D scope tight so it doesn't starve the inventory/order modules.

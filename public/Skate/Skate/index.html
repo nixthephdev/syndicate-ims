@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skateboard Customizer</title>
+  <link rel="stylesheet" href="./style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div id="loader">Loading 3D Models...</div>
+  <div id="canvas-container"></div>
+  
+  <button id="open-sidebar" class="hamburger-btn" title="Show Menu">
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+  <div id="ui-panel">
+    <div class="panel-header">
+      <h1>Skateboard Studio</h1>
+      <button id="close-sidebar" class="hamburger-btn" title="Hide Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+
+    <div class="section">
+      <h2>Boards</h2>
+      <div class="radio-group boards-grid">
+        <label><input type="radio" name="board" value="abstract" checked /> Abstract</label>
+        <label><input type="radio" name="board" value="clash" /> Clash</label>
+        <label><input type="radio" name="board" value="moon" /> Moon</label>
+        <label><input type="radio" name="board" value="neonpalmtree" /> Synth Wave</label>
+        <label><input type="radio" name="board" value="ogre" /> Ogre</label>
+        <label><input type="radio" name="board" value="spicy" /> Spicy</label>
+        <label><input type="radio" name="board" value="tiedye" /> Tie-dye</label>
+        <label><input type="radio" name="board" value="syndicateBLACK" /> Black Syndicate</label>
+        <label><input type="radio" name="board" value="syndicateBLUE" /> Blue Syndicate</label>
+        <label><input type="radio" name="board" value="syndicateGREEN" /> Green Syndicate</label>
+        <label><input type="radio" name="board" value="syndicatePURPLE" /> Purple Syndicate</label>
+        <label><input type="radio" name="board" value="syndicateRED" /> Red Syndicate</label>
+        <label><input type="radio" name="board" value="syndicateWHITE" /> White Syndicate</label>
+        <label><input type="radio" name="board" value="syndicateYELLOW" /> Yellow Syndicate</label>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Bolts</h2>
+      <div class="radio-group row-group">
+        <input type="radio" class="swatch" name="bolts_color" value="#f8f8f8" style="background-color: #f8f8f8;" title="Off-White" />
+        <input type="radio" class="swatch" name="bolts_color" value="#F1C40F" style="background-color: #F1C40F;" title="Gold" />
+        <input type="radio" class="swatch" name="bolts_color" value="#DEB887" style="background-color: #DEB887;" title="Burlywood" />
+        <input type="radio" class="swatch" name="bolts_color" value="#C2C025FF" style="background-color: #C2C025FF;" title="Yellow" />
+        <input type="radio" class="swatch" name="bolts_color" value="#aaaaaa" style="background-color: #aaaaaa;" title="Silver (Gray)" />
+        <input type="radio" class="swatch" name="bolts_color" value="#00C202FF" style="background-color: #00C202FF;" title="Green" />
+        <input type="radio" class="swatch" name="bolts_color" value="#F1396E" style="background-color: #F1396E;" title="Pink" />
+        <input type="radio" class="swatch" name="bolts_color" value="#E7312FFF" style="background-color: #E7312FFF;" title="Red" />
+        <input type="radio" class="swatch" name="bolts_color" value="#9700C2FF" style="background-color: #9700C2FF;" title="Purple" />
+        <input type="radio" class="swatch" name="bolts_color" value="#2b2b2b" style="background-color: #2b2b2b;" title="Black" checked />
+        <input type="radio" class="swatch" name="bolts_color" value="#0400C2FF" style="background-color: #0400C2FF;" title="Blue" />
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Trucks</h2>
+      <div class="radio-group row-group">
+        <input type="radio" class="swatch" name="trucks_color" value="#f8f8f8" style="background-color: #f8f8f8;" title="Off-White" />
+        <input type="radio" class="swatch" name="trucks_color" value="#F1C40F" style="background-color: #F1C40F;" title="Gold" />
+        <input type="radio" class="swatch" name="trucks_color" value="#DEB887" style="background-color: #DEB887;" title="Burlywood" />
+        <input type="radio" class="swatch" name="trucks_color" value="#C2C025FF" style="background-color: #C2C025FF;" title="Yellow" />
+        <input type="radio" class="swatch" name="trucks_color" value="#aaaaaa" style="background-color: #aaaaaa;" title="Silver (Gray)" />
+        <input type="radio" class="swatch" name="trucks_color" value="#00C202FF" style="background-color: #00C202FF;" title="Green" />
+        <input type="radio" class="swatch" name="trucks_color" value="#F1396E" style="background-color: #F1396E;" title="Pink" />
+        <input type="radio" class="swatch" name="trucks_color" value="#E7312FFF" style="background-color: #E7312FFF;" title="Red" />
+        <input type="radio" class="swatch" name="trucks_color" value="#9700C2FF" style="background-color: #9700C2FF;" title="Purple" />
+        <input type="radio" class="swatch" name="trucks_color" value="#2b2b2b" style="background-color: #2b2b2b;" title="Black" checked />
+        <input type="radio" class="swatch" name="trucks_color" value="#0400C2FF" style="background-color: #0400C2FF;" title="Blue" />
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Wheels</h2>
+
+      <div class="wheel-series">
+        <h3>Broken Bones Series</h3>
+        <div class="radio-group row-group">
+          <input type="radio" class="swatch" name="wheel_type" value="bbBLUE" style="background-color: #0400C2FF;"
+            title="Blue" />
+          <input type="radio" class="swatch" name="wheel_type" value="bbGREEN" style="background-color: #00C202FF;"
+            title="Green" />
+          <input type="radio" class="swatch" name="wheel_type" value="bbPURPLE" style="background-color: #9700C2FF;"
+            title="Purple" />
+          <input type="radio" class="swatch" name="wheel_type" value="bbRED" style="background-color: #E7312FFF;"
+            title="Red" />
+          <input type="radio" class="swatch" name="wheel_type" value="bbWHITE" style="background-color: #F7F5FFFF;"
+            title="White" checked />
+          <input type="radio" class="swatch" name="wheel_type" value="bbYELLOW" style="background-color: #C2C025FF;"
+            title="Yellow" />
+        </div>
+      </div>
+
+      <div class="wheel-series">
+        <h3>Star Series</h3>
+        <div class="radio-group row-group">
+          <input type="radio" class="swatch" name="wheel_type" value="starBLUE" style="background-color: #0400C2FF;"
+            title="Blue" />
+          <input type="radio" class="swatch" name="wheel_type" value="starGREEN" style="background-color: #00C202FF;"
+            title="Green" />
+          <input type="radio" class="swatch" name="wheel_type" value="starPURPLE" style="background-color: #9700C2FF;"
+            title="Purple" />
+          <input type="radio" class="swatch" name="wheel_type" value="starRED" style="background-color: #E7312FFF;"
+            title="Red" />
+          <input type="radio" class="swatch" name="wheel_type" value="starWHITE" style="background-color: #F7F5FFFF;"
+            title="White" />
+          <input type="radio" class="swatch" name="wheel_type" value="starYELLOW" style="background-color: #C2C025FF;"
+            title="Yellow" />
+        </div>
+      </div>
+
+      <div class="wheel-series">
+        <h3>Eye Series</h3>
+        <div class="radio-group row-group">
+          <input type="radio" class="swatch" name="wheel_type" value="eyeBLUE" style="background-color: #0400C2FF;"
+            title="Blue" />
+          <input type="radio" class="swatch" name="wheel_type" value="eyeGREEN" style="background-color: #00C202FF;"
+            title="Green" />
+          <input type="radio" class="swatch" name="wheel_type" value="eyePURPLE" style="background-color: #9700C2FF;"
+            title="Purple" />
+          <input type="radio" class="swatch" name="wheel_type" value="eyeRED" style="background-color: #E7312FFF;"
+            title="Red" />
+          <input type="radio" class="swatch" name="wheel_type" value="eyeWHITE" style="background-color: #F7F5FFFF;"
+            title="White" />
+          <input type="radio" class="swatch" name="wheel_type" value="eyeYELLOW" style="background-color: #C2C025FF;"
+            title="Yellow" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <script type="module" src="./main.js"></script>
+</body>
+
+</html>

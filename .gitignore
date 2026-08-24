@@ -1,0 +1,35 @@
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/vendor
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+/.fleet
+/.idea
+/.vscode
+
+# --- Syndicate IMS additions ---
+
+# Nested node_modules (the client's Skateboard Studio demo ships its own).
+# The default rule above is root-only.
+node_modules/
+.vscode/
+
+# Client-supplied raw 3D assets. board.glb is 61.7 MB, wheels.glb is 74.6 MB —
+# too heavy for git history AND far too heavy to serve to a shopper.
+# See public/models/README.md. Compressed models WILL be committed.
+*.glb
+*.gltf
+
+# The group's capstone paper and other documents. Not source code, and it
+# should not be sitting in the web root either.
+/public/files

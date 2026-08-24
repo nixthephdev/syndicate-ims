@@ -60,6 +60,46 @@ installed. If live stock updates become a requirement, the options are polling
 So: `*.glb` is git-ignored, raw files are backed up outside the project, and
 compressed models get committed once produced. See `public/models/README.md`.
 
+## Stock decrements on payment confirmed, not on order placed
+
+**Decision:** the PayMongo webhook confirming payment is what decrements stock,
+inside `DB::transaction()`, with availability re-checked *inside* the
+transaction. The cart does not reserve anything.
+
+**Why not decrement on order placed:** abandoned and never-paid orders would
+silently hold stock, so it needs a release/expiry job — more moving parts, and
+another mechanism to explain and defend at the panel.
+
+**Why not reserve at cart:** a reservations table plus expiry sweeping is the
+most correct e-commerce behaviour and the most work. It's over-engineered for a
+capstone and would eat time the 3D module needs.
+
+**Accepted trade-off:** two shoppers can race for the last item. The loser gets
+a graceful failure at checkout rather than a silent oversell. This matches
+objective 3's wording — stock syncs after every *completed* transaction.
+
+## Stay on PHP 8.0, use class constants instead of enums
+
+Composer runs `C:\xampp\php\php.exe` — XAMPP's own PHP, which is shared with
+every other project on this machine (`portal_db`, `pcis_db`, `m7_website`,
+`payroll_db` all live in the same MySQL). Upgrading to 8.2 would unlock enums,
+and Laravel 9 supports it, but it changes the runtime for all that other client
+work and forces a retest round.
+
+Class constants (`Order::STATUS_PAID`, `User::ROLE_ADMIN`) cost nothing here and
+are idiomatic Laravel 9 anyway. Revisit only if something genuinely needs 8.1+.
+
+## Tests use a separate MySQL database, not sqlite
+
+`phpunit.xml` shipped with `DB_CONNECTION` commented out, meaning
+`RefreshDatabase` would have run `migrate:fresh` against the dev database and
+wiped seeded products once we had any.
+
+Fixed by pointing tests at `syndicate_ims_test`. **MySQL rather than sqlite
+`:memory:`** because the inventory logic is built on `DB::transaction()` and row
+locking, and sqlite does not model MySQL's locking — tests for the core stock
+behaviour would pass against a different concurrency model than production.
+
 ## Build backbone before 3D
 
 The 3D customizer is what gets attention in a demo, but the failure mode at

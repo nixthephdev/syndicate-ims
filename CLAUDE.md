@@ -3,9 +3,10 @@
 ## Current state — KEEP THIS UPDATED
 This is the only section that goes stale. Everything below it is stable intent.
 
-- **Phase: 1 (data layer), not started.** Only the 4 default Laravel migrations exist. `app/Models/` has just `User.php`. No `role` column yet.
-- **Breeze / Inertia / React / Tailwind: NOT INSTALLED.** `composer.json` has no `laravel/breeze` or `inertiajs/inertia-laravel`; `package.json` is the stock Laravel skeleton. Do not write Inertia responses or `.jsx` until this is done.
-- **DB works.** `syndicate_ims` exists, `php artisan migrate` runs clean.
+- **Phase: 1 (data layer), NOT STARTED — this is the next work.** Only the 4 default Laravel migrations exist. `app/Models/` has just `User.php`. No `role` column yet.
+- **Breeze + Inertia + React + Tailwind: INSTALLED and verified.** Breeze v1.19.2, Inertia 0.6.3, Ziggy. `/` and `/login` serve HTTP 200 with Inertia mounting. Auth scaffolding, `resources/js/Pages/`, `routes/auth.php` all in place.
+- **Tests: 24 passing** (`php artisan test`) — Breeze's auth suite.
+- **DB works.** `syndicate_ims` (dev) and `syndicate_ims_test` (tests) both exist, `php artisan migrate` runs clean.
 - **Git:** live at `github.com/nixthephdev/syndicate-ims` (private), branch `main`.
 - **3D:** raw client `.glb` files on disk but git-ignored and uncompressed. Nothing integrated.
 
@@ -33,7 +34,7 @@ npm run dev           # Vite, :5173
 
 ## Stack — LOCKED
 - **Backend:** Laravel 9 + PHP
-- **Frontend:** React via Inertia.js, installed through Laravel Breeze (React variant) — *pending*
+- **Frontend:** React via Inertia.js, installed through Laravel Breeze (React variant)
 - **Build:** Vite · **Styling:** Tailwind
 - **3D:** Three.js + @react-three/fiber + @react-three/drei
 - **Auth/roles:** Breeze + `role` column on users (customer / staff / admin)
@@ -43,14 +44,15 @@ npm run dev           # Vite, :5173
 ## Conventions — LOCKED
 - **Money: integer centavos.** Columns named `*_centavos`, type `unsignedBigInteger`. Never float, never `decimal`. PayMongo's API takes centavos, so this avoids a conversion layer and float drift. Format for display only.
 - **Timezone:** `Asia/Manila` (`APP_TIMEZONE` in `.env`, wired into `config/app.php`). Reports are for a PH shop — UTC would be 8 hours off.
+- **Stock decrements when payment is CONFIRMED**, not when the order is placed. PayMongo webhook → `DB::transaction()` → re-check availability *inside* the transaction → decrement. The cart does **not** reserve stock. If two shoppers race for the last item, the loser gets a graceful checkout failure. No reservations table.
+- **No enums** — PHP 8.0. Use class constants for `role` and order status (e.g. `Order::STATUS_PAID`). Also no readonly properties, no `never` return type.
 - Laravel 9 structure: middleware registers in `app/Http/Kernel.php`, *not* the Laravel 11 style.
 - Eloquent + Form Request validation. Scaffold with `php artisan make:model X -mcr`.
 - **All inventory writes go inside `DB::transaction()`**, with the stock re-checked *inside* the transaction.
+- **Tests run against `syndicate_ims_test`** (set in `phpunit.xml`), never the dev DB. MySQL not sqlite — the inventory logic depends on real transaction/row-locking behaviour that sqlite doesn't model. `php artisan test`.
 
 ## Open decisions — ASK ME, don't assume
-1. **When does stock decrement?** On order placed, or on PayMongo webhook confirming payment? This defines all of Phase 4. *Recommended:* decrement on payment confirmed; cart does not reserve stock; re-check availability inside the transaction and fail gracefully if another shopper won the race.
-2. **Upgrade XAMPP's PHP to 8.2?** Laravel 9 supports it, and it would unlock enums. Cheap now, annoying mid-build.
-3. **Apparel in 3D — get models, or downscope to 2D images?** See the asset gap below.
+1. **Apparel in 3D — get models from the group, or downscope to 2D images?** See the asset gap below. Blocks objective 1 and needs a paper amendment either way.
 
 ## Core objectives (from the proposal)
 1. Interactive 3D product visualization — apparel + skateboard assembly; 360° rotate + zoom.

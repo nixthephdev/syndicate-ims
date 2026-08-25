@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\OrderStatusController as AdminOrderStatusController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductVariantController as AdminProductVariantController;
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CheckoutController;
@@ -37,9 +38,12 @@ Route::get('/', function () {
     return Inertia::render('Storefront/Home');
 })->name('home');
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// Breeze's post-login landing (RouteServiceProvider::HOME). Now routes by
+// role: staff/admin to the admin panel, customers to their own account page.
+// Keep the route NAME `dashboard` — HOME and the auth controllers point at it.
+Route::get('/dashboard', [AccountController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 /*
 |--------------------------------------------------------------------------

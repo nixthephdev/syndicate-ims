@@ -46,9 +46,45 @@ class StorefrontTest extends TestCase
         $this->get('/')->assertSee('app-splash', false);
         $this->get(route('login'))->assertSee('app-splash', false);
 
-        $admin = User::factory()->admin()->create();
+        // A customer's account page is a storefront page, so it gets the splash.
+        $this->actingAs(User::factory()->create())
+            ->get(route('dashboard'))
+            ->assertSee('app-splash', false);
 
-        $this->actingAs($admin)->get(route('admin.dashboard'))->assertDontSee('app-splash', false);
-        $this->actingAs($admin)->get(route('dashboard'))->assertDontSee('app-splash', false);
+        // The admin does not. Asserted against admin.dashboard directly:
+        // /dashboard redirects staff onward, and assertDontSee would pass
+        // trivially on an empty redirect body without proving anything.
+        $this->actingAs(User::factory()->admin()->create())
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertDontSee('app-splash', false);
+    }
+
+    /**
+     * Breeze's stock /dashboard was a dead end for everyone. Staff belong in
+     * the admin; customers belong on a storefront-styled account page.
+     */
+    public function test_dashboard_sends_staff_to_the_admin_panel(): void
+    {
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('dashboard'))
+            ->assertRedirect(route('admin.dashboard'));
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->get(route('dashboard'))
+            ->assertRedirect(route('admin.dashboard'));
+    }
+
+    public function test_dashboard_shows_customers_their_account(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Storefront/Account')
+                ->has('recentOrders')
+                ->has('stats.orders')
+                ->has('stats.spent_formatted')
+            );
     }
 }

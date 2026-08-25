@@ -12,10 +12,12 @@ This is the only section that goes stale. Everything below it is stable intent.
 - **No product image upload in the admin.** `Product::image_path` is populated by the seeder pointing at `public/images/lookbook/`. Any product created through the admin UI will have no image and renders a grey category block.
 - **Breeze + Inertia + React + Tailwind: INSTALLED and verified.** Breeze v1.19.2, Inertia 0.6.3, Ziggy.
 - **Storefront landing page: BUILT.** `/` (route name `home`) now renders `Pages/Storefront/Home.jsx` instead of Breeze's `Welcome` — dark/volt skate-brand look, hero, marquee, masonry lookbook using the client's real photography. Nav's Shop, Orders and cart entries are live; **Customize is still a dimmed "soon" chip** and lights up on its own via `route().has()` when Phase 5 registers that route.
-- **Tests: 96 passing** (`php artisan test`), including `assertInertia()` checks on every new admin page and on the storefront home — these verify the actual component name and props Laravel returns, the closest thing to a browser check available without one.
+- **Tests: 98 passing** (`php artisan test`), including `assertInertia()` checks on every new admin page and on the storefront home — these verify the actual component name and props Laravel returns, the closest thing to a browser check available without one.
 - **DB works.** `syndicate_ims` (dev, seeded) and `syndicate_ims_test` (tests) both exist.
 - **Seeded logins** (password `password`): `admin@syndicate.test`, `staff@syndicate.test`, `customer@syndicate.test`. Logging in as staff/admin shows an "Open Admin →" link on the regular Dashboard.
-- **Admin UI direction is locked** (see Design section below): dark sidebar + light content, one blue accent, light mode only.
+- **Admin UI direction is locked** (see Design section below): dark sidebar + light content, one blue accent, light mode only. The sidebar is grouped (Overview / Catalogue / Sales) with icons, and is an **off-canvas drawer below `lg`, static from `lg` up** — the earlier version was a plain `w-60` flex child that ate 240px of a phone screen.
+- **`/dashboard` routes by role.** Staff/admin are redirected to `/admin`; customers get `Storefront/Account` in the shop's own styling. Breeze's "You're logged in!" page is gone. The route NAME stays `dashboard` because `RouteServiceProvider::HOME` and the auth controllers point at it.
+- **Still on Breeze's stock look:** `Pages/Profile/Edit.jsx` (+ its three partials) on `AuthenticatedLayout`, and `ConfirmPassword` / `VerifyEmail` on `GuestLayout`. Profile is linked from the new Account page, so it is the most visible remaining mismatch.
 - **Git:** live at `github.com/nixthephdev/syndicate-ims` (private), branch `main`.
 - **3D:** raw client `.glb` files on disk but git-ignored and uncompressed. Nothing integrated.
 

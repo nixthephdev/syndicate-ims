@@ -30,6 +30,13 @@ node_modules/
 *.glb
 *.gltf
 
+# The compressed, web-ready versions ARE the shippable asset and must be
+# committed — without this negation the blanket rule above silently ate them
+# too (caught before it ever reached production: `git status` showed nothing
+# for public/models/ even after the compressed files existed on disk).
+!/public/models/*.glb
+!/public/models/*.gltf
+
 # The group's capstone paper and other client documents. Not source code.
 # Moved out of the web root. docs/ itself IS tracked — only docs/client/ isn't.
 /docs/client

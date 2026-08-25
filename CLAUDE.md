@@ -13,15 +13,16 @@ This is the only section that goes stale. Everything below it is stable intent.
 - **Catalogue depth: 36 seeded apparel products** — 12 each of Tees / Hoodies / Caps, via `Product::TYPE_*` (new column, apparel-only, separate from the existing apparel/skateboard `category`). Only the original 3 carry one of the client's real photos; the other 33 have `image_path = null` and render the existing grey placeholder block — **not** fake product photography. `/shop` groups the catalogue into one section per type (`ProductController::index()`); `?type=hoodie` narrows to a single section rather than being a separate code path. Admin Create/Edit gained a Type select, required for apparel and stripped by `Rule::excludeIf` for skateboard. Caps use `size = "One Size"` — the old seeder generated S/M/L/XL variants for a cap while its own description said "one size," which is fixed now, not just carried forward.
 - **Shop grid: search, sort, and real derived badges.** `?q=` searches product name (debounced 400ms client-side). `?sort=` is `newest` (default) / `price_asc` / `price_desc` / `popularity` — popularity is real units sold from **paid orders only** (one query for the whole page, joining `order_items → product_variants`, not decorative). `is_new` (listed ≤14 days ago) and `is_limited` (avg <6 units per option) are computed server-side per product — there is no `is_featured`-style flag to fake, so nothing is editorial. **Quick Add** on the grid posts straight to `cart.store` for whichever variant actually has stock (never blindly the first row), the same `back()`-redirect pattern the product page's Add to Cart already used — re-renders self-correct on the next load if that was the last unit.
 - **Breeze + Inertia + React + Tailwind: INSTALLED and verified.** Breeze v1.19.2, Inertia 0.6.3, Ziggy.
-- **Storefront landing page: BUILT.** `/` (route name `home`) now renders `Pages/Storefront/Home.jsx` instead of Breeze's `Welcome` — dark/volt skate-brand look, hero, marquee, masonry lookbook using the client's real photography. Nav's Shop, Orders and cart entries are live; **Customize is still a dimmed "soon" chip** and lights up on its own via `route().has()` when Phase 5 registers that route.
-- **Tests: 116 passing** (`php artisan test`), including `assertInertia()` checks on every new admin page and on the storefront home — these verify the actual component name and props Laravel returns, the closest thing to a browser check available without one.
+- **Storefront landing page: BUILT.** `/` (route name `home`) now renders `Pages/Storefront/Home.jsx` instead of Breeze's `Welcome` — dark/volt skate-brand look, hero, marquee, masonry lookbook using the client's real photography. Nav's Shop, Orders, cart **and Customize** entries are all live now — none are dimmed "soon" chips any more.
+- **Phase 5 (skateboard 3D customizer): DONE.** `/customize` — see the dedicated section below. Assets compressed from 136 MB to 8.6 MB and committed. Apparel-in-3D is still blocked on Open decision #1.
+- **Tests: 128 passing** (`php artisan test`), including `assertInertia()` checks on every new admin page and on the storefront home — these verify the actual component name and props Laravel returns, the closest thing to a browser check available without one. **The 3D customizer has zero JS test coverage** (no test runner exists in this project) — it was verified by actually rendering it in a headless browser and screenshotting the result, which is how a real, visually-total bug (see the 3D section below) was caught. Re-verify the same way if you touch it.
 - **DB works.** `syndicate_ims` (dev, seeded) and `syndicate_ims_test` (tests) both exist.
 - **Seeded logins** (password `password`): `admin@syndicate.test`, `staff@syndicate.test`, `customer@syndicate.test`. Staff/admin land straight in `/admin` after login; "View the shop" in the sidebar footer takes them to the storefront.
 - **Admin UI direction is locked** (see Design section below): dark sidebar + light content, one blue accent, light mode only. The sidebar is grouped (Overview / Catalogue / Sales) with icons, and is an **off-canvas drawer below `lg`, static from `lg` up** — the earlier version was a plain `w-60` flex child that ate 240px of a phone screen.
 - **`/dashboard` routes by role.** Staff/admin are redirected to `/admin`; customers get `Storefront/Account` in the shop's own styling. Breeze's "You're logged in!" page is gone. The route NAME stays `dashboard` because `RouteServiceProvider::HOME` and the auth controllers point at it.
 - **Every authenticated page now matches the storefront.** `Profile/Edit` (+ its three partials), `ConfirmPassword`, `VerifyEmail` are all on the dark/volt treatment now. **Breeze's stock `AuthenticatedLayout`, `GuestLayout`, `ApplicationLogo`, `DangerButton`, `SecondaryButton`, `Modal`, `Checkbox` were deleted** — confirmed orphaned (grepped, zero remaining imports) before removal, not just unused-looking. `TextInput`/`InputLabel`/`InputError`/`PrimaryButton` remain, but are now used **only by the admin** (Products Create/Edit) — which is exactly the invariant the separate `volt`/`brand` tokens exist for, now true by construction rather than by convention. Storefront destructive actions use the new `Components/Storefront/{DangerButton,GhostButton,Modal}`.
 - **Git:** live at `github.com/nixthephdev/syndicate-ims` (private), branch `main`.
-- **3D:** raw client `.glb` files on disk but git-ignored and uncompressed. Nothing integrated.
+- **3D:** skateboard side integrated and working — see the dedicated 3D section below. Apparel side still has zero models.
 
 ## What this project is
 Web-Based Retail Management System with Interactive 3D Product Visualization and Inventory Monitoring, for **Syndicate Supply Co.** — an apparel + skateboarding shop in Legazpi, Philippines.
@@ -68,7 +69,7 @@ npm run dev           # Vite, :5173
 - **Backend:** Laravel 9 + PHP
 - **Frontend:** React via Inertia.js, installed through Laravel Breeze (React variant)
 - **Build:** Vite · **Styling:** Tailwind
-- **3D:** Three.js + @react-three/fiber + @react-three/drei
+- **3D:** Three.js + @react-three/fiber (pinned `^8`, not `^9` — v9 needs React 19) + @react-three/drei. Installed and in use, not aspirational.
 - **Auth/roles:** Breeze + `role` column on users (customer / staff / admin)
 - **Payments:** PayMongo, **test keys only**, GCash QR. Deployed live but no real money. Live keys would be the shop owner's own business account — out of scope. See DECISIONS.md.
 - **Realtime:** none. ~~Laravel Reverb~~ requires Laravel 11 + PHP 8.2 — **impossible on this stack.** If live stock updates are needed, poll or use Pusher's free tier.
@@ -107,25 +108,22 @@ npm run dev           # Vite, :5173
 2. **Role-based access** — middleware gating admin routes.
 3. **Product management** — admin CRUD.
 4. **Storefront** — browse, cart, checkout; atomic stock decrement.
-5. **3D customizer** — R3F, client-supplied models. Integration, not modeling.
+5. **3D customizer — SKATEBOARD SIDE DONE.** R3F, client-supplied models, real DB-backed component list. Apparel side still blocked — see Open decisions.
 6. **PayMongo test checkout, reports, low-stock alerts, transaction history.**
 
-## 3D asset reality — read before touching Phase 5
-Full inventory in [public/models/README.md](public/models/README.md). The short version:
+## 3D — skateboard customizer: DONE
+`/customize` (route name `customize`, load-bearing — see `StoreHeader.jsx`'s nav chip). `App\Http\Controllers\Shop\CustomizeController` + `resources/js/Components/Customizer/{Scene,Board,Wheels,PartPicker}.jsx`. Deck + wheels are picker-driven (14 + 18 real `SkateboardComponent` rows); Trucks/Bolts are included automatically — no picker, since only one active row of each exists in the seeded catalogue. Add-to-cart is one atomic endpoint (`customize.store`) that adds all four as real `Cart` lines — **skateboards are now actually purchasable end-to-end**, which they were not before (the seeded catalogue existed but had zero customer-facing route).
 
-**Two files only** (git-ignored, raw, at `reference/skate-demo/public/`):
-- `board.glb` — **61.7 MB** — 14 pre-textured board meshes matched *by mesh name* (`abstract`, `clash`, `moon`, `neonpalmtree`, `ogre`, `spicy`, `tiedye`, `syndicate{BLACK,BLUE,GREEN,PURPLE,RED,WHITE,YELLOW}`), plus objects `Bolts` and `Trucks`.
-- `wheels.glb` — **74.6 MB** — 18 wheel variants as `<name>1`/`<name>2` pairs: `{bb,eye,star}{BLUE,GREEN,PURPLE,RED,WHITE,YELLOW}`.
+**Assets are compressed and committed**: `public/models/board.glb` (2.46 MB) + `wheels.glb` (6.51 MB), was 136.3 MB combined raw. Full compression pipeline, the sharp/vips crash that blocked gltf-transform's own texture commands on Windows, and the exact mesh-name inventory are documented in [public/models/README.md](public/models/README.md) — read it before touching either file again.
 
-Consequences — these are facts, not opinions:
-- **Customization is mesh-visibility toggling over baked variants**, not free assembly with arbitrary colors. The boards are baked textures.
-- `SkateboardComponent` needs **`glb_file` + `mesh_name`**, not a single `glb_path`.
+**One non-obvious real bug, caught only by actually rendering in a browser and comparing decks side by side**: every deck's mesh has TWO primitives sharing one node — griptape (generic, identical material on all 14 decks) and the printed graphic (the actual per-deck texture) — and the graphic is on the *underside*. A camera looking down at the board shows griptape, identical regardless of selection. Fixed by pointing the default camera up from below (`Scene.jsx`), matching what the reference demo's own hardcoded board camera already did for the same reason. **This could not have been caught by `php artisan test`** — there is no JS test runner in this project, and the bug was 100% visual. If you touch camera positioning or the deck mesh-toggle logic again, verify with an actual rendered screenshot, not just a clean build + passing PHP suite.
+
+**Still true, unchanged:**
+- **Customization is mesh-visibility toggling over baked variants**, not free assembly with arbitrary colors.
 - **No bearings.** No separately swappable grip tape (grip is only a roughness tweak on meshes named `grip`/`tape`/`top`/`sand`).
-- **No apparel models at all** — objective 1 promises apparel in 3D. Open decision #3.
+- **No apparel models at all** — objective 1 promises apparel in 3D. Open decision #1, still unresolved.
 - **Objective 2's "custom text/graphics" has zero asset support.** Decals on baked-texture boards is real work. Flag or cut.
-- **136 MB is unshippable.** Must be Draco/meshopt compressed (`gltf-transform`, `gltfpack`) to single-digit MB before Phase 5. Highest technical risk in the project.
-- Raw `.glb` are **not in git** — back them up outside the project or they're gone.
-- Reference loader: `reference/skate-demo/main.js` (loads root-absolute `/board.glb`, `/wheels.glb`). Folder is intact and still runs standalone: `cd reference/skate-demo && npm install && npx vite`.
+- Reference loader: `reference/skate-demo/main.js` (loads root-absolute `/board.glb`, `/wheels.glb`). Folder is intact and still runs standalone: `cd reference/skate-demo && npm install && npx vite`. It is the ground truth for the mesh-toggle logic — `Board.jsx`/`Wheels.jsx` are a faithful translation of it, not a reinterpretation.
 
 ## Design — admin panel
 Two different UI jobs, not one skin:
@@ -180,7 +178,8 @@ Non-obvious constraints, all learned the hard way:
 | Path | What | In git? |
 |---|---|---|
 | `reference/skate-demo/` | The group's original Three.js demo, intact and runnable. Reference only, deliberately outside the web root. | source yes, `.glb` no |
-| `public/models/` | Where **compressed** web-ready models will go. Empty but for its README. | yes |
+| `public/models/` | Compressed, web-ready `board.glb` + `wheels.glb`, actually served to `/customize`. | yes |
+| `public/draco/` | Self-hosted Draco decoder (copied from `node_modules/three/examples/jsm/libs/draco/`) — not the Google CDN, for defense-day reliability. | yes |
 | `docs/client/` | The group's capstone paper + client documents. | no |
 
 ## Housekeeping owed

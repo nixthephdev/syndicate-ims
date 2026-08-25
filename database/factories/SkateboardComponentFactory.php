@@ -53,4 +53,26 @@ class SkateboardComponentFactory extends Factory
     {
         return $this->state(fn () => ['stock' => 0]);
     }
+
+    /** A single hardware row — the customizer includes these automatically,
+     *  no picker, so tests only ever need one active row of each. */
+    public function trucks()
+    {
+        return $this->state(fn () => [
+            'type' => SkateboardComponent::TYPE_TRUCKS,
+            'name' => 'Standard Trucks',
+            'glb_file' => SkateboardComponent::GLB_BOARD,
+            'mesh_name' => 'Trucks',
+        ]);
+    }
+
+    public function bolts()
+    {
+        return $this->state(fn () => [
+            'type' => SkateboardComponent::TYPE_BOLTS,
+            'name' => 'Mounting Bolts',
+            'glb_file' => SkateboardComponent::GLB_BOARD,
+            'mesh_name' => 'Bolts',
+        ]);
+    }
 }

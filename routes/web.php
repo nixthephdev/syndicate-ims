@@ -9,6 +9,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CheckoutController;
+use App\Http\Controllers\Shop\CustomizeController;
 use App\Http\Controllers\Shop\OrderController as ShopOrderController;
 use App\Http\Controllers\Shop\PaymentController;
 use App\Http\Controllers\Shop\ProductController as ShopProductController;
@@ -32,7 +33,7 @@ use Inertia\Inertia;
  *
  * Named 'home' because StoreHeader's nav resolves its links through
  * route().has() / route(): the Customize and cart entries stay dimmed until
- * those routes exist (Phases 5 and 4), then light up on their own.
+ * those routes exist, then light up on their own.
  */
 Route::get('/', function () {
     return Inertia::render('Storefront/Home');
@@ -59,6 +60,11 @@ Route::get('/dashboard', [AccountController::class, 'index'])
 */
 Route::get('/shop', [ShopProductController::class, 'index'])->name('shop.index');
 Route::get('/shop/{product:slug}', [ShopProductController::class, 'show'])->name('shop.show');
+
+// The 3D skateboard builder. Route name `customize` is load-bearing — see
+// StoreHeader's nav, which lights this chip up the moment the route exists.
+Route::get('/customize', [CustomizeController::class, 'index'])->name('customize');
+Route::post('/customize', [CustomizeController::class, 'store'])->name('customize.store');
 
 // The cart lives in the session, so the item is identified in the body
 // rather than the URL — a cart key contains a class name and a "#".

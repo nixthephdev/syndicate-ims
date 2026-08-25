@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -17,41 +19,57 @@ use Inertia\Response;
  */
 class ProductController extends Controller
 {
+    public const SORTS = ['newest', 'price_asc', 'price_desc', 'popularity'];
+
     /**
      * The catalogue, segregated into sections by apparel type (Tees, Hoodies,
      * Caps) rather than one flat grid. Passing `?type=tee` narrows to a
      * single section — the page renders that the same way, one section long,
      * so there is one code path for "browse everything" and "browse one
-     * type" rather than two.
+     * type" rather than two. `?q=` searches the name; `?sort=` reorders
+     * within each section.
      */
     public function index(Request $request): Response
     {
-        $category = $request->query('category');
         $type = $request->query('type');
         $validType = in_array($type, Product::TYPES, true) ? $type : null;
+        $search = trim((string) $request->query('q'));
+        $sort = in_array($request->query('sort'), self::SORTS, true) ? $request->query('sort') : 'newest';
 
         $products = Product::query()
             ->active()
-            ->when(
-                in_array($category, Product::CATEGORIES, true),
-                fn ($query) => $query->category($category)
-            )
             ->when($validType, fn ($query) => $query->type($validType))
+            ->when($search !== '', fn ($query) => $query->where('name', 'like', "%{$search}%"))
             // Only active variants count toward price and stock — an archived
             // size must not make a sold-out product look available.
             ->with(['variants' => fn ($query) => $query->where('is_active', true)])
-            ->orderBy('name')
-            ->get()
-            ->map(fn (Product $product) => $this->card($product));
+            ->orderBy($sort === 'newest' ? 'created_at' : 'name', $sort === 'newest' ? 'desc' : 'asc')
+            ->get();
+
+        // "Popularity" is real, not decorative: units sold across PAID orders
+        // only, so an item nobody has actually bought can't outrank one that
+        // has just because more people looked at it. One query for the whole
+        // page rather than N+1 per card.
+        $unitsSold = $sort === 'popularity' ? $this->unitsSoldByProduct() : collect();
+
+        $cards = $products->map(fn (Product $product) => $this->card($product, $unitsSold->get($product->id, 0)));
+
+        if ($sort === 'price_asc' || $sort === 'price_desc') {
+            $cards = $cards->sortBy('price_from_centavos', SORT_REGULAR, $sort === 'price_desc')->values();
+        } elseif ($sort === 'popularity') {
+            $cards = $cards->sortByDesc('units_sold')->values();
+        }
 
         // One section per type that actually has matching products, in a
         // fixed order — grouping alone would order sections by whichever
-        // type happened to appear first in the query results.
+        // type happened to appear first in the query results. Sort order
+        // computed above carries into each section since we group the
+        // already-sorted collection.
         $sections = collect(Product::TYPES)
             ->map(fn ($t) => [
                 'type' => $t,
                 'label' => Product::TYPE_LABELS[$t],
-                'products' => $products->where('type', $t)->values(),
+                'products' => $cards->where('type', $t)->values(),
             ])
             ->filter(fn ($section) => $section['products']->isNotEmpty())
             ->values();
@@ -60,6 +78,8 @@ class ProductController extends Controller
             'sections' => $sections,
             'filters' => [
                 'type' => $validType,
+                'q' => $search !== '' ? $search : null,
+                'sort' => $sort,
             ],
             'types' => Product::TYPES,
             'typeLabels' => Product::TYPE_LABELS,
@@ -103,12 +123,24 @@ class ProductController extends Controller
     }
 
     /** Shape one product for the grid. */
-    private function card(Product $product): array
+    private function card(Product $product, int $unitsSold = 0): array
     {
         $prices = $product->variants
             ->map(fn ($variant) => $variant->currentPriceCentavos())
             ->filter()
             ->values();
+
+        $totalStock = (int) $product->variants->sum('stock');
+        $variantCount = $product->variants->count();
+
+        // The variant Quick Add targets: prefer whichever option actually has
+        // stock, not just the first row, so a hover-add can't try to buy a
+        // sold-out size while a sibling size sits available. Null (and the
+        // button disabled) if nothing in this product has any stock at all.
+        $quickAddVariant = $product->variants
+            ->where('stock', '>', 0)
+            ->sortByDesc('stock')
+            ->first();
 
         return [
             'id' => $product->id,
@@ -122,8 +154,41 @@ class ProductController extends Controller
             // price. Both ends are sent so the page can decide how to say it.
             'price_from_centavos' => $prices->min() ?? $product->base_price_centavos,
             'price_to_centavos' => $prices->max() ?? $product->base_price_centavos,
-            'total_stock' => (int) $product->variants->sum('stock'),
-            'variant_count' => $product->variants->count(),
+            'total_stock' => $totalStock,
+            'variant_count' => $variantCount,
+            'units_sold' => $unitsSold,
+            // Derived, not editorial — no "is_featured" flag exists to fake.
+            // NEW: listed in the last 14 days. LIMITED: on average under 6
+            // units left per option, the same kind of threshold StockBadge
+            // already uses for a single variant, applied at the product level.
+            'is_new' => $product->created_at?->gt(now()->subDays(14)) ?? false,
+            'is_limited' => $totalStock > 0 && $variantCount > 0 && ($totalStock / $variantCount) < 6,
+            'is_sold_out' => $totalStock <= 0,
+            'quick_add' => $quickAddVariant ? [
+                'variant_id' => $quickAddVariant->id,
+                'label' => trim(($quickAddVariant->size ?? '').' '.($quickAddVariant->color ?? '')),
+            ] : null,
         ];
+    }
+
+    /**
+     * Units sold per product, PAID orders only — one query for the whole
+     * catalogue rather than one per card. Joins order_items -> product_variants
+     * to roll variant-level sales up to the product they belong to.
+     *
+     * @return \Illuminate\Support\Collection<int, int> product_id => units
+     */
+    private function unitsSoldByProduct(): \Illuminate\Support\Collection
+    {
+        return DB::table('order_items')
+            ->join('product_variants', function ($join) {
+                $join->on('product_variants.id', '=', 'order_items.purchasable_id')
+                    ->where('order_items.purchasable_type', ProductVariant::class);
+            })
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->whereNotNull('orders.paid_at')
+            ->selectRaw('product_variants.product_id as product_id, SUM(order_items.quantity) as units')
+            ->groupBy('product_variants.product_id')
+            ->pluck('units', 'product_id');
     }
 }

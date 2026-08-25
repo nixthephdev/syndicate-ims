@@ -1,12 +1,9 @@
 import { useRef } from 'react';
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
+import { Field, SubmitButton } from '@/Components/Storefront/FormControls';
 import { useForm } from '@inertiajs/react';
 import { Transition } from '@headlessui/react';
 
-export default function UpdatePasswordForm({ className }) {
+export default function UpdatePasswordForm() {
     const passwordInput = useRef();
     const currentPasswordInput = useRef();
 
@@ -15,6 +12,8 @@ export default function UpdatePasswordForm({ className }) {
         password: '',
         password_confirmation: '',
     });
+
+    const onChange = (e) => setData(e.target.name, e.target.value);
 
     const updatePassword = (e) => {
         e.preventDefault();
@@ -25,77 +24,68 @@ export default function UpdatePasswordForm({ className }) {
             onError: () => {
                 if (errors.password) {
                     reset('password', 'password_confirmation');
-                    passwordInput.current.focus();
+                    passwordInput.current?.focus();
                 }
 
                 if (errors.current_password) {
                     reset('current_password');
-                    currentPasswordInput.current.focus();
+                    currentPasswordInput.current?.focus();
                 }
             },
         });
     };
 
     return (
-        <section className={className}>
+        <section>
             <header>
-                <h2 className="text-lg font-medium text-gray-900">Update Password</h2>
-
-                <p className="mt-1 text-sm text-gray-600">
-                    Ensure your account is using a long, random password to stay secure.
+                <h2 className="font-display text-lg uppercase tracking-wide text-white">
+                    Update password
+                </h2>
+                <p className="mt-1 text-sm text-white/40">
+                    Use a long, random password to keep your account secure.
                 </p>
             </header>
 
             <form onSubmit={updatePassword} className="mt-6 space-y-6">
-                <div>
-                    <InputLabel htmlFor="current_password" value="Current Password" />
+                <Field
+                    id="current_password"
+                    name="current_password"
+                    type="password"
+                    label="Current password"
+                    ref={currentPasswordInput}
+                    value={data.current_password}
+                    autoComplete="current-password"
+                    error={errors.current_password}
+                    onChange={onChange}
+                />
 
-                    <TextInput
-                        id="current_password"
-                        ref={currentPasswordInput}
-                        value={data.current_password}
-                        onChange={(e) => setData('current_password', e.target.value)}
-                        type="password"
-                        className="mt-1 block w-full"
-                        autoComplete="current-password"
-                    />
+                <Field
+                    id="password"
+                    name="password"
+                    type="password"
+                    label="New password"
+                    ref={passwordInput}
+                    value={data.password}
+                    autoComplete="new-password"
+                    error={errors.password}
+                    onChange={onChange}
+                />
 
-                    <InputError message={errors.current_password} className="mt-2" />
-                </div>
-
-                <div>
-                    <InputLabel htmlFor="password" value="New Password" />
-
-                    <TextInput
-                        id="password"
-                        ref={passwordInput}
-                        value={data.password}
-                        onChange={(e) => setData('password', e.target.value)}
-                        type="password"
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                    />
-
-                    <InputError message={errors.password} className="mt-2" />
-                </div>
-
-                <div>
-                    <InputLabel htmlFor="password_confirmation" value="Confirm Password" />
-
-                    <TextInput
-                        id="password_confirmation"
-                        value={data.password_confirmation}
-                        onChange={(e) => setData('password_confirmation', e.target.value)}
-                        type="password"
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                    />
-
-                    <InputError message={errors.password_confirmation} className="mt-2" />
-                </div>
+                <Field
+                    id="password_confirmation"
+                    name="password_confirmation"
+                    type="password"
+                    label="Confirm new password"
+                    value={data.password_confirmation}
+                    autoComplete="new-password"
+                    error={errors.password_confirmation}
+                    onChange={onChange}
+                />
 
                 <div className="flex items-center gap-4">
-                    <PrimaryButton disabled={processing}>Save</PrimaryButton>
+                    <SubmitButton processing={processing} fullWidth={false}>
+                        Save
+                    </SubmitButton>
 
                     <Transition
                         show={recentlySuccessful}
@@ -103,7 +93,7 @@ export default function UpdatePasswordForm({ className }) {
                         leaveTo="opacity-0"
                         className="transition ease-in-out"
                     >
-                        <p className="text-sm text-gray-600">Saved.</p>
+                        <p className="text-sm text-white/40">Saved.</p>
                     </Transition>
                 </div>
             </form>

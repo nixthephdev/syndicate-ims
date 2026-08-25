@@ -1,5 +1,5 @@
-import GuestLayout from '@/Layouts/GuestLayout';
-import PrimaryButton from '@/Components/PrimaryButton';
+import StorefrontAuthLayout from '@/Layouts/StorefrontAuthLayout';
+import { SubmitButton } from '@/Components/Storefront/FormControls';
 import { Head, Link, useForm } from '@inertiajs/react';
 
 export default function VerifyEmail({ status }) {
@@ -7,39 +7,45 @@ export default function VerifyEmail({ status }) {
 
     const submit = (e) => {
         e.preventDefault();
-
         post(route('verification.send'));
     };
 
     return (
-        <GuestLayout>
-            <Head title="Email Verification" />
-
-            <div className="mb-4 text-sm text-gray-600">
-                Thanks for signing up! Before getting started, could you verify your email address by clicking on the
-                link we just emailed to you? If you didn't receive the email, we will gladly send you another.
-            </div>
+        <StorefrontAuthLayout
+            eyebrow="One more step"
+            title={
+                <>
+                    Check your
+                    <br />
+                    inbox.
+                </>
+            }
+            intro="Thanks for signing up. Verify your email address by clicking the link we just sent you."
+            footer={
+                <Link
+                    href={route('logout')}
+                    method="post"
+                    as="button"
+                    className="font-display uppercase tracking-[0.15em] text-white/40 hover:text-white"
+                >
+                    Log out
+                </Link>
+            }
+        >
+            <Head title="Verify email" />
 
             {status === 'verification-link-sent' && (
-                <div className="mb-4 font-medium text-sm text-green-600">
-                    A new verification link has been sent to the email address you provided during registration.
+                <div className="mb-6 border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300">
+                    A new verification link has been sent to the email address
+                    you provided during registration.
                 </div>
             )}
 
             <form onSubmit={submit}>
-                <div className="mt-4 flex items-center justify-between">
-                    <PrimaryButton disabled={processing}>Resend Verification Email</PrimaryButton>
-
-                    <Link
-                        href={route('logout')}
-                        method="post"
-                        as="button"
-                        className="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                        Log Out
-                    </Link>
-                </div>
+                <SubmitButton processing={processing}>
+                    {processing ? 'Sending' : 'Resend verification email'}
+                </SubmitButton>
             </form>
-        </GuestLayout>
+        </StorefrontAuthLayout>
     );
 }

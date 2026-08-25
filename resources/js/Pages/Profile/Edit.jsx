@@ -1,36 +1,43 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import StorefrontLayout from '@/Layouts/StorefrontLayout';
+import { Head, Link } from '@inertiajs/react';
 import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
-import { Head } from '@inertiajs/react';
 
-export default function Edit({ auth, mustVerifyEmail, status }) {
+export default function Edit({ mustVerifyEmail, status }) {
     return (
-        <AuthenticatedLayout
-            auth={auth}
-            header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Profile</h2>}
-        >
-            <Head title="Profile" />
+        <StorefrontLayout>
+            <Head title="Account settings" />
 
-            <div className="py-12">
-                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
-                    <div className="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
+            <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+                <Link
+                    href={route('dashboard')}
+                    className="font-display text-xs uppercase tracking-[0.25em] text-white/30 transition-colors hover:text-volt-500"
+                >
+                    ← Your account
+                </Link>
+
+                <h1 className="mt-6 font-display text-[clamp(2rem,7vw,4rem)] uppercase leading-[0.9] tracking-tighter text-white">
+                    Settings
+                </h1>
+
+                <div className="mt-12 space-y-10">
+                    <section className="border-2 border-white/10 p-6 sm:p-8">
                         <UpdateProfileInformationForm
                             mustVerifyEmail={mustVerifyEmail}
                             status={status}
-                            className="max-w-xl"
                         />
-                    </div>
+                    </section>
 
-                    <div className="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                        <UpdatePasswordForm className="max-w-xl" />
-                    </div>
+                    <section className="border-2 border-white/10 p-6 sm:p-8">
+                        <UpdatePasswordForm />
+                    </section>
 
-                    <div className="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                        <DeleteUserForm className="max-w-xl" />
-                    </div>
+                    <section className="border-2 border-red-500/20 p-6 sm:p-8">
+                        <DeleteUserForm />
+                    </section>
                 </div>
             </div>
-        </AuthenticatedLayout>
+        </StorefrontLayout>
     );
 }

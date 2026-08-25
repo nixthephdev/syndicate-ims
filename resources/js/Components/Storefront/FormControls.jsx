@@ -65,15 +65,21 @@ export const Field = forwardRef(function Field(
     );
 });
 
-/** Full-width volt submit button. */
-export function SubmitButton({ processing, children, className = '', ...props }) {
+/**
+ * Volt submit button. Full-width by default (every auth/checkout form wants
+ * that); pass `fullWidth={false}` for an inline settings-form "Save" — a
+ * className override would not reliably win against `w-full` since Tailwind's
+ * precedence follows stylesheet order, not class-attribute order.
+ */
+export function SubmitButton({ processing, fullWidth = true, children, className = '', ...props }) {
     return (
         <button
             {...props}
             type="submit"
             disabled={processing}
             className={
-                'group inline-flex w-full items-center justify-center gap-3 bg-volt-500 px-8 py-4 ' +
+                'group inline-flex items-center justify-center gap-3 bg-volt-500 px-8 py-4 ' +
+                (fullWidth ? 'w-full ' : '') +
                 'font-display text-base uppercase tracking-[0.2em] text-ink-900 transition-all ' +
                 'hover:-translate-y-0.5 hover:bg-white focus:outline-none focus:ring-2 ' +
                 'focus:ring-volt-500 focus:ring-offset-2 focus:ring-offset-ink-950 ' +
@@ -83,6 +89,45 @@ export function SubmitButton({ processing, children, className = '', ...props })
         >
             {children}
             <span className="transition-transform group-hover:translate-x-1">→</span>
+        </button>
+    );
+}
+
+/** Outlined, for a lower-emphasis action next to a SubmitButton — e.g. "Cancel". */
+export function GhostButton({ children, className = '', ...props }) {
+    return (
+        <button
+            {...props}
+            className={
+                'inline-flex items-center justify-center gap-2 border-2 border-white/15 px-8 py-4 ' +
+                'font-display text-base uppercase tracking-[0.2em] text-white/70 transition-colors ' +
+                'hover:border-volt-500 hover:text-volt-500 focus:outline-none focus:ring-2 ' +
+                'focus:ring-volt-500 focus:ring-offset-2 focus:ring-offset-ink-950 ' +
+                'disabled:pointer-events-none disabled:opacity-40 ' +
+                className
+            }
+        >
+            {children}
+        </button>
+    );
+}
+
+/** Outlined red — the one place the storefront borrows a semantic colour
+ * outside volt, matching DangerButton's role in the admin. */
+export function DangerButton({ children, className = '', ...props }) {
+    return (
+        <button
+            {...props}
+            className={
+                'inline-flex items-center justify-center gap-2 border-2 border-red-500/60 px-8 py-4 ' +
+                'font-display text-base uppercase tracking-[0.2em] text-red-400 transition-colors ' +
+                'hover:border-red-400 hover:bg-red-500/10 hover:text-red-300 focus:outline-none ' +
+                'focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-ink-950 ' +
+                'disabled:pointer-events-none disabled:opacity-40 ' +
+                className
+            }
+        >
+            {children}
         </button>
     );
 }

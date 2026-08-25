@@ -60,7 +60,8 @@ export default function StorefrontLayout({ children }) {
                             </p>
                             <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/50">
                                 Apparel and skate hardware out of Legazpi City,
-                                Albay. Built by locals, ridden by locals.
+                                Albay. Two branches, built by locals, ridden by
+                                locals.
                             </p>
                         </div>
 
@@ -80,10 +81,26 @@ export default function StorefrontLayout({ children }) {
                             <p className="font-display text-xs uppercase tracking-[0.25em] text-volt-500">
                                 Visit
                             </p>
-                            <ul className="mt-4 space-y-2 text-sm text-white/60">
-                                <li>Legazpi City, Albay</li>
-                                <li>Mon–Sat · 10:00–19:00</li>
-                                <li>GCash accepted</li>
+                            {/* Both branches, as given by the shop. Real
+                                addresses — do not edit to fit the layout. */}
+                            <ul className="mt-4 space-y-4 text-sm text-white/60">
+                                <li>
+                                    <span className="block text-xs uppercase tracking-[0.15em] text-white/35">
+                                        Peñaranda
+                                    </span>
+                                    Brgy. 33 PNR, Peñaranda St.,
+                                    <br />
+                                    Legazpi City
+                                </li>
+                                <li>
+                                    <span className="block text-xs uppercase tracking-[0.15em] text-white/35">
+                                        Rawis
+                                    </span>
+                                    Pagasa, Rawis,
+                                    <br />
+                                    Legazpi City
+                                </li>
+                                <li className="pt-1">GCash accepted</li>
                                 {isStaff && (
                                     <li className="pt-2">
                                         <Link

@@ -18,7 +18,18 @@ This is the only section that goes stale. Everything below it is stable intent.
 - **3D:** raw client `.glb` files on disk but git-ignored and uncompressed. Nothing integrated.
 
 ## What this project is
-Web-Based Retail Management System with Interactive 3D Product Visualization and Inventory Monitoring, for **Syndicate Supply Co.** — an apparel + skateboarding shop in Legazpi, Philippines. College capstone (STI College Legazpi, BSIT). I'm the freelance full-stack dev building it for the student group; they are the client.
+Web-Based Retail Management System with Interactive 3D Product Visualization and Inventory Monitoring, for **Syndicate Supply Co.** — an apparel + skateboarding shop in Legazpi, Philippines.
+
+**Two branches, confirmed by the client (2026-08-25), both in Legazpi City:**
+- Brgy. 33 PNR, Peñaranda St., Legazpi City
+- Pagasa, Rawis, Legazpi City
+
+These are in the storefront footer. Note their Facebook page is titled
+"Syndicate Supply Co. | **Daraga**", which contradicts both addresses — the
+page name is likely stale. Legazpi is what the shop says, so Legazpi is what
+the site says. **Do not invent opening hours, phone numbers or addresses** —
+an earlier draft had made-up trading hours in the footer before they were
+caught. College capstone (STI College Legazpi, BSIT). I'm the freelance full-stack dev building it for the student group; they are the client.
 
 ## Environment — exact versions, not "8.x"
 | | |

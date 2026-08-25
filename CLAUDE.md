@@ -29,11 +29,16 @@ Web-Based Retail Management System with Interactive 3D Product Visualization and
 - Brgy. 33 PNR, Peñaranda St., Legazpi City
 - Pagasa, Rawis, Legazpi City
 
-All three are in the storefront footer, Tagas marked "Main branch." The same
-Google listing also shows a phone number (0948 211 3209) and partial hours
-("Closes 8 PM", opening time not visible in what was shared) — **neither is
-on the site.** Don't add the phone without asking, and don't add hours from
-a partial screenshot — get the full range first. Same standing rule: never
+All three are in the storefront footer, Tagas marked "Main branch," with a
+`tel:` link for **0948 211 3209** (from the same Google listing as the
+address, sitting under Tagas only — not confirmed to also reach Peñaranda or
+Rawis, so it is not presented as a shop-wide number).
+
+**Hours are still NOT on the site.** The Google listing showed only "Closes
+8 PM" with the opening time hidden behind a collapsed dropdown in the
+screenshot — publishing a schedule from a half-known closing time is the
+same mistake as the invented hours already removed once. Get the full
+opening–closing range before adding anything. Same standing rule: never
 invent an address, phone number or hours that weren't actually given.
 
 College capstone (STI College Legazpi, BSIT). I'm the freelance full-stack dev building it for the student group; they are the client.

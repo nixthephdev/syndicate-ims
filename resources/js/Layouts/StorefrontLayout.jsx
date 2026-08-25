@@ -90,6 +90,17 @@ export default function StorefrontLayout({ children }) {
                                     Purok 1, Tagas, Daraga,
                                     <br />
                                     4501 Albay
+                                    {/* From the same Google listing as the
+                                        address — not confirmed to also reach
+                                        Peñaranda or Rawis, so it sits under
+                                        Tagas only rather than as a shop-wide
+                                        number. */}
+                                    <a
+                                        href="tel:+639482113209"
+                                        className="mt-1 block text-white/40 transition-colors hover:text-volt-500"
+                                    >
+                                        0948 211 3209
+                                    </a>
                                 </li>
                                 <li>
                                     <span className="block text-xs uppercase tracking-[0.15em] text-white/35">

@@ -24,16 +24,15 @@ This is the only section that goes stale. Everything below it is stable intent.
 ## What this project is
 Web-Based Retail Management System with Interactive 3D Product Visualization and Inventory Monitoring, for **Syndicate Supply Co.** — an apparel + skateboarding shop in Legazpi, Philippines.
 
-**Two branches, confirmed by the client (2026-08-25), both in Legazpi City:**
+**Three branches, confirmed by the client (2026-08-25):**
+- **Tagas, Daraga, Albay — the MAIN branch.** (This is why their Facebook page is titled "Syndicate Supply Co. | Daraga" — an earlier note in this file called that title "likely stale," assuming it contradicted two Legazpi-only addresses. It was correct all along; the assumption was wrong for not accounting for a third, unlisted branch.)
 - Brgy. 33 PNR, Peñaranda St., Legazpi City
 - Pagasa, Rawis, Legazpi City
 
-These are in the storefront footer. Note their Facebook page is titled
-"Syndicate Supply Co. | **Daraga**", which contradicts both addresses — the
-page name is likely stale. Legazpi is what the shop says, so Legazpi is what
-the site says. **Do not invent opening hours, phone numbers or addresses** —
-an earlier draft had made-up trading hours in the footer before they were
-caught.
+All three are in the storefront footer, Tagas marked "Main branch." No street
+address was given for Tagas beyond "Tagas, Daraga, Albay" — **do not invent
+one.** Same rule for opening hours and phone numbers: an earlier draft had
+made-up trading hours in the footer before they were caught.
 
 College capstone (STI College Legazpi, BSIT). I'm the freelance full-stack dev building it for the student group; they are the client.
 

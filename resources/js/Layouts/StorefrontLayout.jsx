@@ -59,9 +59,8 @@ export default function StorefrontLayout({ children }) {
                                 <span className="text-volt-500">.</span>
                             </p>
                             <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/50">
-                                Apparel and skate hardware out of Legazpi City,
-                                Albay. Two branches, built by locals, ridden by
-                                locals.
+                                Apparel and skate hardware out of Albay. Three
+                                branches, built by locals, ridden by locals.
                             </p>
                         </div>
 
@@ -81,9 +80,15 @@ export default function StorefrontLayout({ children }) {
                             <p className="font-display text-xs uppercase tracking-[0.25em] text-volt-500">
                                 Visit
                             </p>
-                            {/* Both branches, as given by the shop. Real
+                            {/* Three branches, as given by the shop. Real
                                 addresses — do not edit to fit the layout. */}
                             <ul className="mt-4 space-y-4 text-sm text-white/60">
+                                <li>
+                                    <span className="block text-xs uppercase tracking-[0.15em] text-volt-500">
+                                        Tagas · Main branch
+                                    </span>
+                                    Tagas, Daraga, Albay
+                                </li>
                                 <li>
                                     <span className="block text-xs uppercase tracking-[0.15em] text-white/35">
                                         Peñaranda
@@ -100,7 +105,6 @@ export default function StorefrontLayout({ children }) {
                                     <br />
                                     Legazpi City
                                 </li>
-                                <li className="pt-1">GCash accepted</li>
                                 {isStaff && (
                                     <li className="pt-2">
                                         <Link

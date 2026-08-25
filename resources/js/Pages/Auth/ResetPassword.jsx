@@ -1,9 +1,6 @@
 import { useEffect } from 'react';
-import GuestLayout from '@/Layouts/GuestLayout';
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
+import StorefrontAuthLayout from '@/Layouts/StorefrontAuthLayout';
+import { Field, SubmitButton } from '@/Components/Storefront/FormControls';
 import { Head, useForm } from '@inertiajs/react';
 
 export default function ResetPassword({ token, email }) {
@@ -31,64 +28,69 @@ export default function ResetPassword({ token, email }) {
     };
 
     return (
-        <GuestLayout>
-            <Head title="Reset Password" />
+        <StorefrontAuthLayout
+            eyebrow="Password reset"
+            title={
+                <>
+                    Set a new
+                    <br />
+                    password.
+                </>
+            }
+            intro="Pick something you'll actually remember. At least 8 characters."
+        >
+            <Head title="Reset password" />
 
-            <form onSubmit={submit}>
-                <div>
-                    <InputLabel htmlFor="email" value="Email" />
+            <form onSubmit={submit} className="space-y-6">
+                {/* Email arrives prefilled from the reset link and is part of
+                    what the token is validated against — editable, because
+                    Breeze validates it server-side and a mismatch must fail
+                    loudly rather than be silently corrected. */}
+                <Field
+                    id="email"
+                    name="email"
+                    type="email"
+                    label="Email"
+                    value={data.email}
+                    autoComplete="username"
+                    required
+                    error={errors.email}
+                    onChange={onHandleChange}
+                />
 
-                    <TextInput
-                        id="email"
-                        type="email"
-                        name="email"
-                        value={data.email}
-                        className="mt-1 block w-full"
-                        autoComplete="username"
-                        onChange={onHandleChange}
-                    />
+                <Field
+                    id="password"
+                    name="password"
+                    type="password"
+                    label="New password"
+                    placeholder="At least 8 characters"
+                    value={data.password}
+                    autoComplete="new-password"
+                    autoFocus
+                    required
+                    error={errors.password}
+                    onChange={onHandleChange}
+                />
 
-                    <InputError message={errors.email} className="mt-2" />
-                </div>
+                {/* Breeze shipped this field with no id, so its label was bound
+                    to nothing. Field always pairs htmlFor with id. */}
+                <Field
+                    id="password_confirmation"
+                    name="password_confirmation"
+                    type="password"
+                    label="Confirm new password"
+                    placeholder="••••••••"
+                    value={data.password_confirmation}
+                    autoComplete="new-password"
+                    required
+                    error={errors.password_confirmation}
+                    onChange={onHandleChange}
+                />
 
-                <div className="mt-4">
-                    <InputLabel htmlFor="password" value="Password" />
-
-                    <TextInput
-                        id="password"
-                        type="password"
-                        name="password"
-                        value={data.password}
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                        isFocused={true}
-                        onChange={onHandleChange}
-                    />
-
-                    <InputError message={errors.password} className="mt-2" />
-                </div>
-
-                <div className="mt-4">
-                    <InputLabel htmlFor="password_confirmation" value="Confirm Password" />
-
-                    <TextInput
-                        type="password"
-                        name="password_confirmation"
-                        value={data.password_confirmation}
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                        onChange={onHandleChange}
-                    />
-
-                    <InputError message={errors.password_confirmation} className="mt-2" />
-                </div>
-
-                <div className="flex items-center justify-end mt-4">
-                    <PrimaryButton className="ml-4" disabled={processing}>
-                        Reset Password
-                    </PrimaryButton>
-                </div>
+                <SubmitButton processing={processing}>
+                    {processing ? 'Resetting' : 'Reset password'}
+                </SubmitButton>
             </form>
-        </GuestLayout>
+        </StorefrontAuthLayout>
     );
 }

@@ -1,9 +1,6 @@
 import { useEffect } from 'react';
-import GuestLayout from '@/Layouts/GuestLayout';
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
+import StorefrontAuthLayout from '@/Layouts/StorefrontAuthLayout';
+import { Field, SubmitButton } from '@/Components/Storefront/FormControls';
 import { Head, Link, useForm } from '@inertiajs/react';
 
 export default function Register() {
@@ -31,91 +28,87 @@ export default function Register() {
     };
 
     return (
-        <GuestLayout>
-            <Head title="Register" />
-
-            <form onSubmit={submit}>
-                <div>
-                    <InputLabel htmlFor="name" value="Name" />
-
-                    <TextInput
-                        id="name"
-                        name="name"
-                        value={data.name}
-                        className="mt-1 block w-full"
-                        autoComplete="name"
-                        isFocused={true}
-                        onChange={handleOnChange}
-                        required
-                    />
-
-                    <InputError message={errors.name} className="mt-2" />
-                </div>
-
-                <div className="mt-4">
-                    <InputLabel htmlFor="email" value="Email" />
-
-                    <TextInput
-                        id="email"
-                        type="email"
-                        name="email"
-                        value={data.email}
-                        className="mt-1 block w-full"
-                        autoComplete="username"
-                        onChange={handleOnChange}
-                        required
-                    />
-
-                    <InputError message={errors.email} className="mt-2" />
-                </div>
-
-                <div className="mt-4">
-                    <InputLabel htmlFor="password" value="Password" />
-
-                    <TextInput
-                        id="password"
-                        type="password"
-                        name="password"
-                        value={data.password}
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                        onChange={handleOnChange}
-                        required
-                    />
-
-                    <InputError message={errors.password} className="mt-2" />
-                </div>
-
-                <div className="mt-4">
-                    <InputLabel htmlFor="password_confirmation" value="Confirm Password" />
-
-                    <TextInput
-                        id="password_confirmation"
-                        type="password"
-                        name="password_confirmation"
-                        value={data.password_confirmation}
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                        onChange={handleOnChange}
-                        required
-                    />
-
-                    <InputError message={errors.password_confirmation} className="mt-2" />
-                </div>
-
-                <div className="flex items-center justify-end mt-4">
+        <StorefrontAuthLayout
+            eyebrow="Join the crew"
+            title={
+                <>
+                    Make it
+                    <br />
+                    yours.
+                </>
+            }
+            intro="One account for your cart, your custom builds and every order you place."
+            footer={
+                <>
+                    Already registered?{' '}
                     <Link
                         href={route('login')}
-                        className="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        className="font-display uppercase tracking-[0.15em] text-volt-500 hover:text-white"
                     >
-                        Already registered?
+                        Log in
                     </Link>
+                </>
+            }
+        >
+            <Head title="Sign up" />
 
-                    <PrimaryButton className="ml-4" disabled={processing}>
-                        Register
-                    </PrimaryButton>
-                </div>
+            <form onSubmit={submit} className="space-y-6">
+                <Field
+                    id="name"
+                    name="name"
+                    label="Name"
+                    placeholder="Juan Dela Cruz"
+                    value={data.name}
+                    autoComplete="name"
+                    autoFocus
+                    required
+                    error={errors.name}
+                    onChange={handleOnChange}
+                />
+
+                <Field
+                    id="email"
+                    name="email"
+                    type="email"
+                    label="Email"
+                    placeholder="you@example.com"
+                    value={data.email}
+                    autoComplete="username"
+                    required
+                    error={errors.email}
+                    onChange={handleOnChange}
+                />
+
+                <Field
+                    id="password"
+                    name="password"
+                    type="password"
+                    label="Password"
+                    placeholder="At least 8 characters"
+                    value={data.password}
+                    autoComplete="new-password"
+                    required
+                    error={errors.password}
+                    onChange={handleOnChange}
+                />
+
+                <Field
+                    id="password_confirmation"
+                    name="password_confirmation"
+                    type="password"
+                    label="Confirm password"
+                    placeholder="••••••••"
+                    value={data.password_confirmation}
+                    autoComplete="new-password"
+                    required
+                    error={errors.password_confirmation}
+                    onChange={handleOnChange}
+                />
+
+                <SubmitButton processing={processing}>
+                    {processing ? 'Creating account' : 'Create account'}
+                </SubmitButton>
             </form>
-        </GuestLayout>
+        </StorefrontAuthLayout>
     );
 }

@@ -1,10 +1,6 @@
 import { useEffect } from 'react';
-import Checkbox from '@/Components/Checkbox';
-import GuestLayout from '@/Layouts/GuestLayout';
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
+import StorefrontAuthLayout from '@/Layouts/StorefrontAuthLayout';
+import { Field, SubmitButton, CheckboxRow } from '@/Components/Storefront/FormControls';
 import { Head, Link, useForm } from '@inertiajs/react';
 
 export default function Login({ status, canResetPassword }) {
@@ -31,67 +27,86 @@ export default function Login({ status, canResetPassword }) {
     };
 
     return (
-        <GuestLayout>
+        <StorefrontAuthLayout
+            eyebrow="Members"
+            title={
+                <>
+                    Welcome
+                    <br />
+                    back.
+                </>
+            }
+            intro="Log in to pick up your cart, your builds and your order history."
+            footer={
+                <>
+                    No account yet?{' '}
+                    <Link
+                        href={route('register')}
+                        className="font-display uppercase tracking-[0.15em] text-volt-500 hover:text-white"
+                    >
+                        Sign up
+                    </Link>
+                </>
+            }
+        >
             <Head title="Log in" />
 
-            {status && <div className="mb-4 font-medium text-sm text-green-600">{status}</div>}
+            {/* Post-reset / post-verification notices land here. */}
+            {status && (
+                <div className="mb-6 border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300">
+                    {status}
+                </div>
+            )}
 
-            <form onSubmit={submit}>
-                <div>
-                    <InputLabel htmlFor="email" value="Email" />
+            <form onSubmit={submit} className="space-y-6">
+                <Field
+                    id="email"
+                    name="email"
+                    type="email"
+                    label="Email"
+                    placeholder="you@example.com"
+                    value={data.email}
+                    autoComplete="username"
+                    autoFocus
+                    error={errors.email}
+                    onChange={handleOnChange}
+                />
 
-                    <TextInput
-                        id="email"
-                        type="email"
-                        name="email"
-                        value={data.email}
-                        className="mt-1 block w-full"
-                        autoComplete="username"
-                        isFocused={true}
+                <Field
+                    id="password"
+                    name="password"
+                    type="password"
+                    label="Password"
+                    placeholder="••••••••"
+                    value={data.password}
+                    autoComplete="current-password"
+                    error={errors.password}
+                    onChange={handleOnChange}
+                />
+
+                <div className="flex items-center justify-between gap-4">
+                    <CheckboxRow
+                        id="remember"
+                        name="remember"
+                        label="Remember me"
+                        checked={data.remember}
                         onChange={handleOnChange}
                     />
 
-                    <InputError message={errors.email} className="mt-2" />
-                </div>
-
-                <div className="mt-4">
-                    <InputLabel htmlFor="password" value="Password" />
-
-                    <TextInput
-                        id="password"
-                        type="password"
-                        name="password"
-                        value={data.password}
-                        className="mt-1 block w-full"
-                        autoComplete="current-password"
-                        onChange={handleOnChange}
-                    />
-
-                    <InputError message={errors.password} className="mt-2" />
-                </div>
-
-                <div className="block mt-4">
-                    <label className="flex items-center">
-                        <Checkbox name="remember" value={data.remember} onChange={handleOnChange} />
-                        <span className="ml-2 text-sm text-gray-600">Remember me</span>
-                    </label>
-                </div>
-
-                <div className="flex items-center justify-end mt-4">
                     {canResetPassword && (
                         <Link
                             href={route('password.request')}
-                            className="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            className="text-sm text-white/40 underline underline-offset-4 transition-colors hover:text-volt-500"
                         >
-                            Forgot your password?
+                            Forgot password?
                         </Link>
                     )}
-
-                    <PrimaryButton className="ml-4" disabled={processing}>
-                        Log in
-                    </PrimaryButton>
                 </div>
+
+                <SubmitButton processing={processing}>
+                    {processing ? 'Logging in' : 'Log in'}
+                </SubmitButton>
             </form>
-        </GuestLayout>
+        </StorefrontAuthLayout>
     );
 }

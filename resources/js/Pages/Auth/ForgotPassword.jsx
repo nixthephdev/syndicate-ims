@@ -1,8 +1,6 @@
-import GuestLayout from '@/Layouts/GuestLayout';
-import InputError from '@/Components/InputError';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
-import { Head, useForm } from '@inertiajs/react';
+import StorefrontAuthLayout from '@/Layouts/StorefrontAuthLayout';
+import { Field, SubmitButton } from '@/Components/Storefront/FormControls';
+import { Head, Link, useForm } from '@inertiajs/react';
 
 export default function ForgotPassword({ status }) {
     const { data, setData, post, processing, errors } = useForm({
@@ -20,35 +18,61 @@ export default function ForgotPassword({ status }) {
     };
 
     return (
-        <GuestLayout>
-            <Head title="Forgot Password" />
+        <StorefrontAuthLayout
+            eyebrow="Password reset"
+            title={
+                <>
+                    Locked
+                    <br />
+                    out?
+                </>
+            }
+            intro="Give us the email on your account and we'll send a link to set a new password."
+            footer={
+                <>
+                    Remembered it?{' '}
+                    <Link
+                        href={route('login')}
+                        className="font-display uppercase tracking-[0.15em] text-volt-500 hover:text-white"
+                    >
+                        Log in
+                    </Link>
+                </>
+            }
+        >
+            <Head title="Forgot password" />
 
-            <div className="mb-4 text-sm text-gray-600">
-                Forgot your password? No problem. Just let us know your email address and we will email you a password
-                reset link that will allow you to choose a new one.
-            </div>
+            {/* Laravel returns the same confirmation whether or not the email
+                is on file — deliberately, so the form can't be used to probe
+                which addresses have accounts. Wording stays vague to match. */}
+            {status && (
+                <div
+                    role="status"
+                    className="mb-6 border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300"
+                >
+                    {status}
+                </div>
+            )}
 
-            {status && <div className="mb-4 font-medium text-sm text-green-600">{status}</div>}
-
-            <form onSubmit={submit}>
-                <TextInput
+            <form onSubmit={submit} className="space-y-6">
+                <Field
                     id="email"
-                    type="email"
                     name="email"
+                    type="email"
+                    label="Email"
+                    placeholder="you@example.com"
                     value={data.email}
-                    className="mt-1 block w-full"
-                    isFocused={true}
+                    autoComplete="username"
+                    autoFocus
+                    required
+                    error={errors.email}
                     onChange={onHandleChange}
                 />
 
-                <InputError message={errors.email} className="mt-2" />
-
-                <div className="flex items-center justify-end mt-4">
-                    <PrimaryButton className="ml-4" disabled={processing}>
-                        Email Password Reset Link
-                    </PrimaryButton>
-                </div>
+                <SubmitButton processing={processing}>
+                    {processing ? 'Sending' : 'Send reset link'}
+                </SubmitButton>
             </form>
-        </GuestLayout>
+        </StorefrontAuthLayout>
     );
 }

@@ -6,7 +6,8 @@ This is the only section that goes stale. Everything below it is stable intent.
 - **Phases 1 (data layer), 2 (RBAC), and a first slice of 3 (admin product management): DONE.** Product CRUD with inline variant management (stock, price override, low-stock threshold) is live at `/admin`, gated by `role:staff`.
 - **Not yet built in Phase 3:** SkateboardComponent admin CRUD (only seeded via the seeder, no UI), order management, reports.
 - **Breeze + Inertia + React + Tailwind: INSTALLED and verified.** Breeze v1.19.2, Inertia 0.6.3, Ziggy.
-- **Tests: 61 passing** (`php artisan test`), including `assertInertia()` checks on every new admin page — these verify the actual component name and props Laravel returns, the closest thing to a browser check available without one.
+- **Storefront landing page: BUILT.** `/` (route name `home`) now renders `Pages/Storefront/Home.jsx` instead of Breeze's `Welcome` — dark/volt skate-brand look, hero, marquee, masonry lookbook. Photos are picsum placeholders. Nav's Customize + cart entries self-enable via `route().has()` when those routes land.
+- **Tests: 63 passing** (`php artisan test`), including `assertInertia()` checks on every new admin page and on the storefront home — these verify the actual component name and props Laravel returns, the closest thing to a browser check available without one.
 - **DB works.** `syndicate_ims` (dev, seeded) and `syndicate_ims_test` (tests) both exist.
 - **Seeded logins** (password `password`): `admin@syndicate.test`, `staff@syndicate.test`, `customer@syndicate.test`. Logging in as staff/admin shows an "Open Admin →" link on the regular Dashboard.
 - **Admin UI direction is locked** (see Design section below): dark sidebar + light content, one blue accent, light mode only.
@@ -101,11 +102,42 @@ Consequences — these are facts, not opinions:
 ## Design — admin panel
 Two different UI jobs, not one skin:
 - **Admin/staff backend** (built): clean utility dashboard, dark sidebar (`bg-gray-900`) + light content, ONE accent — `brand` in `tailwind.config.js`, aliased to Tailwind's blue. Light mode only. Reads as a competent management tool first.
-- **Customer storefront** (not built): should carry actual "skate shop" brand personality — bold, high contrast. Deliberately NOT designed yet; don't reuse the admin's restrained palette for it without revisiting.
+- **Customer storefront** (landing page built): bold, high contrast, skate-brand voice. Near-black ground (`ink` scale), ONE loud accent — `volt` (acid yellow-green `#ccff00`) — and Anton as the display face (`font-display`). `volt` and `brand` are **separate tokens on purpose**: the admin must stay a restrained tool while the shop stays loud, and changing one must never touch the other. Shell is `Layouts/StorefrontLayout.jsx`; it deliberately imports nothing from the admin. If an admin component shows up in a storefront import, the storefront is drifting back into looking like a dashboard.
+  - **Lookbook photos are REAL now** — the client's own shots off their Facebook page, no more picsum. Originals in `public/files/images/lookbook-src/`, web copies in `public/images/lookbook/`, wired into `Pages/Storefront/Home.jsx`.
+  - **Never hand-edit `src`/`ratio` in the LOOKBOOK array.** Drop new photos in `lookbook-src/` and run `php tools/lookbook.php` — it resizes to 1000px, strips EXIF, backs off quality if a re-encode would grow the file, and prints the array to paste. It strips EXIF because **phone photos carry the shop's GPS coordinates**; publishing those is not something to do by accident.
+  - Keep a mix of tall/square/wide — the varied ratios are what make the masonry stagger. Nine identical ratios render as a plain grid.
+  - Tiles are **full colour, not grayscale-until-hover**. That was the placeholder-era treatment; the shop sells mint/pink/red apparel shot on Albay beaches, and desaturating it hides the product.
+  - `Components/Storefront/LookbookTile.jsx` still falls back to a generated block if an image fails, so a flaky connection at defense won't render broken-image icons.
+  - **Storefront-styled auth: Login, Register, ForgotPassword, ResetPassword** (`Layouts/StorefrontAuthLayout.jsx`, split screen with the shop's doorway photo). They use `Components/Storefront/FormControls.jsx` — **not** Breeze's `TextInput`/`PrimaryButton`/`InputLabel`/`Checkbox`, which are shared with the admin product screens and the profile page and must stay light. Never "unify" the two sets; that is the coupling the separate `volt`/`brand` tokens exist to prevent.
+  - **Loading states, three layers.** (1) Boot splash — logo + volt bar, markup and *inline* CSS in `app.blade.php`, dismissed by `app.jsx` after first paint. Inline because the compiled stylesheet has not arrived yet; a Tailwind-classed splash flashes unstyled. It is gated on the Inertia component name to customer pages only, pinned by `StorefrontTest::test_boot_splash_shows_on_customer_pages_only` — **the admin gets no brand splash**. Carries a 6s JS failsafe and a `<noscript>` hide so it can never trap a visitor. (2) Inertia's top progress bar, volt, `delay: 250` so fast navigations show nothing. (3) `animate-fade-up` on storefront page content, replayed per visit because Inertia remounts.
+  - **The splash is not artificially delayed.** Locally React mounts in ~50ms so you will barely see it; that is correct. To actually watch it, throttle the network in devtools. Do not add a minimum display time — it makes the site slower to look busier.
+  - **Still on Breeze's light `GuestLayout`:** ConfirmPassword, VerifyEmail. Both are reachable by logged-in users only, so they don't break the signup/reset journey — but they will look wrong if a customer hits them.
 
 **Why blue, not red or green:** `DangerButton` already owns red for destructive actions (`resources/js/Components/DangerButton.jsx`) — a red brand accent would put "Save" and "Delete" in the same hue next to a delete button. Stock-status badges (`Components/Admin/StockBadge.jsx`) already own red/amber/green for out-of-stock/low/healthy. Blue was free.
 
-No real brand assets exist anywhere in the project (no logo, no client-supplied palette) — this was a from-scratch call, not a derived one. If the group supplies real brand colors later, swap them in `tailwind.config.js`'s `colors.brand` — every admin page reads from that token, nothing is hardcoded per-page.
+The blue was a from-scratch call — no client-supplied palette existed when it was picked. If the group supplies real brand colors later, swap them in `tailwind.config.js`'s `colors.brand` — every admin page reads from that token, nothing is hardcoded per-page.
+
+### Logo — the one real brand asset
+Client supplied a white line-art brain + ™ mark. **Source of truth: `public/files/images/logo.jpg`** (960×960 JPEG, mark sits off-center in a large black field). Derived web assets in `public/images/` were generated from it with ImageMagick — regenerate from the source, never from a derivative:
+
+| File | What | Use on |
+|---|---|---|
+| `logo-mark.png` | brain only, white, transparent | dark surfaces only |
+| `logo-mark-dark.png` | brain only, ink, transparent | light surfaces (admin, print) |
+| `logo-full.png` | brain + ™, white, transparent | dark surfaces |
+| `favicon.ico` (16/32/48) + `images/favicon-*.png` + `apple-touch-icon.png` | ink mark on volt, **background baked in** | browser chrome |
+
+Non-obvious constraints, all learned the hard way:
+- **The source is JPEG, so it has no alpha.** Transparency was reconstructed by using the image's own luminance as an alpha mask (`-level 22%,72%` to kill JPEG noise in the black field without eating anti-aliased stroke edges). Dropping the `.jpg` straight into a page puts a black square on the design.
+- **Exact geometry in the source — do not re-measure by eye, and never by cropping a percentage of the canvas.** Verified with `-connected-components 8`:
+  - brain outline = `435x334+240+313` (spans x 240–675)
+  - ™ glyphs = two blobs at x 633–720, y 318–364 — the **T overlaps the brain's x-range**, so cropping the brain's bbox drags in a stray "T". Blacken `rectangle 626,310 726,372` first; that rect provably contains only ™ (2176 white px = T's 669 + M's 1507, zero brain pixels).
+  - full mark incl. ™ = `480x334+240+313`
+  - A first attempt measured "brain only" by cropping the left 63% of the canvas and trimming. That silently clipped 70px off the right lobe — the crop window truncated the very bbox being measured, and the flat-edged result shipped before it was spotted. Measure with connected-components, then eyeball the render on a dark background.
+- **`logo-mark.png` is white — it is INVISIBLE on white.** That is why the dark variant exists. Check the surface before picking one.
+- **Favicon backgrounds are baked, not transparent, on purpose:** a transparent white mark vanishes on light browser tab bars.
+- **Favicon is ink-on-volt, not the brand's usual white-on-ink** — at 32px it tested as by far the most legible of the three options, and it stays readable on both light and dark browser chrome.
+- **At 16px the line-art degrades to a blob** — inherent to strokes this fine; nothing to fix short of a simplified small-size mark. 32px (what modern browsers mostly use) is clean.
 
 ## Data layer — the rules that matter
 - **`InventoryService` is the only place ORDER-DRIVEN stock decrements happen.** Nothing in the checkout/payment path may touch a `stock` column except through it — it marks paid and decrements in one transaction, locks each row, re-checks inside the lock, aggregates duplicate lines, and no-ops on a repeat webhook. Admin CRUD (restocking, correcting a count) is a separate, legitimate direct write — see `Admin\ProductVariantController`. The rule is about the *concurrency-sensitive* path, not every write to the column.

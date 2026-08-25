@@ -4,7 +4,6 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductVariantController as AdminProductVariantController;
 use App\Http\Controllers\ProfileController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -19,14 +18,17 @@ use Inertia\Inertia;
 |
 */
 
+/*
+ * Storefront. Replaces Breeze's stock Welcome page — the customer-facing
+ * landing page is a brand surface, not a framework splash.
+ *
+ * Named 'home' because StoreHeader's nav resolves its links through
+ * route().has() / route(): the Customize and cart entries stay dimmed until
+ * those routes exist (Phases 5 and 4), then light up on their own.
+ */
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+    return Inertia::render('Storefront/Home');
+})->name('home');
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');

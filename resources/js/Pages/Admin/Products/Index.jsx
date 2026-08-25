@@ -21,6 +21,7 @@ export default function Index({ products }) {
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Base price</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Variants</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total stock</th>
@@ -31,7 +32,7 @@ export default function Index({ products }) {
                     <tbody className="divide-y divide-gray-200">
                         {products.length === 0 && (
                             <tr>
-                                <td colSpan={7} className="px-6 py-10 text-center text-sm text-gray-500">
+                                <td colSpan={8} className="px-6 py-10 text-center text-sm text-gray-500">
                                     No products yet.{' '}
                                     <Link href={route('admin.products.create')} className="text-brand-600 hover:text-brand-700">
                                         Create the first one
@@ -45,6 +46,7 @@ export default function Index({ products }) {
                             <tr key={product.id}>
                                 <td className="px-6 py-4 text-sm font-medium text-gray-900">{product.name}</td>
                                 <td className="px-6 py-4 text-sm text-gray-500 capitalize">{product.category}</td>
+                                <td className="px-6 py-4 text-sm text-gray-500 capitalize">{product.type ?? '—'}</td>
                                 <td className="px-6 py-4 text-sm text-gray-500">{product.base_price_formatted}</td>
                                 <td className="px-6 py-4 text-sm text-gray-500">{product.variants_count}</td>
                                 <td className="px-6 py-4 text-sm text-gray-500">{product.total_stock}</td>

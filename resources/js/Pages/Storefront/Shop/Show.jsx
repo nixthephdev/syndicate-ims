@@ -88,9 +88,9 @@ export default function ProductShow({ product }) {
                                 className="h-full w-full object-cover"
                             />
                         ) : (
-                            <div className="flex h-full items-center justify-center">
+                            <div className="flex h-full items-center justify-center bg-gradient-to-br from-ink-700 via-ink-800 to-ink-950">
                                 <span className="font-display text-3xl uppercase tracking-widest text-white/10">
-                                    {product.category}
+                                    {product.type_label ?? product.category}
                                 </span>
                             </div>
                         )}
@@ -99,7 +99,7 @@ export default function ProductShow({ product }) {
                     {/* Detail */}
                     <div>
                         <p className="font-display text-xs uppercase tracking-[0.35em] text-volt-500">
-                            {product.category}
+                            {product.type_label ?? product.category}
                         </p>
 
                         <h1 className="mt-4 font-display text-[clamp(2rem,6vw,3.5rem)] uppercase leading-[0.9] tracking-tighter text-white">

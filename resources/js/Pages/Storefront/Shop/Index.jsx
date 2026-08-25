@@ -6,10 +6,7 @@ function ProductCard({ product }) {
     const soldOut = product.total_stock <= 0;
 
     return (
-        <Link
-            href={route('shop.show', product.slug)}
-            className="group block"
-        >
+        <Link href={route('shop.show', product.slug)} className="group block">
             <div className="relative aspect-[4/5] overflow-hidden bg-ink-800">
                 {product.image_path ? (
                     <img
@@ -19,9 +16,12 @@ function ProductCard({ product }) {
                         className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                     />
                 ) : (
-                    <div className="flex h-full items-center justify-center">
+                    // Placeholder catalogue depth — no photo shoot to back it
+                    // yet, so this falls back to the same generated block
+                    // LookbookTile uses rather than a fake product photo.
+                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-ink-700 via-ink-800 to-ink-950">
                         <span className="font-display text-2xl uppercase tracking-widest text-white/10">
-                            {product.category}
+                            {product.type_label ?? product.category}
                         </span>
                     </div>
                 )}
@@ -56,14 +56,36 @@ function ProductCard({ product }) {
     );
 }
 
-export default function ShopIndex({ products, filters, categories }) {
-    // Inertia visit rather than a Link per filter: `only` re-fetches just the
-    // product list, leaving the rest of the page (and scroll position) alone.
-    const filterBy = (category) => {
+/** One type's worth of products, headed and grid-laid — the "segregation". */
+function Section({ label, products }) {
+    return (
+        <div>
+            <div className="mb-6 flex items-baseline gap-4 border-b border-white/10 pb-4">
+                <h2 className="font-display text-2xl uppercase tracking-wide text-white sm:text-3xl">
+                    {label}
+                </h2>
+                <span className="font-display text-xs uppercase tracking-[0.2em] text-white/30">
+                    {products.length}
+                </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+                {products.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+export default function ShopIndex({ sections, filters, types, typeLabels }) {
+    // Inertia visit rather than a Link per chip: `only` re-fetches just the
+    // sections, leaving the rest of the page (and scroll position) alone.
+    const filterBy = (type) => {
         router.get(
             route('shop.index'),
-            category ? { category } : {},
-            { preserveState: true, preserveScroll: true, only: ['products', 'filters'] }
+            type ? { type } : {},
+            { preserveState: true, preserveScroll: true, only: ['sections', 'filters'] }
         );
     };
 
@@ -91,34 +113,38 @@ export default function ShopIndex({ products, filters, categories }) {
 
             <section className="bg-ink-950 px-4 py-12 sm:px-6 lg:px-8">
                 <div className="mx-auto max-w-7xl">
-                    <div className="mb-10 flex flex-wrap gap-3">
+                    <div className="mb-14 flex flex-wrap gap-3">
                         <button
                             type="button"
                             onClick={() => filterBy(null)}
-                            className={chip(!filters.category)}
+                            className={chip(!filters.type)}
                         >
                             All
                         </button>
-                        {categories.map((category) => (
+                        {types.map((type) => (
                             <button
-                                key={category}
+                                key={type}
                                 type="button"
-                                onClick={() => filterBy(category)}
-                                className={chip(filters.category === category)}
+                                onClick={() => filterBy(type)}
+                                className={chip(filters.type === type)}
                             >
-                                {category}
+                                {typeLabels[type] ?? type}
                             </button>
                         ))}
                     </div>
 
-                    {products.length === 0 ? (
+                    {sections.length === 0 ? (
                         <p className="py-20 text-center font-display text-xl uppercase tracking-[0.2em] text-white/30">
                             Nothing here yet.
                         </p>
                     ) : (
-                        <div className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-                            {products.map((product) => (
-                                <ProductCard key={product.id} product={product} />
+                        <div className="space-y-20">
+                            {sections.map((section) => (
+                                <Section
+                                    key={section.type}
+                                    label={section.label}
+                                    products={section.products}
+                                />
                             ))}
                         </div>
                     )}

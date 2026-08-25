@@ -30,12 +30,16 @@ class ShopBrowsingTest extends TestCase
             'product_id' => $live->id, 'size' => 'M', 'stock' => 5, 'is_active' => true,
         ]);
 
+        // The catalogue is segregated into one section per type — see
+        // ProductController::index(). Both factory products default to
+        // TYPE_TEE, so this expects exactly one section with one product.
         $this->get(route('shop.index'))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('Storefront/Shop/Index')
-                ->has('products', 1)
-                ->where('products.0.name', 'Live Tee')
+                ->has('sections', 1)
+                ->has('sections.0.products', 1)
+                ->where('sections.0.products.0.name', 'Live Tee')
             );
     }
 
@@ -53,7 +57,58 @@ class ShopBrowsingTest extends TestCase
         ]);
 
         $this->get(route('shop.index'))
-            ->assertInertia(fn ($page) => $page->where('products.0.total_stock', 4));
+            ->assertInertia(fn ($page) => $page->where('sections.0.products.0.total_stock', 4));
+    }
+
+    public function test_products_are_segregated_into_sections_by_type(): void
+    {
+        $this->product(['name' => 'A Tee', 'type' => Product::TYPE_TEE]);
+        $this->product(['name' => 'A Hoodie', 'type' => Product::TYPE_HOODIE]);
+        $this->product(['name' => 'A Cap', 'type' => Product::TYPE_CAP]);
+
+        $this->get(route('shop.index'))
+            ->assertInertia(fn ($page) => $page
+                ->has('sections', 3)
+                // Fixed order (Product::TYPES), not insertion order.
+                ->where('sections.0.type', Product::TYPE_TEE)
+                ->where('sections.1.type', Product::TYPE_HOODIE)
+                ->where('sections.2.type', Product::TYPE_CAP)
+            );
+    }
+
+    public function test_a_type_with_no_active_products_gets_no_section(): void
+    {
+        $this->product(['type' => Product::TYPE_TEE]);
+        // No hoodie or cap products at all.
+
+        $this->get(route('shop.index'))
+            ->assertInertia(fn ($page) => $page->has('sections', 1));
+    }
+
+    public function test_the_type_filter_narrows_to_one_section(): void
+    {
+        $this->product(['name' => 'A Tee', 'type' => Product::TYPE_TEE]);
+        $this->product(['name' => 'A Hoodie', 'type' => Product::TYPE_HOODIE]);
+
+        $this->get(route('shop.index', ['type' => Product::TYPE_HOODIE]))
+            ->assertInertia(fn ($page) => $page
+                ->has('sections', 1)
+                ->where('sections.0.type', Product::TYPE_HOODIE)
+                ->where('sections.0.products.0.name', 'A Hoodie')
+                ->where('filters.type', Product::TYPE_HOODIE)
+            );
+    }
+
+    public function test_an_unrecognised_type_filter_is_ignored_not_errored(): void
+    {
+        $this->product(['type' => Product::TYPE_TEE]);
+
+        $this->get(route('shop.index', ['type' => 'not-a-real-type']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('filters.type', null)
+                ->has('sections', 1)
+            );
     }
 
     public function test_an_archived_product_page_is_not_reachable(): void

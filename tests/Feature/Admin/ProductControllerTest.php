@@ -24,6 +24,7 @@ class ProductControllerTest extends TestCase
             ->post(route('admin.products.store'), [
                 'name' => 'Syndicate Tee',
                 'category' => Product::CATEGORY_APPAREL,
+                'type' => Product::TYPE_TEE,
                 'base_price' => '899.00',
                 'is_active' => true,
             ]);
@@ -43,6 +44,7 @@ class ProductControllerTest extends TestCase
         $this->actingAs(User::factory()->admin()->create())->post(route('admin.products.store'), [
             'name' => 'Syndicate Tee',
             'category' => Product::CATEGORY_APPAREL,
+            'type' => Product::TYPE_TEE,
             'base_price' => '899.00',
         ]);
 
@@ -61,10 +63,41 @@ class ProductControllerTest extends TestCase
         $this->actingAs(User::factory()->admin()->create())->post(route('admin.products.store'), [
             'name' => 'Old Hoodie',
             'category' => Product::CATEGORY_APPAREL,
+            'type' => Product::TYPE_HOODIE,
             'base_price' => '500',
         ]);
 
         $this->assertDatabaseHas('products', ['name' => 'Old Hoodie', 'slug' => 'old-hoodie-2']);
+    }
+
+    public function test_type_is_required_for_an_apparel_product(): void
+    {
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('admin.products.store'), [
+                'name' => 'Untyped Tee',
+                'category' => Product::CATEGORY_APPAREL,
+                'base_price' => '899.00',
+            ])
+            ->assertSessionHasErrors('type');
+    }
+
+    /**
+     * type only means something within apparel. For a skateboard product it
+     * must not be settable at all — Rule::excludeIf strips it from the
+     * validated data, so it can't be smuggled in even if the request sends it.
+     */
+    public function test_type_is_ignored_for_a_skateboard_product(): void
+    {
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('admin.products.store'), [
+                'name' => 'Complete Board',
+                'category' => Product::CATEGORY_SKATEBOARD,
+                'type' => Product::TYPE_TEE,
+                'base_price' => '3500',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertNull(Product::where('name', 'Complete Board')->firstOrFail()->type);
     }
 
     public function test_invalid_category_is_rejected(): void
@@ -99,6 +132,7 @@ class ProductControllerTest extends TestCase
             [
                 'name' => $product->name,
                 'category' => $product->category,
+                'type' => Product::TYPE_TEE,
                 'base_price' => '1234.56',
                 'is_active' => true,
             ]

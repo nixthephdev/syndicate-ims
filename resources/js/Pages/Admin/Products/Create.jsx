@@ -4,14 +4,17 @@ import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import { Head, Link, useForm } from '@inertiajs/react';
 
-export default function Create({ categories }) {
+export default function Create({ categories, types, typeLabels }) {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         description: '',
         category: categories[0] ?? '',
+        type: types[0] ?? '',
         base_price: '',
         is_active: true,
     });
+
+    const isApparel = data.category === 'apparel';
 
     function submit(e) {
         e.preventDefault();
@@ -51,6 +54,28 @@ export default function Create({ categories }) {
                     </select>
                     <InputError message={errors.category} className="mt-1" />
                 </div>
+
+                {isApparel && (
+                    <div>
+                        <InputLabel htmlFor="type" value="Type" />
+                        <select
+                            id="type"
+                            className="mt-1 block w-full border-gray-300 focus:border-brand-500 focus:ring-brand-500 rounded-md shadow-sm"
+                            value={data.type}
+                            onChange={(e) => setData('type', e.target.value)}
+                        >
+                            {types.map((t) => (
+                                <option key={t} value={t}>
+                                    {typeLabels[t] ?? t}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="mt-1 text-xs text-gray-500">
+                            Which shop section this appears under.
+                        </p>
+                        <InputError message={errors.type} className="mt-1" />
+                    </div>
+                )}
 
                 <div>
                     <InputLabel htmlFor="base_price" value="Base price (₱)" />

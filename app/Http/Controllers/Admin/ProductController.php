@@ -25,6 +25,7 @@ class ProductController extends Controller
                 'id' => $product->id,
                 'name' => $product->name,
                 'category' => $product->category,
+                'type' => $product->type,
                 'base_price_centavos' => $product->base_price_centavos,
                 'base_price_formatted' => Money::format($product->base_price_centavos),
                 'is_active' => $product->is_active,
@@ -41,6 +42,8 @@ class ProductController extends Controller
     {
         return Inertia::render('Admin/Products/Create', [
             'categories' => Product::CATEGORIES,
+            'types' => Product::TYPES,
+            'typeLabels' => Product::TYPE_LABELS,
         ]);
     }
 
@@ -53,6 +56,7 @@ class ProductController extends Controller
             'slug' => $this->uniqueSlug($data['name']),
             'description' => $data['description'] ?? null,
             'category' => $data['category'],
+            'type' => $data['type'] ?? null,
             'base_price_centavos' => Money::toCentavos($data['base_price']),
             'is_active' => $request->boolean('is_active', true),
         ]);
@@ -67,11 +71,14 @@ class ProductController extends Controller
 
         return Inertia::render('Admin/Products/Edit', [
             'categories' => Product::CATEGORIES,
+            'types' => Product::TYPES,
+            'typeLabels' => Product::TYPE_LABELS,
             'product' => [
                 'id' => $product->id,
                 'name' => $product->name,
                 'description' => $product->description,
                 'category' => $product->category,
+                'type' => $product->type,
                 'base_price' => Money::toPesos($product->base_price_centavos),
                 'is_active' => $product->is_active,
             ],
@@ -100,6 +107,7 @@ class ProductController extends Controller
             'slug' => $this->uniqueSlug($data['name'], $product->id),
             'description' => $data['description'] ?? null,
             'category' => $data['category'],
+            'type' => $data['type'] ?? null,
             'base_price_centavos' => Money::toCentavos($data['base_price']),
             'is_active' => $request->boolean('is_active', true),
         ]);

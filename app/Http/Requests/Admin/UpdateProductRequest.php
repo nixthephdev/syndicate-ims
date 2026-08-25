@@ -19,6 +19,11 @@ class UpdateProductRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'category' => ['required', Rule::in(Product::CATEGORIES)],
+            'type' => [
+                Rule::requiredIf($this->input('category') === Product::CATEGORY_APPAREL),
+                Rule::excludeIf($this->input('category') !== Product::CATEGORY_APPAREL),
+                Rule::in(Product::TYPES),
+            ],
             'base_price' => ['required', 'numeric', 'min:0'],
             'is_active' => ['boolean'],
         ];

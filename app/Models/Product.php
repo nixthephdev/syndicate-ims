@@ -21,11 +21,34 @@ class Product extends Model
         self::CATEGORY_SKATEBOARD,
     ];
 
+    /**
+     * The browsable apparel subcategory — separate from `category`, which is
+     * the coarser apparel/skateboard split. Only meaningful within apparel,
+     * so the column is nullable rather than forcing skateboard products
+     * through the same list.
+     */
+    public const TYPE_TEE = 'tee';
+    public const TYPE_HOODIE = 'hoodie';
+    public const TYPE_CAP = 'cap';
+
+    public const TYPES = [
+        self::TYPE_TEE,
+        self::TYPE_HOODIE,
+        self::TYPE_CAP,
+    ];
+
+    public const TYPE_LABELS = [
+        self::TYPE_TEE => 'Tees',
+        self::TYPE_HOODIE => 'Hoodies',
+        self::TYPE_CAP => 'Caps',
+    ];
+
     protected $fillable = [
         'name',
         'slug',
         'description',
         'category',
+        'type',
         'base_price_centavos',
         'image_path',
         'is_active',
@@ -60,5 +83,10 @@ class Product extends Model
     public function scopeCategory(Builder $query, string $category): Builder
     {
         return $query->where('category', $category);
+    }
+
+    public function scopeType(Builder $query, string $type): Builder
+    {
+        return $query->where('type', $type);
     }
 }

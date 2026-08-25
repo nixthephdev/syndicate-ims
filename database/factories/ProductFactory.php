@@ -20,6 +20,7 @@ class ProductFactory extends Factory
             'slug' => Str::slug($name),
             'description' => fake()->sentence(12),
             'category' => Product::CATEGORY_APPAREL,
+            'type' => Product::TYPE_TEE,
             // Centavos. ₱450–₱2,500 is a realistic apparel range for the shop.
             'base_price_centavos' => fake()->numberBetween(45000, 250000),
             'image_path' => null,
@@ -36,8 +37,20 @@ class ProductFactory extends Factory
     {
         return $this->state(fn () => [
             'category' => Product::CATEGORY_SKATEBOARD,
+            // type is apparel-only — see the products migration.
+            'type' => null,
             'base_price_centavos' => fake()->numberBetween(250000, 700000),
         ]);
+    }
+
+    public function hoodie()
+    {
+        return $this->state(fn () => ['type' => Product::TYPE_HOODIE]);
+    }
+
+    public function cap()
+    {
+        return $this->state(fn () => ['type' => Product::TYPE_CAP]);
     }
 
     public function inactive()

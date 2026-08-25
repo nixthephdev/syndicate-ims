@@ -58,6 +58,7 @@ class AdminPagesRenderTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('Admin/Products/Create')
                 ->where('categories', Product::CATEGORIES)
+                ->where('types', Product::TYPES)
             );
     }
 

@@ -5,14 +5,17 @@ import TextInput from '@/Components/TextInput';
 import VariantsSection from './Partials/VariantsSection';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 
-export default function Edit({ product, categories, variants }) {
+export default function Edit({ product, categories, types, typeLabels, variants }) {
     const { data, setData, patch, processing, errors } = useForm({
         name: product.name,
         description: product.description ?? '',
         category: product.category,
+        type: product.type ?? (types[0] ?? ''),
         base_price: product.base_price,
         is_active: product.is_active,
     });
+
+    const isApparel = data.category === 'apparel';
 
     function submit(e) {
         e.preventDefault();
@@ -58,6 +61,28 @@ export default function Edit({ product, categories, variants }) {
                     </select>
                     <InputError message={errors.category} className="mt-1" />
                 </div>
+
+                {isApparel && (
+                    <div>
+                        <InputLabel htmlFor="type" value="Type" />
+                        <select
+                            id="type"
+                            className="mt-1 block w-full border-gray-300 focus:border-brand-500 focus:ring-brand-500 rounded-md shadow-sm"
+                            value={data.type}
+                            onChange={(e) => setData('type', e.target.value)}
+                        >
+                            {types.map((t) => (
+                                <option key={t} value={t}>
+                                    {typeLabels[t] ?? t}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="mt-1 text-xs text-gray-500">
+                            Which shop section this appears under.
+                        </p>
+                        <InputError message={errors.type} className="mt-1" />
+                    </div>
+                )}
 
                 <div>
                     <InputLabel htmlFor="base_price" value="Base price (₱)" />

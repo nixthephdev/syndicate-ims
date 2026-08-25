@@ -25,14 +25,16 @@ This is the only section that goes stale. Everything below it is stable intent.
 Web-Based Retail Management System with Interactive 3D Product Visualization and Inventory Monitoring, for **Syndicate Supply Co.** — an apparel + skateboarding shop in Legazpi, Philippines.
 
 **Three branches, confirmed by the client (2026-08-25):**
-- **Tagas, Daraga, Albay — the MAIN branch.** (This is why their Facebook page is titled "Syndicate Supply Co. | Daraga" — an earlier note in this file called that title "likely stale," assuming it contradicted two Legazpi-only addresses. It was correct all along; the assumption was wrong for not accounting for a third, unlisted branch.)
+- **Purok 1, Tagas, Daraga, 4501 Albay — the MAIN branch** (address from the shop's own Google Maps listing, "Syndicate Supply Co. (Branch 1)"). This is why their Facebook page is titled "Syndicate Supply Co. | Daraga" — an earlier note in this file called that title "likely stale," assuming it contradicted two Legazpi-only addresses. It was correct all along; the assumption was wrong for not accounting for a third, unlisted branch.
 - Brgy. 33 PNR, Peñaranda St., Legazpi City
 - Pagasa, Rawis, Legazpi City
 
-All three are in the storefront footer, Tagas marked "Main branch." No street
-address was given for Tagas beyond "Tagas, Daraga, Albay" — **do not invent
-one.** Same rule for opening hours and phone numbers: an earlier draft had
-made-up trading hours in the footer before they were caught.
+All three are in the storefront footer, Tagas marked "Main branch." The same
+Google listing also shows a phone number (0948 211 3209) and partial hours
+("Closes 8 PM", opening time not visible in what was shared) — **neither is
+on the site.** Don't add the phone without asking, and don't add hours from
+a partial screenshot — get the full range first. Same standing rule: never
+invent an address, phone number or hours that weren't actually given.
 
 College capstone (STI College Legazpi, BSIT). I'm the freelance full-stack dev building it for the student group; they are the client.
 

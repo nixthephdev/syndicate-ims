@@ -87,7 +87,9 @@ export default function StorefrontLayout({ children }) {
                                     <span className="block text-xs uppercase tracking-[0.15em] text-volt-500">
                                         Tagas · Main branch
                                     </span>
-                                    Tagas, Daraga, Albay
+                                    Purok 1, Tagas, Daraga,
+                                    <br />
+                                    4501 Albay
                                 </li>
                                 <li>
                                     <span className="block text-xs uppercase tracking-[0.15em] text-white/35">

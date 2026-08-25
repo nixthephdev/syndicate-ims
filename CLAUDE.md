@@ -11,7 +11,7 @@ This is the only section that goes stale. Everything below it is stable intent.
 - **Not yet built in Phase 3:** SkateboardComponent admin CRUD (only seeded via the seeder, no UI), reports.
 - **No product image upload in the admin.** `Product::image_path` is populated by the seeder pointing at `public/images/lookbook/`. Any product created through the admin UI will have no image and renders a grey category block.
 - **Breeze + Inertia + React + Tailwind: INSTALLED and verified.** Breeze v1.19.2, Inertia 0.6.3, Ziggy.
-- **Storefront landing page: BUILT.** `/` (route name `home`) now renders `Pages/Storefront/Home.jsx` instead of Breeze's `Welcome` — dark/volt skate-brand look, hero, marquee, masonry lookbook. Photos are picsum placeholders. Nav's Customize + cart entries self-enable via `route().has()` when those routes land.
+- **Storefront landing page: BUILT.** `/` (route name `home`) now renders `Pages/Storefront/Home.jsx` instead of Breeze's `Welcome` — dark/volt skate-brand look, hero, marquee, masonry lookbook using the client's real photography. Nav's Shop, Orders and cart entries are live; **Customize is still a dimmed "soon" chip** and lights up on its own via `route().has()` when Phase 5 registers that route.
 - **Tests: 96 passing** (`php artisan test`), including `assertInertia()` checks on every new admin page and on the storefront home — these verify the actual component name and props Laravel returns, the closest thing to a browser check available without one.
 - **DB works.** `syndicate_ims` (dev, seeded) and `syndicate_ims_test` (tests) both exist.
 - **Seeded logins** (password `password`): `admin@syndicate.test`, `staff@syndicate.test`, `customer@syndicate.test`. Logging in as staff/admin shows an "Open Admin →" link on the regular Dashboard.
@@ -31,7 +31,9 @@ These are in the storefront footer. Note their Facebook page is titled
 page name is likely stale. Legazpi is what the shop says, so Legazpi is what
 the site says. **Do not invent opening hours, phone numbers or addresses** —
 an earlier draft had made-up trading hours in the footer before they were
-caught. College capstone (STI College Legazpi, BSIT). I'm the freelance full-stack dev building it for the student group; they are the client.
+caught.
+
+College capstone (STI College Legazpi, BSIT). I'm the freelance full-stack dev building it for the student group; they are the client.
 
 ## Environment — exact versions, not "8.x"
 | | |

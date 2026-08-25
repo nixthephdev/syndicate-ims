@@ -12,6 +12,7 @@ import { Link, usePage } from '@inertiajs/react';
  */
 const NAV = [
     { label: 'Home', route: 'home' },
+    { label: 'Shop', route: 'shop.index' },
     { label: 'Customize', route: 'customize' },
 ];
 
@@ -125,6 +126,12 @@ export default function StoreHeader() {
                     <div className="hidden items-center gap-4 md:flex">
                         {user ? (
                             <>
+                                <Link
+                                    href={route('orders.index')}
+                                    className={`${linkBase} text-white hover:text-volt-500`}
+                                >
+                                    Orders
+                                </Link>
                                 <Link
                                     href={route('dashboard')}
                                     className={`${linkBase} text-white hover:text-volt-500`}

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\Cart;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Tightenco\Ziggy\Ziggy;
@@ -44,6 +45,12 @@ class HandleInertiaRequests extends Middleware
             // never reach the page and would sit silently in the session.
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
+            ],
+            // Drives the header cart badge. A closure so the count is only
+            // computed for pages that actually read it, and so it reflects
+            // the session as it stands at the end of the request.
+            'cart' => fn () => [
+                'count' => app(Cart::class)->count(),
             ],
         ]);
     }

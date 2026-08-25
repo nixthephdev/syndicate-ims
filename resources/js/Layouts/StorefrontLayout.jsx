@@ -9,13 +9,36 @@ import StoreHeader from '@/Components/Storefront/StoreHeader';
  * dashboard.
  */
 export default function StorefrontLayout({ children }) {
-    const { auth } = usePage().props;
+    const { auth, flash, errors } = usePage().props;
     const isStaff = ['staff', 'admin'].includes(auth?.user?.role);
     const year = new Date().getFullYear();
+
+    // Cart and stock failures redirect back with these rather than rendering
+    // an error page, so the shell is the only place they can surface.
+    const banner = errors?.cart || errors?.payment;
 
     return (
         <div className="min-h-screen bg-ink-950 font-sans text-white selection:bg-volt-500 selection:text-ink-900">
             <StoreHeader />
+
+            {(flash?.success || banner) && (
+                <div
+                    role="status"
+                    aria-live="polite"
+                    className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8"
+                >
+                    {flash?.success && (
+                        <p className="border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300">
+                            {flash.success}
+                        </p>
+                    )}
+                    {banner && (
+                        <p className="mt-3 border-l-2 border-red-500 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                            {banner}
+                        </p>
+                    )}
+                </div>
+            )}
 
             {/* Inertia remounts this on every visit, so the entry animation
                 replays per navigation. The sticky header sits outside it and

@@ -48,19 +48,39 @@ class DatabaseSeeder extends Seeder
             return; // Idempotent — don't pile up duplicates on re-seed.
         }
 
+        // image_path points at the client's own photography (see
+        // public/images/lookbook/). It is seeded rather than uploaded because
+        // the admin product form has no image field yet — without this the
+        // storefront renders a catalogue of grey placeholder blocks.
         $catalogue = [
-            ['Syndicate Box Logo Tee', 89900],
-            ['Supply Co. Hoodie', 199900],
-            ['Legazpi Skate Crew Cap', 59900],
+            [
+                'Syndicate Box Logo Tee',
+                89900,
+                '/images/lookbook/love-your-mind-tee.jpg',
+                'Heavyweight cotton tee with the Syndicate chest mark. Boxy fit, ribbed collar, built to survive a bail.',
+            ],
+            [
+                'Supply Co. Hoodie',
+                199900,
+                '/images/lookbook/varsity-hoodie.jpg',
+                'Full-zip varsity hoodie in brushed fleece. Embroidered brain mark on the chest, contrast sleeves.',
+            ],
+            [
+                'Legazpi Skate Crew Cap',
+                59900,
+                '/images/lookbook/flame-tee-cap.jpg',
+                'Six-panel cap with an embroidered flame mark and an adjustable strap. One size, wears low.',
+            ],
         ];
 
-        foreach ($catalogue as [$name, $price]) {
+        foreach ($catalogue as [$name, $price, $image, $description]) {
             $product = Product::create([
                 'name' => $name,
                 'slug' => \Illuminate\Support\Str::slug($name),
-                'description' => 'Syndicate Supply Co. apparel.',
+                'description' => $description,
                 'category' => Product::CATEGORY_APPAREL,
                 'base_price_centavos' => $price,
+                'image_path' => $image,
                 'is_active' => true,
             ]);
 

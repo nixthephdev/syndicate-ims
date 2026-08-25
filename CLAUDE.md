@@ -4,10 +4,13 @@
 This is the only section that goes stale. Everything below it is stable intent.
 
 - **Phases 1 (data layer), 2 (RBAC), and a first slice of 3 (admin product management): DONE.** Product CRUD with inline variant management (stock, price override, low-stock threshold) is live at `/admin`, gated by `role:staff`.
-- **Not yet built in Phase 3:** SkateboardComponent admin CRUD (only seeded via the seeder, no UI), order management, reports.
+- **Phase 4 (storefront: catalogue, cart, checkout): DONE.** `/shop` → `/shop/{slug}` → session cart → `/checkout` → order → payment confirmation. **`InventoryService` is now actually reachable from the running app** — before this it was called by nothing but its own tests.
+- **⚠ Payment is a STUB.** `Shop\PaymentController::confirm` marks an order paid and calls `InventoryService`. It is the seam PayMongo's webhook will replace in Phase 6, and it **404s outside local/testing** (pinned by a test) — a route that marks orders paid for free must never be live. Everything downstream of `commitForPaidOrder()` is final; only the trigger is fake.
+- **Not yet built in Phase 3:** SkateboardComponent admin CRUD (only seeded via the seeder, no UI), admin order management, reports.
+- **No product image upload in the admin.** `Product::image_path` is populated by the seeder pointing at `public/images/lookbook/`. Any product created through the admin UI will have no image and renders a grey category block.
 - **Breeze + Inertia + React + Tailwind: INSTALLED and verified.** Breeze v1.19.2, Inertia 0.6.3, Ziggy.
 - **Storefront landing page: BUILT.** `/` (route name `home`) now renders `Pages/Storefront/Home.jsx` instead of Breeze's `Welcome` — dark/volt skate-brand look, hero, marquee, masonry lookbook. Photos are picsum placeholders. Nav's Customize + cart entries self-enable via `route().has()` when those routes land.
-- **Tests: 63 passing** (`php artisan test`), including `assertInertia()` checks on every new admin page and on the storefront home — these verify the actual component name and props Laravel returns, the closest thing to a browser check available without one.
+- **Tests: 85 passing** (`php artisan test`), including `assertInertia()` checks on every new admin page and on the storefront home — these verify the actual component name and props Laravel returns, the closest thing to a browser check available without one.
 - **DB works.** `syndicate_ims` (dev, seeded) and `syndicate_ims_test` (tests) both exist.
 - **Seeded logins** (password `password`): `admin@syndicate.test`, `staff@syndicate.test`, `customer@syndicate.test`. Logging in as staff/admin shows an "Open Admin →" link on the regular Dashboard.
 - **Admin UI direction is locked** (see Design section below): dark sidebar + light content, one blue accent, light mode only.
@@ -140,6 +143,8 @@ Non-obvious constraints, all learned the hard way:
 - **At 16px the line-art degrades to a blob** — inherent to strokes this fine; nothing to fix short of a simplified small-size mark. 32px (what modern browsers mostly use) is clean.
 
 ## Data layer — the rules that matter
+- **The cart (`App\Services\Cart`) is session-backed and reserves NOTHING.** Prices are read live on every render, never cached into the session — a cart can sit for days and charging a stale cookie price is a real bug. Snapshotting happens once, onto `OrderItem`, at checkout. Lines whose variant was archived meanwhile are silently pruned. Anything the cart says about stock is advisory and already stale; `InventoryService` behind its row lock is the only real answer.
+- **Cart item types are an allow-list of aliases** (`variant`, `component` → `Cart::PURCHASABLE_TYPES`), never class names from request input. A test pins this.
 - **`InventoryService` is the only place ORDER-DRIVEN stock decrements happen.** Nothing in the checkout/payment path may touch a `stock` column except through it — it marks paid and decrements in one transaction, locks each row, re-checks inside the lock, aggregates duplicate lines, and no-ops on a repeat webhook. Admin CRUD (restocking, correcting a count) is a separate, legitimate direct write — see `Admin\ProductVariantController`. The rule is about the *concurrency-sensitive* path, not every write to the column.
 - **`role` is NOT in `User::$fillable`** — deliberately. Breeze's `/register` mass-assigns request input, so a fillable `role` would let anyone POST `role=admin` and self-promote. There's a test pinning this (`RoleAssignmentTest`). Assign roles explicitly.
 - **Role middleware is hierarchical**: `role:staff` admits staff *and* admin. Unknown roles fail closed.

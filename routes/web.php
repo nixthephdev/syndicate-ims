@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\OrderStatusController as AdminOrderStatusController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductVariantController as AdminProductVariantController;
 use App\Http\Controllers\ProfileController;
@@ -97,6 +99,13 @@ Route::middleware(['auth', 'verified', 'role:staff'])
 
         Route::resource('products', AdminProductController::class)
             ->except(['show']); // No customer-facing product page yet.
+
+        // Orders are read-only here apart from one narrow status transition —
+        // see Admin\OrderStatusController. Staff never write stock directly.
+        Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
+        Route::get('orders/{order_number}', [AdminOrderController::class, 'show'])->name('orders.show');
+        Route::patch('orders/{order_number}/status', [AdminOrderStatusController::class, 'update'])
+            ->name('orders.status.update');
 
         Route::post('products/{product}/variants', [AdminProductVariantController::class, 'store'])
             ->name('products.variants.store');

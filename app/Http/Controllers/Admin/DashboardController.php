@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\SkateboardComponent;
+use App\Support\Money;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,7 +27,32 @@ class DashboardController extends Controller
                 'components' => SkateboardComponent::query()->count(),
                 'low_stock_count' => $lowVariants->count() + $lowComponents->count(),
                 'out_of_stock_count' => $outOfStockVariants + $outOfStockComponents,
+                // Orders needing someone to act: unpaid ones to chase, paid
+                // ones to hand over.
+                'awaiting_payment' => Order::query()->status(Order::STATUS_AWAITING_PAYMENT)->count(),
+                'to_fulfil' => Order::query()->status(Order::STATUS_PAID)->count(),
+                // Revenue counts PAID orders only — scopePaid() keys off
+                // paid_at, so an order that was placed but never paid never
+                // reaches the sales figures.
+                'revenue_today' => Money::format(
+                    (int) Order::query()->paid()->where('paid_at', '>=', now()->startOfDay())->sum('total_centavos')
+                ),
+                'revenue_total' => Money::format(
+                    (int) Order::query()->paid()->sum('total_centavos')
+                ),
             ],
+            'recentOrders' => Order::query()
+                ->with('items:id,order_id')
+                ->latest()
+                ->take(5)
+                ->get()
+                ->map(fn (Order $order) => [
+                    'order_number' => $order->order_number,
+                    'status' => $order->status,
+                    'customer_name' => $order->customer_name,
+                    'total_formatted' => Money::format($order->total_centavos),
+                    'placed_at' => $order->created_at->format('d M, g:ia'),
+                ]),
             'lowStockItems' => $lowVariants
                 ->map(fn (ProductVariant $v) => [
                     'name' => $v->displayName(),

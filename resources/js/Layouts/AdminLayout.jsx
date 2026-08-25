@@ -3,6 +3,7 @@ import { Link, usePage } from '@inertiajs/react';
 const navItems = [
     { name: 'Dashboard', href: 'admin.dashboard' },
     { name: 'Products', href: 'admin.products.index' },
+    { name: 'Orders', href: 'admin.orders.index' },
 ];
 
 /**

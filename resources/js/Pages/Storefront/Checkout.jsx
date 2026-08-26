@@ -25,12 +25,12 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
             <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
                 <Link
                     href={route('cart.index')}
-                    className="font-display text-xs uppercase tracking-[0.25em] text-white/30 transition-colors hover:text-volt-500"
+                    className="font-display text-xs uppercase tracking-[0.25em] text-white/30 transition-colors hover:text-volt-500 light:text-ink-900/45 light:hover:text-volt-800"
                 >
                     ← Cart
                 </Link>
 
-                <h1 className="mt-6 font-display text-[clamp(2rem,7vw,4rem)] uppercase leading-[0.9] tracking-tighter text-white">
+                <h1 className="mt-6 font-display text-[clamp(2rem,7vw,4rem)] uppercase leading-[0.9] tracking-tighter text-white light:text-ink-900">
                     Checkout
                 </h1>
 
@@ -75,9 +75,9 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
                         <div>
                             <label
                                 htmlFor="notes"
-                                className="mb-2 block font-display text-xs uppercase tracking-[0.25em] text-white/50"
+                                className="mb-2 block font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65"
                             >
-                                Notes <span className="text-white/25">(optional)</span>
+                                Notes <span className="text-white/25 light:text-ink-900/40">(optional)</span>
                             </label>
                             <textarea
                                 id="notes"
@@ -86,10 +86,10 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
                                 value={data.notes}
                                 onChange={onChange}
                                 placeholder="Pickup or delivery? Anything the shop should know."
-                                className="block w-full rounded-none border-2 border-white/15 bg-ink-800 px-4 py-3 text-white placeholder-white/25 transition-colors focus:border-volt-500 focus:outline-none focus:ring-0"
+                                className="block w-full rounded-none border-2 border-white/15 bg-ink-800 px-4 py-3 text-white placeholder-white/25 transition-colors focus:border-volt-500 focus:outline-none focus:ring-0 light:border-ink-900/20 light:bg-white light:text-ink-900 light:placeholder-ink-900/35 light:focus:border-volt-800"
                             />
                             {errors.notes && (
-                                <p className="mt-2 text-sm font-medium text-red-400">
+                                <p className="mt-2 text-sm font-medium text-red-400 light:text-red-700">
                                     {errors.notes}
                                 </p>
                             )}
@@ -99,7 +99,7 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
                             {processing ? 'Placing order' : 'Place order'}
                         </SubmitButton>
 
-                        <p className="text-xs leading-relaxed text-white/30">
+                        <p className="text-xs leading-relaxed text-white/30 light:text-ink-900/45">
                             Placing the order does not take payment or reserve
                             stock. You'll confirm payment on the next screen,
                             and stock is only deducted then.
@@ -108,8 +108,8 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
 
                     {/* Summary */}
                     <aside className="lg:col-span-2">
-                        <div className="border-2 border-white/10 p-6">
-                            <h2 className="font-display text-sm uppercase tracking-[0.25em] text-volt-500">
+                        <div className="border-2 border-white/10 p-6 light:border-ink-900/10">
+                            <h2 className="font-display text-sm uppercase tracking-[0.25em] text-volt-500 light:text-volt-800">
                                 Your order
                             </h2>
 
@@ -119,25 +119,25 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
                                         key={line.key}
                                         className="flex justify-between gap-4 text-sm"
                                     >
-                                        <span className="text-white/70">
+                                        <span className="text-white/70 light:text-ink-900/80">
                                             {line.name}
-                                            <span className="text-white/30">
+                                            <span className="text-white/30 light:text-ink-900/45">
                                                 {' '}
                                                 × {line.quantity}
                                             </span>
                                         </span>
-                                        <span className="shrink-0 text-white">
+                                        <span className="shrink-0 text-white light:text-ink-900">
                                             {formatCentavos(line.line_total_centavos)}
                                         </span>
                                     </li>
                                 ))}
                             </ul>
 
-                            <div className="mt-6 flex items-baseline justify-between border-t border-white/10 pt-6">
-                                <span className="font-display text-sm uppercase tracking-[0.2em] text-white/50">
+                            <div className="mt-6 flex items-baseline justify-between border-t border-white/10 pt-6 light:border-ink-900/10">
+                                <span className="font-display text-sm uppercase tracking-[0.2em] text-white/50 light:text-ink-900/65">
                                     Total
                                 </span>
-                                <span className="font-display text-2xl text-volt-500">
+                                <span className="font-display text-2xl text-volt-500 light:text-volt-800">
                                     {formatCentavos(subtotal_centavos)}
                                 </span>
                             </div>

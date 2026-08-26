@@ -39,6 +39,12 @@ Route::get('/', function () {
     return Inertia::render('Storefront/Home');
 })->name('home');
 
+// Address/map/contact + FAQ. Static content, same as `home` above — a plain
+// closure, no controller needed until this actually needs a DB query.
+Route::get('/contact', function () {
+    return Inertia::render('Storefront/Contact');
+})->name('contact');
+
 // Breeze's post-login landing (RouteServiceProvider::HOME). Now routes by
 // role: staff/admin to the admin panel, customers to their own account page.
 // Keep the route NAME `dashboard` — HOME and the auth controllers point at it.

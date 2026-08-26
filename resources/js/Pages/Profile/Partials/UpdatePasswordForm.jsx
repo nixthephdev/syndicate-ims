@@ -38,10 +38,10 @@ export default function UpdatePasswordForm() {
     return (
         <section>
             <header>
-                <h2 className="font-display text-lg uppercase tracking-wide text-white">
+                <h2 className="font-display text-lg uppercase tracking-wide text-white light:text-ink-900">
                     Update password
                 </h2>
-                <p className="mt-1 text-sm text-white/40">
+                <p className="mt-1 text-sm text-white/40 light:text-ink-900/55">
                     Use a long, random password to keep your account secure.
                 </p>
             </header>
@@ -93,7 +93,7 @@ export default function UpdatePasswordForm() {
                         leaveTo="opacity-0"
                         className="transition ease-in-out"
                     >
-                        <p className="text-sm text-white/40">Saved.</p>
+                        <p className="text-sm text-white/40 light:text-ink-900/55">Saved.</p>
                     </Transition>
                 </div>
             </form>

@@ -37,10 +37,10 @@ export default function DeleteUserForm() {
     return (
         <section>
             <header>
-                <h2 className="font-display text-lg uppercase tracking-wide text-red-400">
+                <h2 className="font-display text-lg uppercase tracking-wide text-red-400 light:text-red-700">
                     Delete account
                 </h2>
-                <p className="mt-1 text-sm text-white/40">
+                <p className="mt-1 text-sm text-white/40 light:text-ink-900/55">
                     Once deleted, all of your account's data is gone for good.
                     Download anything you want to keep before continuing.
                 </p>
@@ -52,11 +52,11 @@ export default function DeleteUserForm() {
 
             <Modal show={confirmingUserDeletion} onClose={closeModal}>
                 <form onSubmit={deleteUser} className="p-6 sm:p-8">
-                    <h2 className="font-display text-xl uppercase tracking-wide text-white">
+                    <h2 className="font-display text-xl uppercase tracking-wide text-white light:text-ink-900">
                         Are you sure?
                     </h2>
 
-                    <p className="mt-2 text-sm leading-relaxed text-white/50">
+                    <p className="mt-2 text-sm leading-relaxed text-white/50 light:text-ink-900/65">
                         This can't be undone. Enter your password to confirm you
                         want to permanently delete your account.
                     </p>

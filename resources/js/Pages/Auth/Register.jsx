@@ -43,7 +43,7 @@ export default function Register() {
                     Already registered?{' '}
                     <Link
                         href={route('login')}
-                        className="font-display uppercase tracking-[0.15em] text-volt-500 hover:text-white"
+                        className="font-display uppercase tracking-[0.15em] text-volt-500 hover:text-white light:text-volt-800 light:hover:text-ink-900"
                     >
                         Log in
                     </Link>

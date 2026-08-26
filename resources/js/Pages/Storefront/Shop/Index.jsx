@@ -11,6 +11,10 @@ const SORTS = [
 ];
 
 function Badge({ children, tone = 'volt' }) {
+    // volt/amber are fills, ink is a bordered chip designed to sit over a
+    // product photo/placeholder — all three deliberately NOT theme-paired,
+    // same reasoning as the lookbook photo treatment: legibility here
+    // depends on the image behind it, not the site theme.
     const tones = {
         volt: 'bg-volt-500 text-ink-900',
         amber: 'bg-amber-400 text-ink-900',
@@ -33,7 +37,7 @@ function ProductCard({ product, onQuickAdd, quickAddState }) {
 
     return (
         <div className="group flex flex-col">
-            <div className="relative aspect-[4/5] overflow-hidden border-2 border-white/10 bg-ink-800 transition-colors duration-300 group-hover:border-volt-500">
+            <div className="relative aspect-[4/5] overflow-hidden border-2 border-white/10 bg-ink-800 transition-colors duration-300 group-hover:border-volt-500 light:border-ink-900/10 light:bg-white light:group-hover:border-volt-800">
                 {/* Full-image link — a separate anchor from the text link
                     below, not the quick-add button's ancestor, so the button
                     never has to fight a parent link for the click. */}
@@ -54,8 +58,8 @@ function ProductCard({ product, onQuickAdd, quickAddState }) {
                         // this falls back to the same generated block used
                         // everywhere else in the storefront rather than a
                         // fake product photo.
-                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-ink-700 via-ink-800 to-ink-950">
-                            <span className="font-display text-2xl uppercase tracking-widest text-white/10">
+                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-ink-700 via-ink-800 to-ink-950 light:from-paper-accent light:via-paper-panel light:to-paper">
+                            <span className="font-display text-2xl uppercase tracking-widest text-white/10 light:text-ink-900/10">
                                 {product.type_label ?? product.category}
                             </span>
                         </div>
@@ -101,15 +105,15 @@ function ProductCard({ product, onQuickAdd, quickAddState }) {
 
             <Link href={href} className="mt-4 flex items-start justify-between gap-4">
                 <div>
-                    <h2 className="font-display text-lg uppercase leading-tight tracking-wide text-white transition-colors group-hover:text-volt-500">
+                    <h2 className="font-display text-lg uppercase leading-tight tracking-wide text-white transition-colors group-hover:text-volt-500 light:text-ink-900 light:group-hover:text-volt-800">
                         {product.name}
                     </h2>
-                    <p className="mt-1 text-xs uppercase tracking-[0.15em] text-white/35">
+                    <p className="mt-1 text-xs uppercase tracking-[0.15em] text-white/35 light:text-ink-900/50">
                         {product.variant_count} option
                         {product.variant_count === 1 ? '' : 's'}
                     </p>
                 </div>
-                <p className="shrink-0 font-display text-lg text-volt-500">
+                <p className="shrink-0 font-display text-lg text-volt-500 light:text-volt-800">
                     {formatPriceRange(
                         product.price_from_centavos,
                         product.price_to_centavos
@@ -124,11 +128,11 @@ function ProductCard({ product, onQuickAdd, quickAddState }) {
 function Section({ label, products, onQuickAdd, quickAddStates }) {
     return (
         <div>
-            <div className="mb-6 flex items-baseline gap-4 border-b border-white/10 pb-4">
-                <h2 className="font-display text-2xl uppercase tracking-wide text-white sm:text-3xl">
+            <div className="mb-6 flex items-baseline gap-4 border-b border-white/10 pb-4 light:border-ink-900/10">
+                <h2 className="font-display text-2xl uppercase tracking-wide text-white light:text-ink-900 sm:text-3xl">
                     {label}
                 </h2>
-                <span className="font-display text-xs uppercase tracking-[0.2em] text-white/30">
+                <span className="font-display text-xs uppercase tracking-[0.2em] text-white/30 light:text-ink-900/45">
                     {products.length}
                 </span>
             </div>
@@ -206,7 +210,7 @@ export default function ShopIndex({ sections, filters, types, typeLabels }) {
         'shrink-0 rounded-full px-5 py-2 font-display text-xs uppercase tracking-[0.2em] transition-colors ' +
         (active
             ? 'bg-volt-500 text-ink-900'
-            : 'border-2 border-white/15 text-white/60 hover:border-volt-500 hover:text-volt-500');
+            : 'border-2 border-white/15 text-white/60 hover:border-volt-500 hover:text-volt-500 light:border-ink-900/20 light:text-ink-900/70 light:hover:border-volt-800 light:hover:text-volt-800');
 
     const totalCount = sections.reduce((n, s) => n + s.products.length, 0);
 
@@ -214,19 +218,19 @@ export default function ShopIndex({ sections, filters, types, typeLabels }) {
         <StorefrontLayout>
             <Head title="Shop" />
 
-            <section className="border-b-2 border-volt-500 bg-ink-950 px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+            <section className="border-b-2 border-volt-500 bg-ink-950 light:bg-paper px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
                 <div className="mx-auto max-w-7xl">
-                    <p className="flex items-center gap-3 font-display text-xs uppercase tracking-[0.35em] text-volt-500">
+                    <p className="flex items-center gap-3 font-display text-xs uppercase tracking-[0.35em] text-volt-500 light:text-volt-800">
                         <span className="h-px w-8 bg-volt-500" />
                         Everything in stock
                     </p>
-                    <h1 className="mt-5 font-display text-[clamp(2.5rem,9vw,6rem)] uppercase leading-[0.85] tracking-tighter text-white">
+                    <h1 className="mt-5 font-display text-[clamp(2.5rem,9vw,6rem)] uppercase leading-[0.85] tracking-tighter text-white light:text-ink-900">
                         The shop
                     </h1>
                 </div>
             </section>
 
-            <section className="bg-ink-950 px-4 py-12 sm:px-6 lg:px-8">
+            <section className="bg-ink-950 light:bg-paper px-4 py-12 sm:px-6 lg:px-8">
                 <div className="mx-auto max-w-7xl">
                     {/* Utility bar: pill filters left, search + sort right.
                         Wraps to its own row on mobile rather than squeezing
@@ -255,7 +259,7 @@ export default function ShopIndex({ sections, filters, types, typeLabels }) {
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                             <div className="relative">
                                 <svg
-                                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30"
+                                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30 light:text-ink-900/45"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     strokeWidth="2"
@@ -276,7 +280,7 @@ export default function ShopIndex({ sections, filters, types, typeLabels }) {
                                     value={term}
                                     onChange={(e) => setTerm(e.target.value)}
                                     placeholder="Search the shop…"
-                                    className="w-full border-2 border-white/15 bg-ink-800 py-2.5 pl-9 pr-4 text-sm text-white placeholder-white/30 transition-colors focus:border-volt-500 focus:outline-none focus:ring-0 sm:w-56"
+                                    className="w-full border-2 border-white/15 bg-ink-800 py-2.5 pl-9 pr-4 text-sm text-white placeholder-white/30 transition-colors focus:border-volt-500 focus:outline-none focus:ring-0 light:border-ink-900/20 light:bg-white light:text-ink-900 light:placeholder-ink-900/40 light:focus:border-volt-800 sm:w-56"
                                 />
                             </div>
 
@@ -287,7 +291,7 @@ export default function ShopIndex({ sections, filters, types, typeLabels }) {
                                 id="shop-sort"
                                 value={filters.sort}
                                 onChange={(e) => applyFilters({ sort: e.target.value })}
-                                className="border-2 border-white/15 bg-ink-800 py-2.5 pl-4 pr-9 font-display text-xs uppercase tracking-[0.15em] text-white transition-colors focus:border-volt-500 focus:outline-none focus:ring-0"
+                                className="border-2 border-white/15 bg-ink-800 py-2.5 pl-4 pr-9 font-display text-xs uppercase tracking-[0.15em] text-white transition-colors focus:border-volt-500 focus:outline-none focus:ring-0 light:border-ink-900/20 light:bg-white light:text-ink-900 light:focus:border-volt-800"
                             >
                                 {SORTS.map((s) => (
                                     <option key={s.value} value={s.value}>
@@ -299,7 +303,7 @@ export default function ShopIndex({ sections, filters, types, typeLabels }) {
                     </div>
 
                     {totalCount === 0 ? (
-                        <p className="py-20 text-center font-display text-xl uppercase tracking-[0.2em] text-white/30">
+                        <p className="py-20 text-center font-display text-xl uppercase tracking-[0.2em] text-white/30 light:text-ink-900/45">
                             {filters.q ? `Nothing matches "${filters.q}."` : 'Nothing here yet.'}
                         </p>
                     ) : (

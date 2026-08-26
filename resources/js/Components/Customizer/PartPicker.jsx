@@ -9,7 +9,7 @@ import { formatCentavos } from '@/utils/money';
 export default function PartPicker({ label, options, selectedId, onSelect }) {
     return (
         <fieldset>
-            <legend className="mb-3 font-display text-xs uppercase tracking-[0.25em] text-white/50">
+            <legend className="mb-3 font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65">
                 {label}
             </legend>
 
@@ -29,20 +29,20 @@ export default function PartPicker({ label, options, selectedId, onSelect }) {
                             className={
                                 'flex flex-col items-start gap-1 border-2 px-3 py-3 text-left transition-colors ' +
                                 (disabled
-                                    ? 'cursor-not-allowed border-white/10 opacity-40'
+                                    ? 'cursor-not-allowed border-white/10 opacity-40 light:border-ink-900/10'
                                     : active
-                                    ? 'border-volt-500 bg-volt-500/10'
-                                    : 'border-white/15 hover:border-volt-500')
+                                    ? 'border-volt-500 bg-volt-500/10 light:border-volt-800'
+                                    : 'border-white/15 hover:border-volt-500 light:border-ink-900/20 light:hover:border-volt-800')
                             }
                         >
-                            <span className="font-display text-xs uppercase leading-tight tracking-wide text-white">
+                            <span className="font-display text-xs uppercase leading-tight tracking-wide text-white light:text-ink-900">
                                 {option.name}
                             </span>
-                            <span className="font-display text-sm text-volt-500">
+                            <span className="font-display text-sm text-volt-500 light:text-volt-800">
                                 {formatCentavos(option.price_centavos)}
                             </span>
                             {(disabled || option.is_low_stock) && (
-                                <span className="text-[10px] uppercase tracking-[0.15em] text-white/40">
+                                <span className="text-[10px] uppercase tracking-[0.15em] text-white/40 light:text-ink-900/55">
                                     {disabled ? 'Sold out' : 'Low stock'}
                                 </span>
                             )}

@@ -26,7 +26,7 @@ export default function VerifyEmail({ status }) {
                     href={route('logout')}
                     method="post"
                     as="button"
-                    className="font-display uppercase tracking-[0.15em] text-white/40 hover:text-white"
+                    className="font-display uppercase tracking-[0.15em] text-white/40 hover:text-white light:text-ink-900/55 light:hover:text-ink-900"
                 >
                     Log out
                 </Link>
@@ -35,7 +35,7 @@ export default function VerifyEmail({ status }) {
             <Head title="Verify email" />
 
             {status === 'verification-link-sent' && (
-                <div className="mb-6 border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300">
+                <div className="mb-6 border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300 light:text-volt-800">
                     A new verification link has been sent to the email address
                     you provided during registration.
                 </div>

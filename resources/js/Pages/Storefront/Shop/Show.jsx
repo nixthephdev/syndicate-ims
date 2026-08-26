@@ -73,14 +73,14 @@ export default function ProductShow({ product }) {
             <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-16">
                 <Link
                     href={route('shop.index')}
-                    className="font-display text-xs uppercase tracking-[0.25em] text-white/30 transition-colors hover:text-volt-500"
+                    className="font-display text-xs uppercase tracking-[0.25em] text-white/30 transition-colors hover:text-volt-500 light:text-ink-900/45 light:hover:text-volt-800"
                 >
                     ← Shop
                 </Link>
 
                 <div className="mt-8 grid gap-10 lg:grid-cols-2 lg:gap-16">
                     {/* Image */}
-                    <div className="aspect-[4/5] overflow-hidden bg-ink-800">
+                    <div className="aspect-[4/5] overflow-hidden bg-ink-800 light:bg-white">
                         {product.image_path ? (
                             <img
                                 src={product.image_path}
@@ -88,8 +88,8 @@ export default function ProductShow({ product }) {
                                 className="h-full w-full object-cover"
                             />
                         ) : (
-                            <div className="flex h-full items-center justify-center bg-gradient-to-br from-ink-700 via-ink-800 to-ink-950">
-                                <span className="font-display text-3xl uppercase tracking-widest text-white/10">
+                            <div className="flex h-full items-center justify-center bg-gradient-to-br from-ink-700 via-ink-800 to-ink-950 light:from-paper-accent light:via-paper-panel light:to-paper">
+                                <span className="font-display text-3xl uppercase tracking-widest text-white/10 light:text-ink-900/10">
                                     {product.type_label ?? product.category}
                                 </span>
                             </div>
@@ -98,15 +98,15 @@ export default function ProductShow({ product }) {
 
                     {/* Detail */}
                     <div>
-                        <p className="font-display text-xs uppercase tracking-[0.35em] text-volt-500">
+                        <p className="font-display text-xs uppercase tracking-[0.35em] text-volt-500 light:text-volt-800">
                             {product.type_label ?? product.category}
                         </p>
 
-                        <h1 className="mt-4 font-display text-[clamp(2rem,6vw,3.5rem)] uppercase leading-[0.9] tracking-tighter text-white">
+                        <h1 className="mt-4 font-display text-[clamp(2rem,6vw,3.5rem)] uppercase leading-[0.9] tracking-tighter text-white light:text-ink-900">
                             {product.name}
                         </h1>
 
-                        <p className="mt-6 font-display text-3xl text-volt-500">
+                        <p className="mt-6 font-display text-3xl text-volt-500 light:text-volt-800">
                             {formatCentavos(
                                 selected?.price_centavos ??
                                     product.base_price_centavos
@@ -114,7 +114,7 @@ export default function ProductShow({ product }) {
                         </p>
 
                         {product.description && (
-                            <p className="mt-6 text-sm leading-relaxed text-white/55">
+                            <p className="mt-6 text-sm leading-relaxed text-white/55 light:text-ink-900/70">
                                 {product.description}
                             </p>
                         )}
@@ -122,7 +122,7 @@ export default function ProductShow({ product }) {
                         <form onSubmit={submit} className="mt-10 space-y-8">
                             {colors.length > 0 && (
                                 <fieldset>
-                                    <legend className="mb-3 font-display text-xs uppercase tracking-[0.25em] text-white/50">
+                                    <legend className="mb-3 font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65">
                                         Colour
                                     </legend>
                                     <div className="flex flex-wrap gap-3">
@@ -136,7 +136,7 @@ export default function ProductShow({ product }) {
                                                     'px-5 py-2 font-display text-xs uppercase tracking-[0.2em] transition-colors ' +
                                                     (color === c
                                                         ? 'bg-volt-500 text-ink-900'
-                                                        : 'border-2 border-white/15 text-white/60 hover:border-volt-500 hover:text-volt-500')
+                                                        : 'border-2 border-white/15 text-white/60 hover:border-volt-500 hover:text-volt-500 light:border-ink-900/20 light:text-ink-900/70 light:hover:border-volt-800 light:hover:text-volt-800')
                                                 }
                                             >
                                                 {c}
@@ -148,7 +148,7 @@ export default function ProductShow({ product }) {
 
                             {sizes.length > 0 && (
                                 <fieldset>
-                                    <legend className="mb-3 font-display text-xs uppercase tracking-[0.25em] text-white/50">
+                                    <legend className="mb-3 font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65">
                                         Size
                                     </legend>
                                     <div className="flex flex-wrap gap-3">
@@ -163,10 +163,10 @@ export default function ProductShow({ product }) {
                                                 className={
                                                     'min-w-[3.5rem] px-4 py-2 font-display text-xs uppercase tracking-[0.2em] transition-colors ' +
                                                     (stock <= 0
-                                                        ? 'cursor-not-allowed border-2 border-white/10 text-white/20 line-through'
+                                                        ? 'cursor-not-allowed border-2 border-white/10 text-white/20 line-through light:border-ink-900/10 light:text-ink-900/30'
                                                         : size === s
                                                         ? 'bg-volt-500 text-ink-900'
-                                                        : 'border-2 border-white/15 text-white/60 hover:border-volt-500 hover:text-volt-500')
+                                                        : 'border-2 border-white/15 text-white/60 hover:border-volt-500 hover:text-volt-500 light:border-ink-900/20 light:text-ink-900/70 light:hover:border-volt-800 light:hover:text-volt-800')
                                                 }
                                             >
                                                 {s}
@@ -180,14 +180,14 @@ export default function ProductShow({ product }) {
                                 — an exact count is stale the moment it renders,
                                 because the cart does not reserve stock. */}
                             {selected && (
-                                <p className="text-xs uppercase tracking-[0.15em] text-white/40">
+                                <p className="text-xs uppercase tracking-[0.15em] text-white/40 light:text-ink-900/55">
                                     {selected.stock <= 0
                                         ? 'Sold out'
                                         : selected.stock <= 5
                                         ? `Only ${selected.stock} left`
                                         : 'In stock'}
                                     {selected.sku && (
-                                        <span className="ml-3 text-white/20">
+                                        <span className="ml-3 text-white/20 light:text-ink-900/35">
                                             {selected.sku}
                                         </span>
                                     )}
@@ -205,7 +205,7 @@ export default function ProductShow({ product }) {
                                         setData('quantity', Number(e.target.value))
                                     }
                                     disabled={outOfStock}
-                                    className="border-2 border-white/15 bg-ink-800 px-4 py-4 font-display text-sm uppercase tracking-[0.2em] text-white focus:border-volt-500 focus:outline-none focus:ring-0 disabled:opacity-40 sm:w-28"
+                                    className="border-2 border-white/15 bg-ink-800 px-4 py-4 font-display text-sm uppercase tracking-[0.2em] text-white focus:border-volt-500 focus:outline-none focus:ring-0 disabled:opacity-40 light:border-ink-900/20 light:bg-white light:text-ink-900 light:focus:border-volt-800 sm:w-28"
                                 >
                                     {Array.from(
                                         { length: Math.min(selected?.stock ?? 1, 20) },
@@ -220,7 +220,7 @@ export default function ProductShow({ product }) {
                                 <button
                                     type="submit"
                                     disabled={outOfStock || processing}
-                                    className="group inline-flex flex-1 items-center justify-center gap-3 bg-volt-500 px-8 py-4 font-display text-base uppercase tracking-[0.2em] text-ink-900 transition-all hover:-translate-y-0.5 hover:bg-white focus:outline-none focus:ring-2 focus:ring-volt-500 focus:ring-offset-2 focus:ring-offset-ink-950 disabled:pointer-events-none disabled:opacity-30"
+                                    className="group inline-flex flex-1 items-center justify-center gap-3 bg-volt-500 px-8 py-4 font-display text-base uppercase tracking-[0.2em] text-ink-900 transition-all hover:-translate-y-0.5 hover:bg-white light:hover:bg-ink-900 light:hover:text-white focus:outline-none focus:ring-2 focus:ring-volt-500 focus:ring-offset-2 focus:ring-offset-ink-950 light:focus:ring-offset-paper disabled:pointer-events-none disabled:opacity-30"
                                 >
                                     {outOfStock
                                         ? 'Sold out'

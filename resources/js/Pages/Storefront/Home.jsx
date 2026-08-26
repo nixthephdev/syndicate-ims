@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
 import Marquee from '@/Components/Storefront/Marquee';
 import LookbookGrid from '@/Components/Storefront/LookbookGrid';
+import HeroBoard from '@/Components/Storefront/HeroBoard';
 
 /**
  * The client's own photography, off the shop's Facebook page.
@@ -55,7 +56,7 @@ const LOOKBOOK = [
         src: '/images/lookbook/syndicate-cap-white-tee.jpg',
         alt: 'Person in a white Syndicate graphic tee and embroidered cap outdoors, a friend resting in a hammock behind them',
         tag: 'Apparel',
-        caption: 'Peace by Pint tee + cap',
+        caption: 'Peace by Plant tee + cap',
         ratio: 'aspect-[3/4]',
     },
     {
@@ -99,72 +100,83 @@ export default function Home() {
             <Head title="Syndicate Supply Co. — Skate & Streetwear, Legazpi" />
 
             {/* ── Hero ─────────────────────────────────────────────────── */}
-            <section className="relative overflow-hidden border-b-2 border-volt-500 bg-ink-950">
-                {/* Oversized ghost word — pure decoration, hidden from AT. */}
-                <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute -right-10 top-1/2 hidden -translate-y-1/2 select-none font-display text-[16rem] uppercase leading-none tracking-tighter text-white/[0.03] lg:block xl:text-[20rem]"
-                >
-                    Skate
-                </span>
+            <section className="relative overflow-hidden border-b-2 border-volt-500 bg-ink-950 light:bg-paper">
+                {/* Explicit two-column grid, not an absolutely-positioned
+                    overlay — HeroBoard needs a real, predictable slot to be
+                    genuinely centered in, not "wherever there happens to be
+                    empty space" relative to a text column whose height
+                    changes with content. `items-center` on the grid centers
+                    the board's column against the text column's actual
+                    rendered height, at any viewport width. */}
+                <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 py-20 sm:px-6 sm:py-28 lg:grid-cols-[1.1fr_1fr] lg:gap-12 lg:px-8 lg:py-36">
+                    <div>
+                        <p className="flex items-center gap-3 font-display text-xs uppercase tracking-[0.35em] text-volt-500 light:text-volt-800">
+                            <span className="h-px w-8 bg-volt-500" />
+                            Legazpi City · Est. 2024
+                        </p>
 
-                <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8 lg:py-36">
-                    <p className="flex items-center gap-3 font-display text-xs uppercase tracking-[0.35em] text-volt-500">
-                        <span className="h-px w-8 bg-volt-500" />
-                        Legazpi City · Est. 2024
-                    </p>
-
-                    <h1 className="mt-6 font-display uppercase leading-[0.85] tracking-tighter text-white">
-                        <span className="block text-[clamp(2.75rem,11vw,9rem)]">
-                            Build your
-                        </span>
-                        <span className="block text-[clamp(2.75rem,11vw,9rem)] text-volt-500">
-                            style.
-                        </span>
-                        <span className="block text-[clamp(2.75rem,11vw,9rem)]">
-                            Ride safe.
-                        </span>
-                    </h1>
-
-                    <p className="mt-8 max-w-xl text-base leading-relaxed text-white/60 sm:text-lg">
-                        Decks, wheels and heavyweight apparel out of Legazpi.
-                        Spin the board in 3D, pick your graphic, check it from
-                        every angle — then take it to the street.
-                    </p>
-
-                    <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
-                        <Link
-                            href={customizeHref}
-                            className="group inline-flex items-center justify-center gap-3 bg-volt-500 px-8 py-4 font-display text-base uppercase tracking-[0.2em] text-ink-900 transition-all hover:-translate-y-1 hover:bg-white sm:text-lg"
-                        >
-                            Build a board
-                            <span className="transition-transform group-hover:translate-x-1">
-                                →
+                        <h1 className="mt-6 font-display uppercase leading-[0.85] tracking-tighter text-white light:text-ink-900">
+                            <span className="block text-[clamp(2.75rem,8vw,6.5rem)]">
+                                Build your
                             </span>
-                        </Link>
-                        <a
-                            href="#lookbook"
-                            className="inline-flex items-center justify-center border-2 border-white/20 px-8 py-4 font-display text-base uppercase tracking-[0.2em] text-white transition-colors hover:border-volt-500 hover:text-volt-500 sm:text-lg"
-                        >
-                            See the lookbook
-                        </a>
+                            <span className="block text-[clamp(2.75rem,8vw,6.5rem)] text-volt-500 light:text-volt-800">
+                                style.
+                            </span>
+                            <span className="block text-[clamp(2.75rem,8vw,6.5rem)]">
+                                Ride safe.
+                            </span>
+                        </h1>
+
+                        <p className="mt-8 max-w-xl text-base leading-relaxed text-white/60 light:text-ink-900/75 sm:text-lg">
+                            Decks, wheels and heavyweight apparel out of
+                            Legazpi. Spin the board in 3D, pick your graphic,
+                            check it from every angle — then take it to the
+                            street.
+                        </p>
+
+                        <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
+                            <Link
+                                href={customizeHref}
+                                className="group inline-flex items-center justify-center gap-3 bg-volt-500 px-8 py-4 font-display text-base uppercase tracking-[0.2em] text-ink-900 transition-all hover:-translate-y-1 hover:bg-white light:hover:bg-ink-900 light:hover:text-white sm:text-lg"
+                            >
+                                Build a board
+                                <span className="transition-transform group-hover:translate-x-1">
+                                    →
+                                </span>
+                            </Link>
+                            <a
+                                href="#lookbook"
+                                className="inline-flex items-center justify-center border-2 border-white/20 px-8 py-4 font-display text-base uppercase tracking-[0.2em] text-white transition-colors hover:border-volt-500 hover:text-volt-500 light:border-ink-900/25 light:text-ink-900 light:hover:border-volt-800 light:hover:text-volt-800 sm:text-lg"
+                            >
+                                See the lookbook
+                            </a>
+                        </div>
+
+                        <dl className="mt-16 grid max-w-2xl grid-cols-3 gap-6 border-t border-white/10 light:border-ink-900/10 pt-8">
+                            {STATS.map((stat) => (
+                                <div key={stat.label}>
+                                    <dt className="sr-only">{stat.label}</dt>
+                                    <dd>
+                                        <span className="block font-display text-3xl uppercase leading-none text-white light:text-ink-900 sm:text-5xl">
+                                            {stat.value}
+                                        </span>
+                                        <span className="mt-2 block text-[11px] uppercase leading-snug tracking-[0.15em] text-white/40 light:text-ink-900/55">
+                                            {stat.label}
+                                        </span>
+                                    </dd>
+                                </div>
+                            ))}
+                        </dl>
                     </div>
 
-                    <dl className="mt-16 grid max-w-2xl grid-cols-3 gap-6 border-t border-white/10 pt-8">
-                        {STATS.map((stat) => (
-                            <div key={stat.label}>
-                                <dt className="sr-only">{stat.label}</dt>
-                                <dd>
-                                    <span className="block font-display text-3xl uppercase leading-none text-white sm:text-5xl">
-                                        {stat.value}
-                                    </span>
-                                    <span className="mt-2 block text-[11px] uppercase leading-snug tracking-[0.15em] text-white/40">
-                                        {stat.label}
-                                    </span>
-                                </dd>
-                            </div>
-                        ))}
-                    </dl>
+                    {/* Board's own column — hidden below lg (see HeroBoard.jsx
+                        for why: Three.js is real weight, not worth it on a
+                        phone hero). min-h keeps a tall showcase even where the
+                        text column is short, so the board reads as a genuine
+                        second "half" of the hero, not a corner decoration. */}
+                    <div className="relative hidden min-h-[420px] lg:block lg:min-h-[520px] xl:min-h-[600px]">
+                        <HeroBoard />
+                    </div>
                 </div>
             </section>
 
@@ -180,21 +192,21 @@ export default function Home() {
             {/* ── Lookbook ─────────────────────────────────────────────── */}
             <section
                 id="lookbook"
-                className="scroll-mt-20 bg-ink-950 px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
+                className="scroll-mt-20 bg-ink-950 light:bg-paper px-4 py-20 sm:px-6 sm:py-28 lg:px-8"
             >
                 <div className="mx-auto max-w-7xl">
                     <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
-                            <p className="font-display text-xs uppercase tracking-[0.35em] text-volt-500">
+                            <p className="font-display text-xs uppercase tracking-[0.35em] text-volt-500 light:text-volt-800">
                                 The lookbook
                             </p>
-                            <h2 className="mt-3 font-display text-[clamp(2rem,7vw,4.5rem)] uppercase leading-[0.9] tracking-tighter text-white">
+                            <h2 className="mt-3 font-display text-[clamp(2rem,7vw,4.5rem)] uppercase leading-[0.9] tracking-tighter text-white light:text-ink-900">
                                 Shot on the
                                 <br />
                                 streets we skate
                             </h2>
                         </div>
-                        <p className="max-w-xs text-sm leading-relaxed text-white/40">
+                        <p className="max-w-xs text-sm leading-relaxed text-white/40 light:text-ink-900/55">
                             No studio, no stock models. Every piece photographed
                             where it actually gets worn and ridden.
                         </p>

@@ -46,11 +46,13 @@ class DatabaseSeeder extends Seeder
      * Twelve products per apparel type (tees, hoodies, caps) so the shop has
      * enough depth to actually browse and to demo the type sections with.
      *
-     * Only the first product in each type carries one of the client's real
-     * photos (see public/images/lookbook/) — there are only three real shots
-     * to go around. The rest are seeded with image_path null on purpose,
-     * which the storefront already renders as a labelled placeholder block
-     * (see Storefront/Shop/Index.jsx) rather than a fake product photo.
+     * A growing subset carries one of the client's real photos (see
+     * public/images/lookbook/, shared with the Home page lookbook — some
+     * files do double duty as both). The rest are seeded with image_path
+     * null on purpose, which the storefront already renders as a labelled
+     * placeholder block (see Storefront/Shop/Index.jsx) rather than a fake
+     * product photo. No hoodie photos exist yet — all 12 hoodie entries are
+     * still placeholder.
      */
     private function seedApparel(): void
     {
@@ -60,17 +62,17 @@ class DatabaseSeeder extends Seeder
 
         $this->seedType(Product::TYPE_TEE, [
             ['Syndicate Box Logo Tee', 89900, '/images/lookbook/love-your-mind-tee.jpg', 'Heavyweight cotton tee with the Syndicate chest mark. Boxy fit, ribbed collar, built to survive a bail.'],
-            ['Core Logo Tee — Black', 79900],
-            ['Core Logo Tee — White', 79900],
-            ['Flame Graphic Tee', 84900],
+            ['Core Logo Tee — Black', 79900, '/images/lookbook/core-tee-black.jpg', 'Plain block "Syndicate" wordmark on heavyweight black cotton. The one to grab when a graphic is too much.'],
+            ['Core Logo Tee — White', 79900, '/images/lookbook/core-tee-white.jpg', 'Same wordmark, white cotton, red print. Runs true, boxy through the body.'],
+            ['Flame Graphic Tee', 84900, '/images/lookbook/tee-rack-night.jpg', 'Flame "S" chest print, screen printed. Runs in black, white or navy — the rack shot is the actual colour run.'],
             ['Skate Or Die Tee', 84900],
-            ['Minimal Wordmark Tee', 74900],
-            ['Street Stripe Tee', 79900],
-            ['Faded Wash Tee', 89900],
+            ['Peace By Plant Tee', 74900, '/images/lookbook/syndicate-cap-white-tee.jpg', '"SYND." peace-sign graphic on white cotton. Screen printed, soft hand, no scratch.'],
+            ['Pretty Girls Love Syndicate Tee', 79900, '/images/lookbook/pretty-girls-tee.jpg', 'Red silhouette print on white cotton, straight off the shop\'s own capsule run.'],
+            ['Beach Brain Tee — Mint', 89900, '/images/lookbook/mint-tee-rocks.jpg', 'Brain-mark "Supply Co." wordmark on mint cotton, oversized fit.'],
             ['Pocket Tee — Olive', 74900],
             ['Long Sleeve Tee', 94900],
             ['Tie-Dye Tee', 99900],
-            ['Oversized Tee — Grey', 89900],
+            ['Beach Brain Tee — Pink', 89900, '/images/lookbook/pink-tee-shoreline.jpg', 'Same brain-mark "Supply Co." wordmark, pink colourway, oversized fit.'],
         ], ['S', 'M', 'L', 'XL'], ['Black', 'White']);
 
         $this->seedType(Product::TYPE_HOODIE, [
@@ -93,18 +95,27 @@ class DatabaseSeeder extends Seeder
         // seeder contradicted it by generating apparel-style size variants.
         $this->seedType(Product::TYPE_CAP, [
             ['Legazpi Skate Crew Cap', 59900, '/images/lookbook/flame-tee-cap.jpg', 'Six-panel cap with an embroidered flame mark and an adjustable strap. One size, wears low.'],
-            ['Flame Snapback', 64900],
-            ['Six-Panel Cap — Black', 59900],
-            ['Dad Cap — Khaki', 54900],
-            ['Embroidered Brain Cap', 64900],
+            ['Flame Snapback', 64900, '/images/lookbook/flame-snapback-cap.jpg', 'Same flame mark, tone-on-tone embroidery, snapback closure.'],
+            ['Wordmark Cap — Black', 59900, '/images/lookbook/wordmark-cap-black.jpg', 'Structured five-panel cap, embroidered "Syndicate" wordmark on the front panel.'],
+            ['Curved Brim Dad Cap', 54900, '/images/lookbook/dad-cap-shelf.jpg', 'Six-panel dad cap, curved brim, brain mark only — no wordmark. Shown in red, black and navy.'],
+            ['Embroidered Brain Cap', 64900, '/images/lookbook/brain-cap-black.jpg', 'Five-panel cap, embroidered brain mark, zip-back pocket detail.'],
             ['Corduroy Cap', 69900],
             ['Mesh Trucker Cap', 54900],
             ['Low-Profile Cap — Navy', 59900],
             ['Bucket Hat', 64900],
             ['Beanie — Black', 49900],
-            ['Wordmark Cap — White', 59900],
+            ['Wordmark Cap — Red', 59900, '/images/lookbook/wordmark-cap-red.jpg', 'Same wordmark cap, red colourway.'],
             ['Flame Bucket Hat', 69900],
         ], ['One Size'], ['Black', 'White', 'Olive', 'Navy']);
+
+        // Small goods — keychains, straps. Real photos only exist in black,
+        // so unlike Tees/Hoodies/Caps this type is NOT seeded with a wider
+        // colour spread that was never actually photographed.
+        $this->seedType(Product::TYPE_ACCESSORY, [
+            ['Brain Pattern Keychain', 15000, '/images/lookbook/brain-keychain.jpg', 'Woven strap keychain, repeating brain-mark print, black nylon carabiner clip.'],
+            ['Syndicate Wordmark Keychain', 15000, '/images/lookbook/wordmark-keychain.jpg', 'Woven strap keychain, "Syndicate" wordmark print, black nylon carabiner clip.'],
+            ['Syndicate Canvas Strap', 25000, '/images/lookbook/canvas-strap.jpg', 'Adjustable canvas strap with a metal slide buckle, brain-mark and wordmark print.'],
+        ], ['One Size'], ['Black']);
     }
 
     /**

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
@@ -40,7 +40,16 @@ const COLORS = ['BLUE', 'GREEN', 'PURPLE', 'RED', 'WHITE', 'YELLOW'];
  * mount-once, mutate-visibility-imperatively pattern as Board.jsx.
  */
 export default function Wheels({ activeMeshName }) {
-    const { scene } = useGLTF('/models/wheels.glb');
+    const { scene: cachedScene } = useGLTF('/models/wheels.glb');
+
+    // Same reasoning as Board.jsx: useGLTF's cache is shared across every
+    // mount of this component within the SPA session (Home's hero showcase
+    // AND /customize's picker both mount it, and Inertia never fully reloads
+    // between them). centerPivotAndReturn() below REPARENTS objects — two
+    // mounts fighting over one shared scene graph would repeatedly rewrap
+    // each other's pivots. A fresh clone per mount keeps them independent.
+    const scene = useMemo(() => cachedScene.clone(true), [cachedScene]);
+
     const groupsRef = useRef(null);
 
     // Build the 18 re-centered pivot pairs once per loaded scene.

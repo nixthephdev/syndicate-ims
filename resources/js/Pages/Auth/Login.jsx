@@ -42,7 +42,7 @@ export default function Login({ status, canResetPassword }) {
                     No account yet?{' '}
                     <Link
                         href={route('register')}
-                        className="font-display uppercase tracking-[0.15em] text-volt-500 hover:text-white"
+                        className="font-display uppercase tracking-[0.15em] text-volt-500 hover:text-white light:text-volt-800 light:hover:text-ink-900"
                     >
                         Sign up
                     </Link>
@@ -53,7 +53,7 @@ export default function Login({ status, canResetPassword }) {
 
             {/* Post-reset / post-verification notices land here. */}
             {status && (
-                <div className="mb-6 border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300">
+                <div className="mb-6 border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300 light:text-volt-800">
                     {status}
                 </div>
             )}
@@ -96,7 +96,7 @@ export default function Login({ status, canResetPassword }) {
                     {canResetPassword && (
                         <Link
                             href={route('password.request')}
-                            className="text-sm text-white/40 underline underline-offset-4 transition-colors hover:text-volt-500"
+                            className="text-sm text-white/40 underline underline-offset-4 transition-colors hover:text-volt-500 light:text-ink-900/55 light:hover:text-volt-800"
                         >
                             Forgot password?
                         </Link>

@@ -1,15 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
 import { formatCentavos } from '@/utils/money';
-
-const STATUS_STYLES = {
-    paid: 'bg-volt-500 text-ink-900',
-    fulfilled: 'bg-volt-500 text-ink-900',
-    awaiting_payment: 'bg-amber-400 text-ink-900',
-    pending: 'bg-white/15 text-white',
-    cancelled: 'bg-white/10 text-white/50',
-    failed: 'bg-red-500 text-white',
-};
+import { statusChipClasses, formatStatusLabel } from '@/utils/orderStatus';
 
 export default function OrdersIndex({ orders }) {
     return (
@@ -17,13 +9,13 @@ export default function OrdersIndex({ orders }) {
             <Head title="Your orders" />
 
             <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:py-16">
-                <h1 className="font-display text-[clamp(2rem,7vw,4rem)] uppercase leading-[0.9] tracking-tighter text-white">
+                <h1 className="font-display text-[clamp(2rem,7vw,4rem)] uppercase leading-[0.9] tracking-tighter text-white light:text-ink-900">
                     Your orders
                 </h1>
 
                 {orders.length === 0 ? (
                     <div className="py-20 text-center">
-                        <p className="font-display text-xl uppercase tracking-[0.2em] text-white/30">
+                        <p className="font-display text-xl uppercase tracking-[0.2em] text-white/30 light:text-ink-900/45">
                             Nothing ordered yet.
                         </p>
                         <Link
@@ -34,7 +26,7 @@ export default function OrdersIndex({ orders }) {
                         </Link>
                     </div>
                 ) : (
-                    <ul className="mt-12 divide-y divide-white/10 border-y border-white/10">
+                    <ul className="mt-12 divide-y divide-white/10 border-y border-white/10 light:divide-ink-900/10 light:border-ink-900/10">
                         {orders.map((order) => (
                             <li key={order.order_number}>
                                 <Link
@@ -42,10 +34,10 @@ export default function OrdersIndex({ orders }) {
                                     className="group flex flex-col gap-3 py-6 sm:flex-row sm:items-center sm:justify-between"
                                 >
                                     <div>
-                                        <p className="font-display text-lg uppercase tracking-wide text-white transition-colors group-hover:text-volt-500">
+                                        <p className="font-display text-lg uppercase tracking-wide text-white transition-colors group-hover:text-volt-500 light:text-ink-900 light:group-hover:text-volt-800">
                                             {order.order_number}
                                         </p>
-                                        <p className="mt-1 text-xs uppercase tracking-[0.15em] text-white/35">
+                                        <p className="mt-1 text-xs uppercase tracking-[0.15em] text-white/35 light:text-ink-900/50">
                                             {order.placed_at} · {order.items_count}{' '}
                                             item{order.items_count === 1 ? '' : 's'}
                                         </p>
@@ -55,13 +47,12 @@ export default function OrdersIndex({ orders }) {
                                         <span
                                             className={
                                                 'px-3 py-1 font-display text-[10px] uppercase tracking-[0.2em] ' +
-                                                (STATUS_STYLES[order.status] ??
-                                                    'bg-white/15 text-white')
+                                                statusChipClasses(order.status)
                                             }
                                         >
-                                            {order.status.replace('_', ' ')}
+                                            {formatStatusLabel(order.status)}
                                         </span>
-                                        <span className="w-28 text-right font-display text-lg text-volt-500">
+                                        <span className="w-28 text-right font-display text-lg text-volt-500 light:text-volt-800">
                                             {formatCentavos(order.total_centavos)}
                                         </span>
                                     </div>

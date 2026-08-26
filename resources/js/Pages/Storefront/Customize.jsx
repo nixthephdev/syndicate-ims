@@ -4,7 +4,10 @@ import { Loader } from '@react-three/drei';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
 import Scene from '@/Components/Customizer/Scene';
 import PartPicker from '@/Components/Customizer/PartPicker';
+import ColorSwatchPicker from '@/Components/Customizer/ColorSwatchPicker';
+import { DEFAULT_HARDWARE_COLOR } from '@/Components/Customizer/hardwareColors';
 import { formatCentavos } from '@/utils/money';
+import { useTheme } from '@/utils/useTheme';
 
 const firstAvailable = (options) =>
     options.find((o) => !o.is_out_of_stock)?.id ?? options[0]?.id ?? null;
@@ -12,6 +15,19 @@ const firstAvailable = (options) =>
 export default function Customize({ decks, wheels, trucks, bolts }) {
     const [deckId, setDeckId] = useState(() => firstAvailable(decks));
     const [wheelsId, setWheelsId] = useState(() => firstAvailable(wheels));
+
+    // Free cosmetic recolour of the fixed Bolts/Trucks hardware — see
+    // hardwareColors.js. Never affects totalCentavos or the cart payload:
+    // there is no separate SKU behind a colour, unlike Deck/Wheels.
+    const [boltsColor, setBoltsColor] = useState(DEFAULT_HARDWARE_COLOR);
+    const [trucksColor, setTrucksColor] = useState(DEFAULT_HARDWARE_COLOR);
+
+    // drei's <Loader> renders inline style props on a DOM overlay outside the
+    // R3F tree — Tailwind's `light:` variant can't reach it, so it needs the
+    // theme read directly. Also keeps it in sync if the toggle is flipped
+    // while this page is already mounted (see utils/useTheme.js).
+    const { theme } = useTheme();
+    const isLight = theme === 'light';
 
     const selectedDeck = useMemo(
         () => decks.find((d) => d.id === deckId) ?? null,
@@ -54,7 +70,9 @@ export default function Customize({ decks, wheels, trucks, bolts }) {
         <StorefrontLayout>
             <Head title="Build your board" />
             <Loader
-                containerStyles={{ background: 'rgba(5,5,5,0.9)' }}
+                containerStyles={{
+                    background: isLight ? 'rgba(247,246,242,0.9)' : 'rgba(5,5,5,0.9)',
+                }}
                 innerStyles={{ width: '200px' }}
                 barStyles={{ background: '#ccff00' }}
                 dataStyles={{
@@ -62,38 +80,60 @@ export default function Customize({ decks, wheels, trucks, bolts }) {
                     fontSize: '11px',
                     letterSpacing: '0.15em',
                     textTransform: 'uppercase',
-                    color: '#fff',
+                    color: isLight ? '#0b0b0b' : '#fff',
                 }}
             />
 
             <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-16">
                 <Link
                     href={route('shop.index')}
-                    className="font-display text-xs uppercase tracking-[0.25em] text-white/30 transition-colors hover:text-volt-500"
+                    className="font-display text-xs uppercase tracking-[0.25em] text-white/30 transition-colors hover:text-volt-500 light:text-ink-900/45 light:hover:text-volt-800"
                 >
                     ← Shop
                 </Link>
 
-                <p className="mt-6 flex items-center gap-3 font-display text-xs uppercase tracking-[0.35em] text-volt-500">
+                <p className="mt-6 flex items-center gap-3 font-display text-xs uppercase tracking-[0.35em] text-volt-500 light:text-volt-800">
                     <span className="h-px w-8 bg-volt-500" />
                     Build your own
                 </p>
-                <h1 className="mt-4 font-display text-[clamp(2rem,6vw,3.5rem)] uppercase leading-[0.9] tracking-tighter text-white">
+                <h1 className="mt-4 font-display text-[clamp(2rem,6vw,3.5rem)] uppercase leading-[0.9] tracking-tighter text-white light:text-ink-900">
                     Custom board
                 </h1>
 
                 <div className="mt-10 grid gap-10 lg:grid-cols-5 lg:gap-12">
                     {/* 3D preview */}
                     <div className="lg:col-span-3">
-                        <div className="h-[50vh] border-2 border-white/10 lg:h-[70vh]">
+                        <div className="h-[50vh] border-2 border-white/10 light:border-ink-900/10 lg:h-[70vh]">
                             <Scene
                                 deckMeshName={selectedDeck?.mesh_name}
                                 wheelsMeshName={selectedWheels?.mesh_name}
+                                boltsColor={boltsColor}
+                                trucksColor={trucksColor}
                             />
                         </div>
-                        <p className="mt-3 text-xs uppercase tracking-[0.15em] text-white/30">
+                        <p className="mt-3 text-xs uppercase tracking-[0.15em] text-white/30 light:text-ink-900/45">
                             Drag to rotate · scroll to zoom
                         </p>
+
+                        {(trucks || bolts) && (
+                            <div className="mt-8 space-y-8">
+                                {trucks && (
+                                    <ColorSwatchPicker
+                                        label={`${trucks.name} colour`}
+                                        value={trucksColor}
+                                        onChange={setTrucksColor}
+                                    />
+                                )}
+
+                                {bolts && (
+                                    <ColorSwatchPicker
+                                        label={`${bolts.name} colour`}
+                                        value={boltsColor}
+                                        onChange={setBoltsColor}
+                                    />
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Pickers + summary */}
@@ -112,24 +152,12 @@ export default function Customize({ decks, wheels, trucks, bolts }) {
                             onSelect={setWheelsId}
                         />
 
-                        {(trucks || bolts) && (
-                            <div>
-                                <p className="mb-3 font-display text-xs uppercase tracking-[0.25em] text-white/50">
-                                    Included
-                                </p>
-                                <ul className="space-y-1 text-sm text-white/50">
-                                    {trucks && <li>{trucks.name}</li>}
-                                    {bolts && <li>{bolts.name}</li>}
-                                </ul>
-                            </div>
-                        )}
-
-                        <div className="border-t border-white/10 pt-6">
+                        <div className="border-t border-white/10 pt-6 light:border-ink-900/10">
                             <div className="flex items-baseline justify-between">
-                                <span className="font-display text-sm uppercase tracking-[0.2em] text-white/50">
+                                <span className="font-display text-sm uppercase tracking-[0.2em] text-white/50 light:text-ink-900/65">
                                     Total
                                 </span>
-                                <span className="font-display text-3xl text-volt-500">
+                                <span className="font-display text-3xl text-volt-500 light:text-volt-800">
                                     {formatCentavos(totalCentavos)}
                                 </span>
                             </div>
@@ -137,7 +165,7 @@ export default function Customize({ decks, wheels, trucks, bolts }) {
                             <button
                                 type="submit"
                                 disabled={outOfStock || processing}
-                                className="group mt-6 inline-flex w-full items-center justify-center gap-3 bg-volt-500 px-8 py-4 font-display text-base uppercase tracking-[0.2em] text-ink-900 transition-all hover:-translate-y-0.5 hover:bg-white focus:outline-none focus:ring-2 focus:ring-volt-500 focus:ring-offset-2 focus:ring-offset-ink-950 disabled:pointer-events-none disabled:opacity-30"
+                                className="group mt-6 inline-flex w-full items-center justify-center gap-3 bg-volt-500 px-8 py-4 font-display text-base uppercase tracking-[0.2em] text-ink-900 transition-all hover:-translate-y-0.5 hover:bg-white light:hover:bg-ink-900 light:hover:text-white focus:outline-none focus:ring-2 focus:ring-volt-500 focus:ring-offset-2 focus:ring-offset-ink-950 light:focus:ring-offset-paper disabled:pointer-events-none disabled:opacity-30"
                             >
                                 {outOfStock
                                     ? 'Sold out'
@@ -153,6 +181,7 @@ export default function Customize({ decks, wheels, trucks, bolts }) {
                         </div>
                     </form>
                 </div>
+
             </div>
         </StorefrontLayout>
     );

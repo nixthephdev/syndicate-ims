@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import ThemeToggle from '@/Components/Storefront/ThemeToggle';
 
 /**
  * Auth shell for the storefront (login / register).
@@ -16,8 +17,17 @@ import { Link } from '@inertiajs/react';
  */
 export default function StorefrontAuthLayout({ eyebrow, title, intro, children, footer }) {
     return (
-        <div className="min-h-screen bg-ink-950 font-sans text-white selection:bg-volt-500 selection:text-ink-900 lg:grid lg:grid-cols-2">
+        <div className="min-h-screen bg-ink-950 font-sans text-white selection:bg-volt-500 selection:text-ink-900 light:bg-paper light:text-ink-900 lg:grid lg:grid-cols-2">
+            <ThemeToggle />
+
             {/* ── Brand panel ──────────────────────────────────────────── */}
+            {/* Deliberately NOT theme-paired, same reasoning as
+                StorefrontLayout's footer: this is a photo with a dark scrim
+                (tuned specifically for white text on top), not a flat
+                surface the light palette was designed for, and it's
+                decorative branding rather than content someone needs to
+                read in their preferred theme. Desktop-only (lg:block),
+                which is also why the mobile logo below exists separately. */}
             <aside className="relative hidden lg:block">
                 <img
                     src="/images/lookbook/storefront.jpg"
@@ -70,26 +80,32 @@ export default function StorefrontAuthLayout({ eyebrow, title, intro, children, 
                             src="/images/logo-mark.png"
                             alt=""
                             aria-hidden="true"
-                            className="h-8 w-auto"
+                            className="h-8 w-auto light:hidden"
                         />
-                        <span className="font-display text-2xl uppercase leading-none tracking-tight text-white">
+                        <img
+                            src="/images/logo-mark-dark.png"
+                            alt=""
+                            aria-hidden="true"
+                            className="hidden h-8 w-auto light:block"
+                        />
+                        <span className="font-display text-2xl uppercase leading-none tracking-tight text-white light:text-ink-900">
                             Syndicate
                         </span>
                     </Link>
 
                     {eyebrow && (
-                        <p className="flex items-center gap-3 font-display text-xs uppercase tracking-[0.35em] text-volt-500">
+                        <p className="flex items-center gap-3 font-display text-xs uppercase tracking-[0.35em] text-volt-500 light:text-volt-800">
                             <span className="h-px w-8 bg-volt-500" />
                             {eyebrow}
                         </p>
                     )}
 
-                    <h1 className="mt-5 font-display text-[clamp(2.25rem,7vw,3.5rem)] uppercase leading-[0.9] tracking-tighter text-white">
+                    <h1 className="mt-5 font-display text-[clamp(2.25rem,7vw,3.5rem)] uppercase leading-[0.9] tracking-tighter text-white light:text-ink-900">
                         {title}
                     </h1>
 
                     {intro && (
-                        <p className="mt-4 text-sm leading-relaxed text-white/50">
+                        <p className="mt-4 text-sm leading-relaxed text-white/50 light:text-ink-900/65">
                             {intro}
                         </p>
                     )}
@@ -97,14 +113,14 @@ export default function StorefrontAuthLayout({ eyebrow, title, intro, children, 
                     <div className="mt-10">{children}</div>
 
                     {footer && (
-                        <div className="mt-8 border-t border-white/10 pt-6 text-sm text-white/50">
+                        <div className="mt-8 border-t border-white/10 pt-6 text-sm text-white/50 light:border-ink-900/10 light:text-ink-900/65">
                             {footer}
                         </div>
                     )}
 
                     <Link
                         href="/"
-                        className="mt-10 inline-block font-display text-xs uppercase tracking-[0.25em] text-white/30 transition-colors hover:text-volt-500"
+                        className="mt-10 inline-block font-display text-xs uppercase tracking-[0.25em] text-white/30 transition-colors hover:text-volt-500 light:text-ink-900/45 light:hover:text-volt-800"
                     >
                         ← Back to the shop
                     </Link>

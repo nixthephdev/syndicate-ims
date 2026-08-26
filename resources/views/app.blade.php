@@ -4,6 +4,25 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
+        {{-- Theme, read and applied before ANYTHING else paints — including
+             the boot splash below. Synchronous, not deferred: a flash of the
+             wrong theme is exactly the bug this exists to prevent. Always
+             sets one value or the other, never leaves the attribute absent —
+             resources/js/utils/useTheme.js treats "absent" as an error case,
+             not as "assume dark". Wrapped in try/catch because localStorage
+             can throw in locked-down browser contexts (private mode with
+             storage blocked, some in-app webviews) and this must never be
+             what breaks page load. Admin never reads data-theme — this runs
+             on every page regardless, but is inert there. --}}
+        <script>
+            try {
+                var t = localStorage.getItem('syndicate-theme');
+                document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+            } catch (e) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        </script>
+
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
         {{-- Favicons: dark brain mark on volt. Baked background on purpose —
@@ -49,6 +68,21 @@
                     #app-splash .mark { animation: none; opacity: 1 }
                     #app-splash .bar i { animation: none; width: 100% }
                 }
+                /* Light mode. The volt bar-fill and both keyframes are
+                   fill-role/invariant — same rule as everywhere else in the
+                   storefront, see tailwind.config.js. Only the ground and the
+                   bar's track need to flip. */
+                [data-theme="light"] #app-splash { background: #f7f6f2; }
+                [data-theme="light"] #app-splash .bar { background: rgba(11,11,11,.12); }
+                /* Logo swap: two stacked images, not a JS src swap — this
+                   whole block is inline specifically so it resolves before
+                   any JS bundle loads, and the attribute selector already
+                   governs everything else here. logo-mark.png is white and
+                   invisible on the light ground; logo-mark-dark.png is its
+                   ink counterpart. See CLAUDE.md's Logo section. */
+                #app-splash .mark-dark { display: none; }
+                [data-theme="light"] #app-splash .mark-light { display: none; }
+                [data-theme="light"] #app-splash .mark-dark { display: block; }
             </style>
             {{-- With JS disabled nothing ever removes the splash, so it would
                  sit over the page forever. Hide it up front in that case. --}}
@@ -64,7 +98,8 @@
     <body class="font-sans antialiased">
         @if ($showSplash)
             <div id="app-splash" aria-hidden="true">
-                <img class="mark" src="/images/logo-mark.png" alt="">
+                <img class="mark mark-light" src="/images/logo-mark.png" alt="">
+                <img class="mark mark-dark" src="/images/logo-mark-dark.png" alt="">
                 <div class="bar"><i></i></div>
             </div>
             <script>

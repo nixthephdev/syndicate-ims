@@ -8,6 +8,12 @@ import { useState } from 'react';
  * a flaky campus connection should not render a grid of broken-image icons.
  * Swap `src` for files under public/images/lookbook/ and the fallback simply
  * stops firing.
+ *
+ * Deliberately NOT theme-paired, same reasoning as the footer and the auth
+ * panel's brand photo: this is real photography with a dark scrim tuned
+ * specifically for a white caption on top, a moody photo-gallery treatment
+ * rather than a flat content surface. Flipping it would need a different
+ * scrim direction per photo, not a palette swap.
  */
 export default function LookbookTile({ src, alt, tag, caption, ratio, eager = false, className = '' }) {
     const [failed, setFailed] = useState(false);

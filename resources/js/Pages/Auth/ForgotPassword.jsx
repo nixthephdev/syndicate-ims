@@ -33,7 +33,7 @@ export default function ForgotPassword({ status }) {
                     Remembered it?{' '}
                     <Link
                         href={route('login')}
-                        className="font-display uppercase tracking-[0.15em] text-volt-500 hover:text-white"
+                        className="font-display uppercase tracking-[0.15em] text-volt-500 hover:text-white light:text-volt-800 light:hover:text-ink-900"
                     >
                         Log in
                     </Link>
@@ -48,7 +48,7 @@ export default function ForgotPassword({ status }) {
             {status && (
                 <div
                     role="status"
-                    className="mb-6 border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300"
+                    className="mb-6 border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300 light:text-volt-800"
                 >
                     {status}
                 </div>

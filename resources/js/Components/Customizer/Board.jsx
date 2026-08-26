@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
 
 /** Walk .parent up the chain — replaces three core's traverseAncestors,
@@ -27,8 +27,20 @@ function isDescendantOf(object, ancestor) {
  * preload fired at import time (before Scene.jsx's module body runs) would
  * race that and fall back to the default Google CDN decoder path instead.
  */
-export default function Board({ activeMeshName }) {
-    const { scene } = useGLTF('/models/board.glb');
+export default function Board({ activeMeshName, boltsColor, trucksColor }) {
+    const { scene: cachedScene } = useGLTF('/models/board.glb');
+
+    // useGLTF caches the parsed scene by URL, and this component mutates it
+    // in place (visibility flags, cloned-then-recoloured materials) — so two
+    // independent mounts of <Board> sharing that one cached object (e.g. the
+    // Home hero showcase and the /customize picker, both alive in the same
+    // SPA session since Inertia never does a full page reload) would fight
+    // over the same mesh state. Cloning once per mount gives each its own
+    // Object3D graph; the per-mesh material clone below still only clones
+    // once per *this* graph; the two boards never touch each other again
+    // after this line.
+    const scene = useMemo(() => cachedScene.clone(true), [cachedScene]);
+
     const meshMapRef = useRef(null);
     const coreRef = useRef({ bolts: null, trucks: null });
 
@@ -117,6 +129,28 @@ export default function Board({ activeMeshName }) {
             });
         }
     }, [activeMeshName, scene]);
+
+    // Bolts/Trucks are a live material recolour, not a mesh swap — there is
+    // only ever the one physical part, so "picking a colour" means setting
+    // .color on its (already-cloned, see above) material directly. Ported
+    // from main.js's updateMaterialColor(); metalness/roughness match the
+    // reference's isMetallic=true branch so a recolour still reads as
+    // hardware, not painted plastic.
+    useEffect(() => {
+        const applyColor = (mesh, hex) => {
+            if (!mesh || !hex) return;
+
+            mesh.traverse((child) => {
+                if (!child.isMesh) return;
+                child.material.color.set(hex);
+                child.material.metalness = 0.95;
+                child.material.roughness = 0.15;
+            });
+        };
+
+        applyColor(coreRef.current.bolts, boltsColor);
+        applyColor(coreRef.current.trucks, trucksColor);
+    }, [boltsColor, trucksColor, scene]);
 
     return <primitive object={scene} />;
 }

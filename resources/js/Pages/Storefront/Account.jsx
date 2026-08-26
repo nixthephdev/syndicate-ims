@@ -1,14 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
-
-const STATUS_STYLES = {
-    paid: 'bg-volt-500 text-ink-900',
-    fulfilled: 'bg-volt-500 text-ink-900',
-    awaiting_payment: 'bg-amber-400 text-ink-900',
-    pending: 'bg-white/15 text-white',
-    cancelled: 'bg-white/10 text-white/50',
-    failed: 'bg-red-500 text-white',
-};
+import { statusChipClasses, formatStatusLabel } from '@/utils/orderStatus';
 
 export default function Account({ recentOrders, stats }) {
     const { auth } = usePage().props;
@@ -19,42 +11,42 @@ export default function Account({ recentOrders, stats }) {
             <Head title="Your account" />
 
             <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-                <p className="flex items-center gap-3 font-display text-xs uppercase tracking-[0.35em] text-volt-500">
+                <p className="flex items-center gap-3 font-display text-xs uppercase tracking-[0.35em] text-volt-500 light:text-volt-800">
                     <span className="h-px w-8 bg-volt-500" />
                     Your account
                 </p>
 
-                <h1 className="mt-5 font-display text-[clamp(2rem,7vw,4.5rem)] uppercase leading-[0.9] tracking-tighter text-white">
+                <h1 className="mt-5 font-display text-[clamp(2rem,7vw,4.5rem)] uppercase leading-[0.9] tracking-tighter text-white light:text-ink-900">
                     Hey, {firstName}.
                 </h1>
 
                 <div className="mt-12 grid gap-4 sm:grid-cols-2">
-                    <div className="border-2 border-white/10 p-6">
-                        <p className="font-display text-xs uppercase tracking-[0.25em] text-white/40">
+                    <div className="border-2 border-white/10 p-6 light:border-ink-900/10">
+                        <p className="font-display text-xs uppercase tracking-[0.25em] text-white/40 light:text-ink-900/55">
                             Orders placed
                         </p>
-                        <p className="mt-2 font-display text-4xl text-white">
+                        <p className="mt-2 font-display text-4xl text-white light:text-ink-900">
                             {stats.orders}
                         </p>
                     </div>
-                    <div className="border-2 border-white/10 p-6">
-                        <p className="font-display text-xs uppercase tracking-[0.25em] text-white/40">
+                    <div className="border-2 border-white/10 p-6 light:border-ink-900/10">
+                        <p className="font-display text-xs uppercase tracking-[0.25em] text-white/40 light:text-ink-900/55">
                             Total spent
                         </p>
-                        <p className="mt-2 font-display text-4xl text-volt-500">
+                        <p className="mt-2 font-display text-4xl text-volt-500 light:text-volt-800">
                             {stats.spent_formatted}
                         </p>
                     </div>
                 </div>
 
                 <div className="mt-14 flex items-end justify-between gap-4">
-                    <h2 className="font-display text-2xl uppercase tracking-wide text-white">
+                    <h2 className="font-display text-2xl uppercase tracking-wide text-white light:text-ink-900">
                         Recent orders
                     </h2>
                     {recentOrders.length > 0 && (
                         <Link
                             href={route('orders.index')}
-                            className="font-display text-xs uppercase tracking-[0.2em] text-volt-500 hover:text-white"
+                            className="font-display text-xs uppercase tracking-[0.2em] text-volt-500 hover:text-white light:text-volt-800 light:hover:text-ink-900"
                         >
                             See all →
                         </Link>
@@ -62,8 +54,8 @@ export default function Account({ recentOrders, stats }) {
                 </div>
 
                 {recentOrders.length === 0 ? (
-                    <div className="mt-8 border-2 border-dashed border-white/10 px-6 py-16 text-center">
-                        <p className="font-display text-lg uppercase tracking-[0.2em] text-white/30">
+                    <div className="mt-8 border-2 border-dashed border-white/10 px-6 py-16 text-center light:border-ink-900/15">
+                        <p className="font-display text-lg uppercase tracking-[0.2em] text-white/30 light:text-ink-900/45">
                             No orders yet
                         </p>
                         <Link
@@ -74,7 +66,7 @@ export default function Account({ recentOrders, stats }) {
                         </Link>
                     </div>
                 ) : (
-                    <ul className="mt-8 divide-y divide-white/10 border-y border-white/10">
+                    <ul className="mt-8 divide-y divide-white/10 border-y border-white/10 light:divide-ink-900/10 light:border-ink-900/10">
                         {recentOrders.map((order) => (
                             <li key={order.order_number}>
                                 <Link
@@ -82,10 +74,10 @@ export default function Account({ recentOrders, stats }) {
                                     className="group flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between"
                                 >
                                     <div>
-                                        <p className="font-display text-lg uppercase tracking-wide text-white transition-colors group-hover:text-volt-500">
+                                        <p className="font-display text-lg uppercase tracking-wide text-white transition-colors group-hover:text-volt-500 light:text-ink-900 light:group-hover:text-volt-800">
                                             {order.order_number}
                                         </p>
-                                        <p className="mt-1 text-xs uppercase tracking-[0.15em] text-white/35">
+                                        <p className="mt-1 text-xs uppercase tracking-[0.15em] text-white/35 light:text-ink-900/50">
                                             {order.placed_at} · {order.items_count} item
                                             {order.items_count === 1 ? '' : 's'}
                                         </p>
@@ -94,13 +86,12 @@ export default function Account({ recentOrders, stats }) {
                                         <span
                                             className={
                                                 'px-3 py-1 font-display text-[10px] uppercase tracking-[0.2em] ' +
-                                                (STATUS_STYLES[order.status] ??
-                                                    'bg-white/15 text-white')
+                                                statusChipClasses(order.status)
                                             }
                                         >
-                                            {order.status.replace(/_/g, ' ')}
+                                            {formatStatusLabel(order.status)}
                                         </span>
-                                        <span className="w-28 text-right font-display text-lg text-volt-500">
+                                        <span className="w-28 text-right font-display text-lg text-volt-500 light:text-volt-800">
                                             {order.total_formatted}
                                         </span>
                                     </div>
@@ -110,16 +101,16 @@ export default function Account({ recentOrders, stats }) {
                     </ul>
                 )}
 
-                <div className="mt-14 flex flex-wrap gap-4 border-t border-white/10 pt-8">
+                <div className="mt-14 flex flex-wrap gap-4 border-t border-white/10 pt-8 light:border-ink-900/10">
                     <Link
                         href={route('profile.edit')}
-                        className="border-2 border-white/15 px-6 py-3 font-display text-xs uppercase tracking-[0.2em] text-white/70 transition-colors hover:border-volt-500 hover:text-volt-500"
+                        className="border-2 border-white/15 px-6 py-3 font-display text-xs uppercase tracking-[0.2em] text-white/70 transition-colors hover:border-volt-500 hover:text-volt-500 light:border-ink-900/20 light:text-ink-900/70 light:hover:border-volt-800 light:hover:text-volt-800"
                     >
                         Account settings
                     </Link>
                     <Link
                         href={route('shop.index')}
-                        className="border-2 border-white/15 px-6 py-3 font-display text-xs uppercase tracking-[0.2em] text-white/70 transition-colors hover:border-volt-500 hover:text-volt-500"
+                        className="border-2 border-white/15 px-6 py-3 font-display text-xs uppercase tracking-[0.2em] text-white/70 transition-colors hover:border-volt-500 hover:text-volt-500 light:border-ink-900/20 light:text-ink-900/70 light:hover:border-volt-800 light:hover:text-volt-800"
                     >
                         Keep shopping
                     </Link>

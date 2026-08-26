@@ -27,10 +27,10 @@ export default function Cart({ lines, subtotal_centavos }) {
             <StorefrontLayout>
                 <Head title="Cart" />
                 <div className="mx-auto max-w-3xl px-4 py-28 text-center sm:px-6">
-                    <h1 className="font-display text-[clamp(2rem,7vw,4rem)] uppercase leading-[0.9] tracking-tighter text-white">
+                    <h1 className="font-display text-[clamp(2rem,7vw,4rem)] uppercase leading-[0.9] tracking-tighter text-white light:text-ink-900">
                         Your cart is
                         <br />
-                        <span className="text-volt-500">empty.</span>
+                        <span className="text-volt-500 light:text-volt-800">empty.</span>
                     </h1>
                     <Link
                         href={route('shop.index')}
@@ -48,25 +48,25 @@ export default function Cart({ lines, subtotal_centavos }) {
             <Head title="Cart" />
 
             <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-                <h1 className="font-display text-[clamp(2rem,7vw,4rem)] uppercase leading-[0.9] tracking-tighter text-white">
+                <h1 className="font-display text-[clamp(2rem,7vw,4rem)] uppercase leading-[0.9] tracking-tighter text-white light:text-ink-900">
                     Your cart
                 </h1>
 
-                <ul className="mt-12 divide-y divide-white/10 border-y border-white/10">
+                <ul className="mt-12 divide-y divide-white/10 border-y border-white/10 light:divide-ink-900/10 light:border-ink-900/10">
                     {lines.map((line) => (
                         <li
                             key={line.key}
                             className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between"
                         >
                             <div className="min-w-0">
-                                <p className="font-display text-lg uppercase tracking-wide text-white">
+                                <p className="font-display text-lg uppercase tracking-wide text-white light:text-ink-900">
                                     {line.name}
                                 </p>
-                                <p className="mt-1 text-xs uppercase tracking-[0.15em] text-white/35">
+                                <p className="mt-1 text-xs uppercase tracking-[0.15em] text-white/35 light:text-ink-900/50">
                                     {formatCentavos(line.unit_price_centavos)} each
                                 </p>
                                 {line.exceeds_stock && (
-                                    <p className="mt-2 text-xs font-medium text-red-400">
+                                    <p className="mt-2 text-xs font-medium text-red-400 light:text-red-700">
                                         Only {line.available_stock} left — reduce
                                         the quantity to continue.
                                     </p>
@@ -90,7 +90,7 @@ export default function Cart({ lines, subtotal_centavos }) {
                                                 Number(e.target.value)
                                             )
                                         }
-                                        className="border-2 border-white/15 bg-ink-800 px-3 py-2 text-sm text-white focus:border-volt-500 focus:outline-none focus:ring-0"
+                                        className="border-2 border-white/15 bg-ink-800 px-3 py-2 text-sm text-white focus:border-volt-500 focus:outline-none focus:ring-0 light:border-ink-900/20 light:bg-white light:text-ink-900 light:focus:border-volt-800"
                                     >
                                         {Array.from({ length: 20 }, (_, i) => i + 1).map(
                                             (n) => (
@@ -102,14 +102,14 @@ export default function Cart({ lines, subtotal_centavos }) {
                                     </select>
                                 </div>
 
-                                <p className="w-28 text-right font-display text-lg text-volt-500">
+                                <p className="w-28 text-right font-display text-lg text-volt-500 light:text-volt-800">
                                     {formatCentavos(line.line_total_centavos)}
                                 </p>
 
                                 <button
                                     type="button"
                                     onClick={() => remove(line.key)}
-                                    className="text-xs uppercase tracking-[0.15em] text-white/30 underline underline-offset-4 transition-colors hover:text-red-400"
+                                    className="text-xs uppercase tracking-[0.15em] text-white/30 underline underline-offset-4 transition-colors hover:text-red-400 light:text-ink-900/45 light:hover:text-red-700"
                                 >
                                     Remove
                                 </button>
@@ -120,27 +120,29 @@ export default function Cart({ lines, subtotal_centavos }) {
 
                 <div className="mt-10 flex flex-col items-end gap-6">
                     <div className="flex w-full items-baseline justify-between sm:w-80">
-                        <span className="font-display text-sm uppercase tracking-[0.2em] text-white/50">
+                        <span className="font-display text-sm uppercase tracking-[0.2em] text-white/50 light:text-ink-900/65">
                             Subtotal
                         </span>
-                        <span className="font-display text-3xl text-volt-500">
+                        <span className="font-display text-3xl text-volt-500 light:text-volt-800">
                             {formatCentavos(subtotal_centavos)}
                         </span>
                     </div>
 
-                    <p className="text-xs text-white/30">
+                    <p className="text-xs text-white/30 light:text-ink-900/45">
                         Shipping is arranged with the shop after checkout.
                     </p>
 
                     {/* A guest can fill a cart but an order needs an owner, so
-                        send them to log in with a redirect back to checkout. */}
+                        send them to log in with a redirect back to checkout.
+                        The "blocked" state is a neutral chip (alpha-boost
+                        pairing), not the invariant-fill button below it. */}
                     <Link
                         href={auth?.user ? route('checkout.create') : route('login')}
                         className={
                             'inline-flex w-full items-center justify-center gap-3 px-8 py-4 font-display text-base uppercase tracking-[0.2em] transition-all sm:w-80 ' +
                             (blocked
-                                ? 'pointer-events-none bg-white/10 text-white/30'
-                                : 'bg-volt-500 text-ink-900 hover:-translate-y-0.5 hover:bg-white')
+                                ? 'pointer-events-none bg-white/10 text-white/30 light:bg-ink-900/[0.06] light:text-ink-900/40'
+                                : 'bg-volt-500 text-ink-900 hover:-translate-y-0.5 hover:bg-white light:hover:bg-ink-900 light:hover:text-white')
                         }
                         aria-disabled={blocked}
                     >

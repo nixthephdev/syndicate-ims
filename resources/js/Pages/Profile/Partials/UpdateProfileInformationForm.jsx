@@ -20,10 +20,10 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status }) {
     return (
         <section>
             <header>
-                <h2 className="font-display text-lg uppercase tracking-wide text-white">
+                <h2 className="font-display text-lg uppercase tracking-wide text-white light:text-ink-900">
                     Profile information
                 </h2>
-                <p className="mt-1 text-sm text-white/40">
+                <p className="mt-1 text-sm text-white/40 light:text-ink-900/55">
                     Update your name and email address.
                 </p>
             </header>
@@ -54,18 +54,18 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status }) {
                 />
 
                 {mustVerifyEmail && user.email_verified_at === null && (
-                    <div className="border-l-2 border-amber-400 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
+                    <div className="border-l-2 border-amber-400 bg-amber-400/10 px-4 py-3 text-sm text-amber-200 light:text-amber-800">
                         Your email address is unverified.{' '}
                         <Link
                             href={route('verification.send')}
                             method="post"
                             as="button"
-                            className="underline underline-offset-4 hover:text-white"
+                            className="underline underline-offset-4 hover:text-white light:hover:text-ink-900"
                         >
                             Click here to re-send the verification email.
                         </Link>
                         {status === 'verification-link-sent' && (
-                            <p className="mt-2 font-medium text-volt-400">
+                            <p className="mt-2 font-medium text-volt-400 light:text-volt-800">
                                 A new verification link has been sent to your
                                 email address.
                             </p>
@@ -84,7 +84,7 @@ export default function UpdateProfileInformation({ mustVerifyEmail, status }) {
                         leaveTo="opacity-0"
                         className="transition ease-in-out"
                     >
-                        <p className="text-sm text-white/40">Saved.</p>
+                        <p className="text-sm text-white/40 light:text-ink-900/55">Saved.</p>
                     </Transition>
                 </div>
             </form>

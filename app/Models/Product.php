@@ -25,22 +25,28 @@ class Product extends Model
      * The browsable apparel subcategory — separate from `category`, which is
      * the coarser apparel/skateboard split. Only meaningful within apparel,
      * so the column is nullable rather than forcing skateboard products
-     * through the same list.
+     * through the same list. "Apparel" here really means "sold like apparel"
+     * (simple product + size/color variants) — TYPE_ACCESSORY covers small
+     * non-clothing goods (keychains, straps) that fit that same shape rather
+     * than the skateboard category's component-based assembly.
      */
     public const TYPE_TEE = 'tee';
     public const TYPE_HOODIE = 'hoodie';
     public const TYPE_CAP = 'cap';
+    public const TYPE_ACCESSORY = 'accessory';
 
     public const TYPES = [
         self::TYPE_TEE,
         self::TYPE_HOODIE,
         self::TYPE_CAP,
+        self::TYPE_ACCESSORY,
     ];
 
     public const TYPE_LABELS = [
         self::TYPE_TEE => 'Tees',
         self::TYPE_HOODIE => 'Hoodies',
         self::TYPE_CAP => 'Caps',
+        self::TYPE_ACCESSORY => 'Accessories',
     ];
 
     protected $fillable = [

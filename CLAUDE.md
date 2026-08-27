@@ -163,7 +163,7 @@ Client supplied a white line-art brain + ™ mark. **Source of truth: `public/fi
 | `logo-mark.png` | brain only, white, transparent | dark surfaces only |
 | `logo-mark-dark.png` | brain only, ink, transparent | light surfaces (admin, print) |
 | `logo-full.png` | brain + ™, white, transparent | dark surfaces |
-| `favicon.ico` (16/32/48) + `images/favicon-*.png` + `apple-touch-icon.png` | ink mark on volt, **background baked in** | browser chrome |
+| `favicon.ico` (16/32/48) + `images/favicon-*.png` + `apple-touch-icon.png` | brain only, recolored volt (`#ccff00`), transparent background | browser chrome |
 
 Non-obvious constraints, all learned the hard way:
 - **The source is JPEG, so it has no alpha.** Transparency was reconstructed by using the image's own luminance as an alpha mask (`-level 22%,72%` to kill JPEG noise in the black field without eating anti-aliased stroke edges). Dropping the `.jpg` straight into a page puts a black square on the design.
@@ -173,8 +173,7 @@ Non-obvious constraints, all learned the hard way:
   - full mark incl. ™ = `480x334+240+313`
   - A first attempt measured "brain only" by cropping the left 63% of the canvas and trimming. That silently clipped 70px off the right lobe — the crop window truncated the very bbox being measured, and the flat-edged result shipped before it was spotted. Measure with connected-components, then eyeball the render on a dark background.
 - **`logo-mark.png` is white — it is INVISIBLE on white.** That is why the dark variant exists. Check the surface before picking one.
-- **Favicon backgrounds are baked, not transparent, on purpose:** a transparent white mark vanishes on light browser tab bars.
-- **Favicon is ink-on-volt, not the brand's usual white-on-ink** — at 32px it tested as by far the most legible of the three options, and it stays readable on both light and dark browser chrome.
+- **Favicon is now transparent-background, brain-only, recolored volt (`#ccff00`)** — the earlier ink-on-volt-square version (baked background, no transparency) was replaced per client/dev request; the volt tint reads on both light and dark browser tab bars, which plain white (see `logo-mark.png` above) would not. Regenerated from `logo-mark.png`'s alpha channel (`-alpha extract` → recolor a solid volt canvas via `-compose CopyOpacity`, not `-level-colors`, which silently zeroed the alpha channel when tried directly on the RGBA source) — never re-bake a background square without being asked again.
 - **At 16px the line-art degrades to a blob** — inherent to strokes this fine; nothing to fix short of a simplified small-size mark. 32px (what modern browsers mostly use) is clean.
 
 ## Data layer — the rules that matter

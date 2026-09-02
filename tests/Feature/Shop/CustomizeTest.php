@@ -3,6 +3,7 @@
 namespace Tests\Feature\Shop;
 
 use App\Models\SkateboardComponent;
+use App\Models\User;
 use App\Services\Cart;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -90,8 +91,22 @@ class CustomizeTest extends TestCase
             );
     }
 
+    /**
+     * customize.store requires sign-in (client requirement, 2026-09-02) —
+     * every test that adds a build to the cart needs a logged-in user.
+     */
+    private function loginAsCustomer(): User
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        return $user;
+    }
+
     public function test_add_custom_build_adds_all_four_components_to_cart(): void
     {
+        $this->loginAsCustomer();
+
         $deck = SkateboardComponent::factory()->deck()->create();
         $wheels = SkateboardComponent::factory()->wheels()->create();
         SkateboardComponent::factory()->trucks()->create();
@@ -107,6 +122,8 @@ class CustomizeTest extends TestCase
 
     public function test_add_custom_build_works_without_trucks_or_bolts_seeded(): void
     {
+        $this->loginAsCustomer();
+
         $deck = SkateboardComponent::factory()->deck()->create();
         $wheels = SkateboardComponent::factory()->wheels()->create();
 
@@ -120,6 +137,8 @@ class CustomizeTest extends TestCase
 
     public function test_add_custom_build_rejects_when_deck_is_out_of_stock(): void
     {
+        $this->loginAsCustomer();
+
         $deck = SkateboardComponent::factory()->deck()->outOfStock()->create();
         $wheels = SkateboardComponent::factory()->wheels()->create();
 
@@ -138,6 +157,8 @@ class CustomizeTest extends TestCase
      */
     public function test_add_custom_build_rejects_when_wheels_is_out_of_stock(): void
     {
+        $this->loginAsCustomer();
+
         $deck = SkateboardComponent::factory()->deck()->create();
         $wheels = SkateboardComponent::factory()->wheels()->outOfStock()->create();
 
@@ -151,6 +172,8 @@ class CustomizeTest extends TestCase
 
     public function test_add_custom_build_rejects_when_deck_is_inactive(): void
     {
+        $this->loginAsCustomer();
+
         $deck = SkateboardComponent::factory()->deck()->create(['is_active' => false]);
         $wheels = SkateboardComponent::factory()->wheels()->create();
 
@@ -166,6 +189,8 @@ class CustomizeTest extends TestCase
 
     public function test_add_custom_build_rejects_missing_deck_id(): void
     {
+        $this->loginAsCustomer();
+
         $wheels = SkateboardComponent::factory()->wheels()->create();
 
         $this->post(route('customize.store'), [
@@ -183,6 +208,8 @@ class CustomizeTest extends TestCase
      */
     public function test_add_custom_build_ignores_client_supplied_trucks_id(): void
     {
+        $this->loginAsCustomer();
+
         $deck = SkateboardComponent::factory()->deck()->create();
         $wheels = SkateboardComponent::factory()->wheels()->create();
         $realTrucks = SkateboardComponent::factory()->trucks()->create(['name' => 'Real Trucks']);
@@ -199,6 +226,23 @@ class CustomizeTest extends TestCase
 
         $this->assertContains('Real Trucks', $names);
         $this->assertNotContains('Not Trucks At All', $names);
+    }
+
+    /**
+     * Client requirement, 2026-09-02: adding to cart now requires an
+     * account, including the customizer's own Add to Cart action.
+     */
+    public function test_guest_is_redirected_to_login_when_adding_a_custom_build(): void
+    {
+        $deck = SkateboardComponent::factory()->deck()->create();
+        $wheels = SkateboardComponent::factory()->wheels()->create();
+
+        $this->post(route('customize.store'), [
+            'deck_id' => $deck->id,
+            'wheels_id' => $wheels->id,
+        ])->assertRedirect(route('login', ['reason' => 'cart']));
+
+        $this->assertSame(0, $this->cartLineCount());
     }
 
     private function cartLineCount(): int

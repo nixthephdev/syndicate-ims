@@ -58,6 +58,7 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'is_active' => 'boolean',
     ];
 
     public function orders(): HasMany
@@ -84,6 +85,11 @@ class User extends Authenticatable
     public function isCustomer(): bool
     {
         return $this->role === self::ROLE_CUSTOMER;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->is_active;
     }
 
     public function scopeRole(Builder $query, string $role): Builder

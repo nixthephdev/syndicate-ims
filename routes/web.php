@@ -5,6 +5,8 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\OrderStatusController as AdminOrderStatusController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductVariantController as AdminProductVariantController;
+use App\Http\Controllers\Admin\SkateboardComponentController as AdminSkateboardComponentController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Shop\CartController;
@@ -57,8 +59,11 @@ Route::get('/dashboard', [AccountController::class, 'index'])
 | Storefront — catalogue, cart, checkout
 |--------------------------------------------------------------------------
 |
-| Browsing and the cart are open to guests; a guest can fill a cart and is
-| sent to log in only at checkout, which is where an order needs an owner.
+| Browsing is open to guests — the catalogue, the cart page, and the 3D
+| customizer can all be viewed with no account. The act of ADDING to the
+| cart requires sign-in (client requirement, 2026-09-02): a guest clicking
+| Quick Add, a product page's Add to Cart, or the customizer's Add to Cart
+| is sent to log in first, same as checkout already required.
 |
 | Nothing in this group writes stock. Orders are created `awaiting_payment`
 | and stock moves only when payment is confirmed, through InventoryService.
@@ -70,14 +75,17 @@ Route::get('/shop/{product:slug}', [ShopProductController::class, 'show'])->name
 // The 3D skateboard builder. Route name `customize` is load-bearing — see
 // StoreHeader's nav, which lights this chip up the moment the route exists.
 Route::get('/customize', [CustomizeController::class, 'index'])->name('customize');
-Route::post('/customize', [CustomizeController::class, 'store'])->name('customize.store');
 
 // The cart lives in the session, so the item is identified in the body
 // rather than the URL — a cart key contains a class name and a "#".
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
-Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
 Route::patch('/cart', [CartController::class, 'update'])->name('cart.update');
 Route::delete('/cart', [CartController::class, 'destroy'])->name('cart.destroy');
+
+Route::middleware('auth')->group(function () {
+    Route::post('/customize', [CustomizeController::class, 'store'])->name('customize.store');
+    Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
+});
 
 Route::middleware('auth')->group(function () {
     Route::get('/checkout', [CheckoutController::class, 'create'])->name('checkout.create');
@@ -116,6 +124,11 @@ Route::middleware(['auth', 'verified', 'role:staff'])
         Route::resource('products', AdminProductController::class)
             ->except(['show']); // No customer-facing product page yet.
 
+        // Edit-only — see Admin\SkateboardComponentController's class
+        // docblock for why there's no create/store/destroy here.
+        Route::resource('skateboard-components', AdminSkateboardComponentController::class)
+            ->only(['index', 'edit', 'update']);
+
         // Orders are read-only here apart from one narrow status transition —
         // see Admin\OrderStatusController. Staff never write stock directly.
         Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
@@ -129,6 +142,18 @@ Route::middleware(['auth', 'verified', 'role:staff'])
             ->name('products.variants.update');
         Route::delete('products/{product}/variants/{variant}', [AdminProductVariantController::class, 'destroy'])
             ->name('products.variants.destroy');
+    });
+
+// User management is a step above the rest of /admin — role:admin only, so
+// staff can run the shop day-to-day without being able to grant themselves
+// or anyone else more access.
+Route::middleware(['auth', 'verified', 'role:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
+        Route::patch('users/{user}/role', [AdminUserController::class, 'updateRole'])->name('users.role.update');
+        Route::patch('users/{user}/status', [AdminUserController::class, 'updateStatus'])->name('users.status.update');
     });
 
 require __DIR__.'/auth.php';

@@ -15,6 +15,13 @@ class Authenticate extends Middleware
     protected function redirectTo($request)
     {
         if (! $request->expectsJson()) {
+            // Quick Add / Add to Cart / the customizer's Add to Cart now
+            // require sign-in. This flag lets the login page explain why
+            // someone bounced there instead of the generic "please log in".
+            if (in_array($request->route()?->getName(), ['cart.store', 'customize.store'], true)) {
+                return route('login', ['reason' => 'cart']);
+            }
+
             return route('login');
         }
     }

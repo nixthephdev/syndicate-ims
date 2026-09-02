@@ -17,6 +17,8 @@ const ICONS = {
     dashboard: 'M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25',
     products: 'M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z',
     orders: 'M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z',
+    components: 'M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L1.5 3l1.5-1.5L7.5 4.5v1.409l4.256 4.256M4.5 7.5l.867-.867',
+    users: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z',
 };
 
 /** Grouped so the sidebar reads as sections, not one undifferentiated list. */
@@ -27,13 +29,24 @@ const NAV_GROUPS = [
     },
     {
         label: 'Catalogue',
-        items: [{ name: 'Products', route: 'admin.products.index', icon: 'products' }],
+        items: [
+            { name: 'Products', route: 'admin.products.index', icon: 'products' },
+            { name: 'Skate Components', route: 'admin.skateboard-components.index', icon: 'components' },
+        ],
     },
     {
         label: 'Sales',
         items: [{ name: 'Orders', route: 'admin.orders.index', icon: 'orders' }],
     },
 ];
+
+// role:admin only — kept out of NAV_GROUPS and appended conditionally below
+// so staff (role:staff, not admin) never see a link to a page they'd just
+// get a 403 from.
+const ADMIN_ONLY_GROUP = {
+    label: 'Admin',
+    items: [{ name: 'Users', route: 'admin.users.index', icon: 'users' }],
+};
 
 function NavIcon({ path, className }) {
     return (
@@ -51,6 +64,8 @@ function NavIcon({ path, className }) {
 }
 
 function SidebarContent({ user, onNavigate }) {
+    const groups = user.role === 'admin' ? [...NAV_GROUPS, ADMIN_ONLY_GROUP] : NAV_GROUPS;
+
     return (
         <>
             <div className="flex h-16 shrink-0 items-center gap-3 border-b border-gray-800 px-5">
@@ -67,7 +82,7 @@ function SidebarContent({ user, onNavigate }) {
             </div>
 
             <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
-                {NAV_GROUPS.map((group) => (
+                {groups.map((group) => (
                     <div key={group.label}>
                         <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-gray-500">
                             {group.label}

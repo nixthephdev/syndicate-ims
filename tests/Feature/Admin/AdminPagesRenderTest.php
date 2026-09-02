@@ -26,6 +26,11 @@ class AdminPagesRenderTest extends TestCase
                 ->has('stats.products')
                 ->has('stats.low_stock_count')
                 ->has('lowStockItems')
+                // 30 days, one row per day, backfilled — not just "some data".
+                ->has('revenueTrend', 30)
+                ->has('categorySplit.apparel_centavos')
+                ->has('categorySplit.skateboard_centavos')
+                ->has('topProducts')
             );
     }
 

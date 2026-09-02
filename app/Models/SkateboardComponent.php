@@ -36,6 +36,13 @@ class SkateboardComponent extends Model implements Purchasable
         self::TYPE_BOLTS,
     ];
 
+    public const TYPE_LABELS = [
+        self::TYPE_DECK => 'Deck',
+        self::TYPE_WHEELS => 'Wheels',
+        self::TYPE_TRUCKS => 'Trucks',
+        self::TYPE_BOLTS => 'Bolts',
+    ];
+
     public const GLB_BOARD = 'board.glb';
     public const GLB_WHEELS = 'wheels.glb';
 

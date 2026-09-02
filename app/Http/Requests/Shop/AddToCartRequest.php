@@ -9,7 +9,12 @@ class AddToCartRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // Guests may fill a cart; checkout is where auth bites.
+        // Real enforcement is the 'auth' middleware on cart.store in
+        // web.php — a guest never reaches this Form Request at all. This
+        // stays true because everyone who DOES reach it is already a
+        // logged-in user with an obviously-legitimate reason to add to
+        // their own cart.
+        return true;
     }
 
     /**

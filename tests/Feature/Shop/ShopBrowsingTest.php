@@ -21,6 +21,18 @@ class ShopBrowsingTest extends TestCase
         ], $attributes));
     }
 
+    /**
+     * cart.store requires sign-in (client requirement, 2026-09-02) — every
+     * test that adds to the cart needs a logged-in user to reach it at all.
+     */
+    private function loginAsCustomer(): User
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        return $user;
+    }
+
     public function test_shop_lists_only_active_products(): void
     {
         $live = $this->product(['name' => 'Live Tee']);
@@ -120,6 +132,8 @@ class ShopBrowsingTest extends TestCase
 
     public function test_adding_to_cart_stores_a_line_and_updates_the_badge(): void
     {
+        $this->loginAsCustomer();
+
         $product = $this->product();
         $variant = ProductVariant::factory()->create([
             'product_id' => $product->id, 'size' => 'M', 'stock' => 10, 'is_active' => true,
@@ -144,6 +158,8 @@ class ShopBrowsingTest extends TestCase
 
     public function test_adding_the_same_variant_twice_merges_into_one_line(): void
     {
+        $this->loginAsCustomer();
+
         $product = $this->product();
         $variant = ProductVariant::factory()->create([
             'product_id' => $product->id, 'size' => 'M', 'stock' => 10, 'is_active' => true,
@@ -163,6 +179,8 @@ class ShopBrowsingTest extends TestCase
 
     public function test_a_sold_out_variant_cannot_be_added(): void
     {
+        $this->loginAsCustomer();
+
         $product = $this->product();
         $variant = ProductVariant::factory()->create([
             'product_id' => $product->id, 'size' => 'M', 'stock' => 0, 'is_active' => true,
@@ -182,6 +200,8 @@ class ShopBrowsingTest extends TestCase
      */
     public function test_cart_rejects_an_arbitrary_class_name_as_type(): void
     {
+        $this->loginAsCustomer();
+
         $this->post(route('cart.store'), [
             'type' => User::class,
             'id' => 1,
@@ -191,6 +211,8 @@ class ShopBrowsingTest extends TestCase
 
     public function test_cart_quantity_is_capped(): void
     {
+        $this->loginAsCustomer();
+
         $product = $this->product();
         $variant = ProductVariant::factory()->create([
             'product_id' => $product->id, 'size' => 'M', 'stock' => 500, 'is_active' => true,
@@ -203,6 +225,8 @@ class ShopBrowsingTest extends TestCase
 
     public function test_setting_a_line_quantity_to_zero_removes_it(): void
     {
+        $this->loginAsCustomer();
+
         $product = $this->product();
         $variant = ProductVariant::factory()->create([
             'product_id' => $product->id, 'size' => 'M', 'stock' => 10, 'is_active' => true,
@@ -226,6 +250,8 @@ class ShopBrowsingTest extends TestCase
      */
     public function test_a_line_whose_variant_was_archived_is_dropped(): void
     {
+        $this->loginAsCustomer();
+
         $product = $this->product();
         $variant = ProductVariant::factory()->create([
             'product_id' => $product->id, 'size' => 'M', 'stock' => 10, 'is_active' => true,
@@ -242,5 +268,24 @@ class ShopBrowsingTest extends TestCase
                 ->has('lines', 0)
                 ->where('cart.count', 0)
             );
+    }
+
+    /**
+     * Client requirement, 2026-09-02: adding to cart now requires an
+     * account. A guest hitting Quick Add or the product page's Add to Cart
+     * must be sent to log in, not silently succeed.
+     */
+    public function test_guest_is_redirected_to_login_when_adding_to_cart(): void
+    {
+        $product = $this->product();
+        $variant = ProductVariant::factory()->create([
+            'product_id' => $product->id, 'size' => 'M', 'stock' => 10, 'is_active' => true,
+        ]);
+
+        $this->post(route('cart.store'), [
+            'type' => 'variant', 'id' => $variant->id, 'quantity' => 1,
+        ])->assertRedirect(route('login', ['reason' => 'cart']));
+
+        $this->assertSame([], session(Cart::SESSION_KEY, []));
     }
 }

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import StorefrontAuthLayout from '@/Layouts/StorefrontAuthLayout';
 import { Field, SubmitButton, CheckboxRow } from '@/Components/Storefront/FormControls';
 import { Head, Link, useForm } from '@inertiajs/react';
@@ -9,6 +9,13 @@ export default function Login({ status, canResetPassword }) {
         password: '',
         remember: '',
     });
+
+    // Quick Add / Add to Cart / the customizer bounce a guest here with
+    // ?reason=cart so the page can explain why, instead of a bare login form
+    // with no context for how they got here.
+    const [cameFromCart] = useState(
+        () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('reason') === 'cart'
+    );
 
     useEffect(() => {
         return () => {
@@ -55,6 +62,12 @@ export default function Login({ status, canResetPassword }) {
             {status && (
                 <div className="mb-6 border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300 light:text-volt-800">
                     {status}
+                </div>
+            )}
+
+            {cameFromCart && !status && (
+                <div className="mb-6 border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300 light:text-volt-800">
+                    Sign in to add items to your cart.
                 </div>
             )}
 

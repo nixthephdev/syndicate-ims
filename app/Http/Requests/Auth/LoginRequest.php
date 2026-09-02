@@ -49,6 +49,18 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Credentials were correct, but the admin has deactivated this
+        // account (see Admin\UserController) — undo the login rather than
+        // letting a valid password override the deactivation.
+        if (! Auth::user()->isActive()) {
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => 'This account has been deactivated. Contact the shop for help.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

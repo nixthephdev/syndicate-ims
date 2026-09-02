@@ -43,7 +43,12 @@ export default function VariantRow({ productId, variant }) {
                 <td className="px-4 py-3 text-sm font-mono text-gray-500">{variant.sku}</td>
                 <td className="px-4 py-3 text-sm text-gray-500">{variant.effective_price_formatted}</td>
                 <td className="px-4 py-3">
-                    <StockBadge stock={variant.stock} isLowStock={variant.is_low_stock} isOutOfStock={variant.is_out_of_stock} />
+                    <StockBadge
+                        stock={variant.stock}
+                        isLowStock={variant.is_low_stock}
+                        isOutOfStock={variant.is_out_of_stock}
+                        threshold={variant.low_stock_threshold}
+                    />
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500">{variant.low_stock_threshold}</td>
                 <td className="px-4 py-3">

@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\SkateboardComponent;
 use App\Support\Money;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -58,15 +59,90 @@ class DashboardController extends Controller
                     'name' => $v->displayName(),
                     'stock' => $v->stock,
                     'threshold' => $v->low_stock_threshold,
+                    'is_low_stock' => $v->isLowStock(),
+                    'is_out_of_stock' => $v->isOutOfStock(),
                     'edit_url' => route('admin.products.edit', $v->product_id),
                 ])
                 ->concat($lowComponents->map(fn (SkateboardComponent $c) => [
                     'name' => $c->name,
                     'stock' => $c->stock,
                     'threshold' => $c->low_stock_threshold,
-                    'edit_url' => null,
+                    'is_low_stock' => $c->isLowStock(),
+                    'is_out_of_stock' => $c->isOutOfStock(),
+                    'edit_url' => route('admin.skateboard-components.edit', $c->id),
                 ]))
                 ->values(),
+            'revenueTrend' => $this->revenueTrend(),
+            'categorySplit' => $this->categorySplit(),
+            'topProducts' => $this->topProducts(),
         ]);
+    }
+
+    /**
+     * Last 30 days, PAID orders only, one row per day with missing days
+     * backfilled to 0 — a chart that silently skips a zero-revenue day would
+     * draw a straight line across the gap instead of showing the dip.
+     * Raw centavos, not a formatted string: a chart needs real numbers to
+     * plot, unlike the rest of this controller's pre-formatted display data.
+     */
+    private function revenueTrend(): array
+    {
+        $rows = DB::table('orders')
+            ->whereNotNull('paid_at')
+            ->where('paid_at', '>=', now()->subDays(29)->startOfDay())
+            ->selectRaw('DATE(paid_at) as day, SUM(total_centavos) as revenue_centavos')
+            ->groupBy('day')
+            ->pluck('revenue_centavos', 'day');
+
+        $days = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $date = now()->subDays($i)->format('Y-m-d');
+            $days[] = [
+                'day' => now()->subDays($i)->format('M j'),
+                'revenue_centavos' => (int) ($rows[$date] ?? 0),
+            ];
+        }
+
+        return $days;
+    }
+
+    /**
+     * order_items.purchasable_type already distinguishes apparel
+     * (ProductVariant) from skateboard (SkateboardComponent) sales directly —
+     * no need to touch Product.category at all.
+     */
+    private function categorySplit(): array
+    {
+        $rows = DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->whereNotNull('orders.paid_at')
+            ->selectRaw('order_items.purchasable_type as type, SUM(order_items.line_total_centavos) as revenue_centavos')
+            ->groupBy('order_items.purchasable_type')
+            ->pluck('revenue_centavos', 'type');
+
+        return [
+            'apparel_centavos' => (int) ($rows[ProductVariant::class] ?? 0),
+            'skateboard_centavos' => (int) ($rows[SkateboardComponent::class] ?? 0),
+        ];
+    }
+
+    /** Top 5 products by units sold, all-time, PAID orders only. */
+    private function topProducts(): array
+    {
+        return DB::table('order_items')
+            ->join('product_variants', function ($join) {
+                $join->on('product_variants.id', '=', 'order_items.purchasable_id')
+                    ->where('order_items.purchasable_type', ProductVariant::class);
+            })
+            ->join('products', 'products.id', '=', 'product_variants.product_id')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->whereNotNull('orders.paid_at')
+            ->selectRaw('products.name as name, SUM(order_items.quantity) as units')
+            ->groupBy('products.id', 'products.name')
+            ->orderByDesc('units')
+            ->limit(5)
+            ->get()
+            ->map(fn ($row) => ['name' => $row->name, 'units' => (int) $row->units])
+            ->all();
     }
 }

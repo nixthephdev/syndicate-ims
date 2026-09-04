@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
+import Modal from '@/Components/Storefront/Modal';
+import { DangerButton, Field, GhostButton, SubmitButton } from '@/Components/Storefront/FormControls';
 import { HARDWARE_COLORS } from '@/Components/Customizer/hardwareColors';
 import { formatCentavos } from '@/utils/money';
 import { statusChipClasses, formatStatusLabel } from '@/utils/orderStatus';
@@ -10,11 +13,37 @@ function colorLabel(hex) {
 
 export default function OrderShow({ order }) {
     const { post, processing } = useForm({});
+    const { post: postCancel, processing: cancelling } = useForm({});
+    const [changingAddress, setChangingAddress] = useState(false);
+
+    const addressForm = useForm({
+        address_line: order.address.address_line ?? '',
+        barangay: order.address.barangay ?? '',
+        city: order.address.city ?? '',
+        province: order.address.province ?? '',
+        postal_code: order.address.postal_code ?? '',
+    });
 
     const confirmPayment = (e) => {
         e.preventDefault();
-        post(route('payment.confirm', order.order_number), {
+        const routeName = order.payment_configured ? 'payment.paymongo.create' : 'payment.confirm';
+        post(route(routeName, order.order_number), {
             preserveScroll: true,
+        });
+    };
+
+    const cancelOrder = (e) => {
+        e.preventDefault();
+        postCancel(route('orders.cancel', order.order_number), {
+            preserveScroll: true,
+        });
+    };
+
+    const saveAddress = (e) => {
+        e.preventDefault();
+        addressForm.patch(route('orders.address.update', order.order_number), {
+            preserveScroll: true,
+            onSuccess: () => setChangingAddress(false),
         });
     };
 
@@ -49,9 +78,14 @@ export default function OrderShow({ order }) {
                     {order.paid_at && ` · Paid ${order.paid_at}`}
                 </p>
 
-                {/* Payment. This is the PayMongo GCash seam — see
-                    PaymentController; the button is a stand-in for the
-                    hosted checkout and only exists outside production. */}
+                {/* Payment. order.payment_configured (real PayMongo test
+                    keys present, see Shop\OrderController::show()) decides
+                    which route this form posts to — either the real
+                    PayMongoController (redirects to PayMongo's hosted GCash
+                    checkout) or the local/testing-only stub, PaymentController
+                    — but the button itself doesn't otherwise change: either
+                    way this form starts payment, it never completes it.
+                    Completion is always the webhook's job. */}
                 {!order.is_paid && order.status === 'awaiting_payment' && (
                     <form
                         onSubmit={confirmPayment}
@@ -70,11 +104,24 @@ export default function OrderShow({ order }) {
                             disabled={processing}
                             className="mt-6 inline-flex items-center gap-3 bg-volt-500 px-8 py-4 font-display text-base uppercase tracking-[0.2em] text-ink-900 transition-transform hover:-translate-y-0.5 hover:bg-white light:hover:bg-ink-900 light:hover:text-white disabled:pointer-events-none disabled:opacity-40"
                         >
-                            {processing ? 'Confirming' : 'Confirm payment'} →
+                            {processing
+                                ? 'Redirecting'
+                                : order.payment_configured
+                                    ? 'Continue to GCash'
+                                    : 'Confirm payment'} →
                         </button>
-                        <p className="mt-4 text-xs uppercase tracking-[0.15em] text-amber-300/70 light:text-amber-700/80">
-                            Test mode — no real money moves.
-                        </p>
+                    </form>
+                )}
+
+                {/* Cancel — owner-only, and only before payment. Nothing has
+                    been charged or taken off the shelf yet at this status, so
+                    there's nothing to refund or restock. See
+                    Shop\OrderController::cancel(). */}
+                {order.can_cancel && (
+                    <form onSubmit={cancelOrder} className="mt-4">
+                        <DangerButton type="submit" disabled={cancelling}>
+                            {cancelling ? 'Cancelling' : 'Cancel order'}
+                        </DangerButton>
                     </form>
                 )}
 
@@ -124,7 +171,108 @@ export default function OrderShow({ order }) {
                         <p className="mt-4 italic text-white/40 light:text-ink-900/55">"{order.notes}"</p>
                     )}
                 </div>
+
+                <div className="mt-8 border-t border-white/10 pt-8 text-sm text-white/50 light:border-ink-900/10 light:text-ink-900/65">
+                    <div className="flex items-center justify-between gap-4">
+                        <h2 className="font-display text-xs uppercase tracking-[0.25em] text-white/40 light:text-ink-900/55">
+                            Delivery address
+                        </h2>
+                        {order.can_change_address && (
+                            <button
+                                type="button"
+                                onClick={() => setChangingAddress(true)}
+                                className="font-display text-xs uppercase tracking-[0.2em] text-volt-500 transition-colors hover:text-white light:text-volt-800 light:hover:text-ink-900"
+                            >
+                                {order.address.has_address ? 'Change address' : 'Add address'}
+                            </button>
+                        )}
+                    </div>
+
+                    {order.address.has_address ? (
+                        <div className="mt-3 text-white/70 light:text-ink-900/80">
+                            {order.address.address_line && <p>{order.address.address_line}</p>}
+                            <p>
+                                {[order.address.barangay, order.address.city].filter(Boolean).join(', ')}
+                            </p>
+                            <p>
+                                {[order.address.province, order.address.postal_code].filter(Boolean).join(' ')}
+                            </p>
+                        </div>
+                    ) : (
+                        <p className="mt-3 text-white/40 light:text-ink-900/55">
+                            No delivery address on file — this order is set up for pickup.
+                        </p>
+                    )}
+                </div>
             </div>
+
+            <Modal show={changingAddress} onClose={() => setChangingAddress(false)}>
+                <form onSubmit={saveAddress} className="p-6 sm:p-8">
+                    <h2 className="font-display text-xl uppercase tracking-wide text-white light:text-ink-900">
+                        Delivery address
+                    </h2>
+                    <p className="mt-2 text-sm leading-relaxed text-white/50 light:text-ink-900/65">
+                        Leave everything blank if you're picking this up at the shop instead.
+                    </p>
+
+                    <div className="mt-6 space-y-4">
+                        <Field
+                            id="modal_address_line"
+                            name="address_line"
+                            label="House / unit / street"
+                            placeholder="123 Rizal St."
+                            value={addressForm.data.address_line}
+                            error={addressForm.errors.address_line}
+                            onChange={(e) => addressForm.setData('address_line', e.target.value)}
+                        />
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <Field
+                                id="modal_barangay"
+                                name="barangay"
+                                label="Barangay"
+                                value={addressForm.data.barangay}
+                                error={addressForm.errors.barangay}
+                                onChange={(e) => addressForm.setData('barangay', e.target.value)}
+                            />
+                            <Field
+                                id="modal_city"
+                                name="city"
+                                label="City / municipality"
+                                value={addressForm.data.city}
+                                error={addressForm.errors.city}
+                                onChange={(e) => addressForm.setData('city', e.target.value)}
+                            />
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <Field
+                                id="modal_province"
+                                name="province"
+                                label="Province"
+                                value={addressForm.data.province}
+                                error={addressForm.errors.province}
+                                onChange={(e) => addressForm.setData('province', e.target.value)}
+                            />
+                            <Field
+                                id="modal_postal_code"
+                                name="postal_code"
+                                label="ZIP code"
+                                value={addressForm.data.postal_code}
+                                error={addressForm.errors.postal_code}
+                                onChange={(e) => addressForm.setData('postal_code', e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="mt-8 flex justify-end gap-3">
+                        <GhostButton type="button" onClick={() => setChangingAddress(false)}>
+                            Cancel
+                        </GhostButton>
+                        <SubmitButton fullWidth={false} processing={addressForm.processing}>
+                            Save address
+                        </SubmitButton>
+                    </div>
+                </form>
+            </Modal>
         </StorefrontLayout>
     );
 }

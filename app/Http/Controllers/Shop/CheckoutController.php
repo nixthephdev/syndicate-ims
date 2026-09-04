@@ -83,6 +83,11 @@ class CheckoutController extends Controller
                 'customer_name' => $request->validated('customer_name'),
                 'customer_email' => $request->validated('customer_email'),
                 'customer_phone' => $request->validated('customer_phone'),
+                'address_line' => $request->validated('address_line'),
+                'barangay' => $request->validated('barangay'),
+                'city' => $request->validated('city'),
+                'province' => $request->validated('province'),
+                'postal_code' => $request->validated('postal_code'),
                 'notes' => $request->validated('notes'),
             ]);
 

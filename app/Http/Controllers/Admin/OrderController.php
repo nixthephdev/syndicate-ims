@@ -85,6 +85,14 @@ class OrderController extends Controller
                 'customer_name' => $order->customer_name,
                 'customer_email' => $order->customer_email,
                 'customer_phone' => $order->customer_phone,
+                'address' => [
+                    'address_line' => $order->address_line,
+                    'barangay' => $order->barangay,
+                    'city' => $order->city,
+                    'province' => $order->province,
+                    'postal_code' => $order->postal_code,
+                    'has_address' => $order->hasAddress(),
+                ],
                 'notes' => $order->notes,
                 'account' => $order->user ? [
                     'name' => $order->user->name,

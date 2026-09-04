@@ -15,7 +15,9 @@ use App\Http\Controllers\Shop\CustomizeController;
 use App\Http\Controllers\Shop\OrderController as ShopOrderController;
 use App\Http\Controllers\Shop\PartController;
 use App\Http\Controllers\Shop\PaymentController;
+use App\Http\Controllers\Shop\PayMongoController;
 use App\Http\Controllers\Shop\ProductController as ShopProductController;
+use App\Http\Controllers\Webhooks\PayMongoWebhookController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -99,12 +101,26 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/orders', [ShopOrderController::class, 'index'])->name('orders.index');
     Route::get('/orders/{order_number}', [ShopOrderController::class, 'show'])->name('orders.show');
+    Route::post('/orders/{order_number}/cancel', [ShopOrderController::class, 'cancel'])->name('orders.cancel');
+    Route::patch('/orders/{order_number}/address', [ShopOrderController::class, 'updateAddress'])->name('orders.address.update');
 
-    // TEMPORARY stand-in for the PayMongo webhook — 404s outside local/testing.
-    // See PaymentController.
+    // TEMPORARY stand-in — 404s outside local/testing. See PaymentController.
     Route::post('/orders/{order_number}/confirm-payment', [PaymentController::class, 'confirm'])
         ->name('payment.confirm');
+
+    // The real path — reachable everywhere, marks nothing paid itself. Only
+    // gets the customer to PayMongo's checkout page; the webhook below is
+    // what actually confirms payment. See PayMongoController's docblock.
+    Route::post('/orders/{order_number}/pay', [PayMongoController::class, 'create'])
+        ->name('payment.paymongo.create');
 });
+
+// PayMongo calls this directly — no session, no CSRF token, no auth
+// middleware. Its own signature verification (PayMongoWebhookVerifier)
+// stands in for all three. See VerifyCsrfToken's $except for the CSRF side
+// of this and PayMongoWebhookController's docblock for why.
+Route::post('/webhooks/paymongo', [PayMongoWebhookController::class, 'handle'])
+    ->name('webhooks.paymongo');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

@@ -29,7 +29,7 @@ const STATUS_MESSAGES = {
  * notes). This list is every such action-message key in the codebase today
  * — add to it when a new controller introduces the same pattern.
  */
-const ACTION_ERROR_KEYS = ['cart', 'payment', 'user', 'variant', 'status'];
+const ACTION_ERROR_KEYS = ['cart', 'payment', 'user', 'variant', 'status', 'order'];
 
 /**
  * flash.success and status are two different backend mechanisms for the

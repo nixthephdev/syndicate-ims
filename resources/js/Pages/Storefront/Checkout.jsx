@@ -8,6 +8,11 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
         customer_name: defaults.customer_name ?? '',
         customer_email: defaults.customer_email ?? '',
         customer_phone: '',
+        address_line: '',
+        barangay: '',
+        city: '',
+        province: '',
+        postal_code: '',
         notes: '',
     });
 
@@ -71,6 +76,74 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
                             error={errors.customer_phone}
                             onChange={onChange}
                         />
+
+                        {/* Philippine delivery address — every branch and
+                            every customer this shop has ever had is in the
+                            Philippines, so the form is shaped for that
+                            (barangay included) rather than a generic
+                            international one. Entirely optional: this shop
+                            is pickup-first, and a customer picking up at a
+                            branch has nothing to fill in here. */}
+                        <div className="border-t border-white/10 pt-6 light:border-ink-900/10">
+                            <h2 className="font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65">
+                                Delivery address{' '}
+                                <span className="text-white/25 light:text-ink-900/40">(optional — leave blank for pickup)</span>
+                            </h2>
+
+                            <div className="mt-4 space-y-4">
+                                <Field
+                                    id="address_line"
+                                    name="address_line"
+                                    label="House / unit / street"
+                                    placeholder="123 Rizal St."
+                                    value={data.address_line}
+                                    autoComplete="address-line1"
+                                    error={errors.address_line}
+                                    onChange={onChange}
+                                />
+
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <Field
+                                        id="barangay"
+                                        name="barangay"
+                                        label="Barangay"
+                                        value={data.barangay}
+                                        error={errors.barangay}
+                                        onChange={onChange}
+                                    />
+                                    <Field
+                                        id="city"
+                                        name="city"
+                                        label="City / municipality"
+                                        value={data.city}
+                                        autoComplete="address-level2"
+                                        error={errors.city}
+                                        onChange={onChange}
+                                    />
+                                </div>
+
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <Field
+                                        id="province"
+                                        name="province"
+                                        label="Province"
+                                        value={data.province}
+                                        autoComplete="address-level1"
+                                        error={errors.province}
+                                        onChange={onChange}
+                                    />
+                                    <Field
+                                        id="postal_code"
+                                        name="postal_code"
+                                        label="ZIP code"
+                                        value={data.postal_code}
+                                        autoComplete="postal-code"
+                                        error={errors.postal_code}
+                                        onChange={onChange}
+                                    />
+                                </div>
+                            </div>
+                        </div>
 
                         <div>
                             <label

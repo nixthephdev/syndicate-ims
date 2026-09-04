@@ -147,6 +147,19 @@ export default function Show({ order, can }) {
                             </div>
                         </dl>
 
+                        {order.address.has_address && (
+                            <div className="mt-4 border-t border-white/10 pt-4 admin-light:border-ink-900/10">
+                                <p className="text-xs font-medium uppercase tracking-wide text-white/25 admin-light:text-ink-900/35">
+                                    Delivery address
+                                </p>
+                                <div className="mt-1 text-sm text-white/60 admin-light:text-ink-900/70">
+                                    {order.address.address_line && <p>{order.address.address_line}</p>}
+                                    <p>{[order.address.barangay, order.address.city].filter(Boolean).join(', ')}</p>
+                                    <p>{[order.address.province, order.address.postal_code].filter(Boolean).join(' ')}</p>
+                                </div>
+                            </div>
+                        )}
+
                         {order.notes && (
                             <div className="mt-4 border-t border-white/10 pt-4 admin-light:border-ink-900/10">
                                 <p className="text-xs font-medium uppercase tracking-wide text-white/25 admin-light:text-ink-900/35">

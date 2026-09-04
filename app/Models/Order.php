@@ -49,6 +49,11 @@ class Order extends Model
         'customer_name',
         'customer_email',
         'customer_phone',
+        'address_line',
+        'barangay',
+        'city',
+        'province',
+        'postal_code',
         'notes',
     ];
 
@@ -81,6 +86,16 @@ class Order extends Model
     public function isPaid(): bool
     {
         return $this->paid_at !== null;
+    }
+
+    /** Any address field filled in at all — a pickup order has none of these. */
+    public function hasAddress(): bool
+    {
+        return $this->address_line !== null
+            || $this->barangay !== null
+            || $this->city !== null
+            || $this->province !== null
+            || $this->postal_code !== null;
     }
 
     public static function generateOrderNumber(): string

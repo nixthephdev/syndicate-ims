@@ -5,6 +5,8 @@ namespace Tests\Feature\Admin;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
 class ProductControllerTest extends TestCase
@@ -139,5 +141,90 @@ class ProductControllerTest extends TestCase
         );
 
         $this->assertSame(123456, $product->fresh()->base_price_centavos);
+    }
+
+    /**
+     * Real filesystem writes (public/images/products/), same as the app's
+     * own storeImage() — this deliberately does NOT use Storage::fake(),
+     * because the whole point is confirming a file lands where image_path
+     * claims it does. Every test that uploads cleans its own file up.
+     */
+    public function test_staff_can_upload_a_product_image_on_create(): void
+    {
+        $this->actingAs(User::factory()->staff()->create())->post(
+            route('admin.products.store'),
+            [
+                'name' => 'Photographed Tee',
+                'category' => Product::CATEGORY_APPAREL,
+                'type' => Product::TYPE_TEE,
+                'base_price' => '899.00',
+                'image' => UploadedFile::fake()->image('photo.jpg'),
+            ]
+        )->assertSessionHasNoErrors();
+
+        $product = Product::where('name', 'Photographed Tee')->firstOrFail();
+
+        $this->assertStringStartsWith('/images/products/photographed-tee-', $product->image_path);
+        $this->assertTrue(File::exists(public_path($product->image_path)));
+
+        File::delete(public_path($product->image_path));
+    }
+
+    public function test_a_non_image_file_is_rejected(): void
+    {
+        $this->actingAs(User::factory()->admin()->create())->post(
+            route('admin.products.store'),
+            [
+                'name' => 'Bad Photo Product',
+                'category' => Product::CATEGORY_APPAREL,
+                'type' => Product::TYPE_TEE,
+                'base_price' => '899.00',
+                'image' => UploadedFile::fake()->create('not-an-image.pdf', 100),
+            ]
+        )->assertSessionHasErrors('image');
+
+        $this->assertDatabaseMissing('products', ['name' => 'Bad Photo Product']);
+    }
+
+    public function test_updating_without_a_new_image_keeps_the_existing_one(): void
+    {
+        $product = Product::factory()->create(['image_path' => '/images/lookbook/existing.jpg']);
+
+        $this->actingAs(User::factory()->staff()->create())->patch(
+            route('admin.products.update', $product),
+            [
+                'name' => $product->name,
+                'category' => $product->category,
+                'type' => Product::TYPE_TEE,
+                'base_price' => '500',
+                'is_active' => true,
+            ]
+        )->assertSessionHasNoErrors();
+
+        $this->assertSame('/images/lookbook/existing.jpg', $product->fresh()->image_path);
+    }
+
+    public function test_uploading_a_new_image_on_update_replaces_the_path(): void
+    {
+        $product = Product::factory()->create(['image_path' => '/images/lookbook/existing.jpg']);
+
+        $this->actingAs(User::factory()->staff()->create())->patch(
+            route('admin.products.update', $product),
+            [
+                'name' => $product->name,
+                'category' => $product->category,
+                'type' => Product::TYPE_TEE,
+                'base_price' => '500',
+                'is_active' => true,
+                'image' => UploadedFile::fake()->image('new-photo.jpg'),
+            ]
+        )->assertSessionHasNoErrors();
+
+        $newPath = $product->fresh()->image_path;
+
+        $this->assertNotSame('/images/lookbook/existing.jpg', $newPath);
+        $this->assertTrue(File::exists(public_path($newPath)));
+
+        File::delete(public_path($newPath));
     }
 }

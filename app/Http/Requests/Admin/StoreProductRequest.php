@@ -32,6 +32,9 @@ class StoreProductRequest extends FormRequest
             // Pesos, as typed by a human. Converted to centavos in the controller.
             'base_price' => ['required', 'numeric', 'min:0'],
             'is_active' => ['boolean'],
+            // Optional — a product with none renders the existing grey
+            // placeholder block, same as any seeded product with no photo.
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ];
     }
 }

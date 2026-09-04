@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -14,9 +15,17 @@ export default function Create({ categories, types, typeLabels }) {
         type: types[0] ?? '',
         base_price: '',
         is_active: true,
+        image: null,
     });
+    const [preview, setPreview] = useState(null);
 
     const isApparel = data.category === 'apparel';
+
+    function onImageChange(e) {
+        const file = e.target.files[0] ?? null;
+        setData('image', file);
+        setPreview(file ? URL.createObjectURL(file) : null);
+    }
 
     function submit(e) {
         e.preventDefault();
@@ -106,6 +115,28 @@ export default function Create({ categories, types, typeLabels }) {
                         onChange={(e) => setData('description', e.target.value)}
                     />
                     <InputError message={errors.description} className="mt-1" />
+                </div>
+
+                <div>
+                    <InputLabel htmlFor="image" value="Photo" />
+                    {preview && (
+                        <img
+                            src={preview}
+                            alt=""
+                            className="mt-2 h-32 w-32 rounded-md border border-white/10 object-cover admin-light:border-ink-900/10"
+                        />
+                    )}
+                    <input
+                        id="image"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={onImageChange}
+                        className="mt-2 block w-full text-sm text-white/70 file:mr-4 file:rounded-md file:border-0 file:bg-volt-500 file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink-900 hover:file:bg-volt-400 admin-light:text-ink-900/70"
+                    />
+                    <p className="mt-1 text-xs text-white/40 admin-light:text-ink-900/50">
+                        Optional — JPG, PNG or WEBP, up to 4MB. Products with no photo show a placeholder block on the storefront.
+                    </p>
+                    <InputError message={errors.image} className="mt-1" />
                 </div>
 
                 <div className="flex items-center gap-2">

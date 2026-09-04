@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\UpdateProductRequest;
 use App\Models\Product;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -31,6 +32,7 @@ class ProductController extends Controller
                 'is_active' => $product->is_active,
                 'variants_count' => $product->variants_count,
                 'total_stock' => (int) ($product->variants_sum_stock ?? 0),
+                'image_path' => $product->image_path,
             ]);
 
         return Inertia::render('Admin/Products/Index', [
@@ -50,15 +52,19 @@ class ProductController extends Controller
     public function store(StoreProductRequest $request): RedirectResponse
     {
         $data = $request->validated();
+        $slug = $this->uniqueSlug($data['name']);
 
         Product::create([
             'name' => $data['name'],
-            'slug' => $this->uniqueSlug($data['name']),
+            'slug' => $slug,
             'description' => $data['description'] ?? null,
             'category' => $data['category'],
             'type' => $data['type'] ?? null,
             'base_price_centavos' => Money::toCentavos($data['base_price']),
             'is_active' => $request->boolean('is_active', true),
+            'image_path' => $request->hasFile('image')
+                ? $this->storeImage($request->file('image'), $slug)
+                : null,
         ]);
 
         return redirect()->route('admin.products.index')
@@ -81,6 +87,7 @@ class ProductController extends Controller
                 'type' => $product->type,
                 'base_price' => Money::toPesos($product->base_price_centavos),
                 'is_active' => $product->is_active,
+                'image_path' => $product->image_path,
             ],
             'variants' => $product->variants->map(fn ($v) => [
                 'id' => $v->id,
@@ -101,16 +108,26 @@ class ProductController extends Controller
     public function update(UpdateProductRequest $request, Product $product): RedirectResponse
     {
         $data = $request->validated();
+        $slug = $this->uniqueSlug($data['name'], $product->id);
 
-        $product->update([
+        $attributes = [
             'name' => $data['name'],
-            'slug' => $this->uniqueSlug($data['name'], $product->id),
+            'slug' => $slug,
             'description' => $data['description'] ?? null,
             'category' => $data['category'],
             'type' => $data['type'] ?? null,
             'base_price_centavos' => Money::toCentavos($data['base_price']),
             'is_active' => $request->boolean('is_active', true),
-        ]);
+        ];
+
+        // Left out entirely (no key at all) when no new file was uploaded,
+        // so the existing image_path is left untouched rather than nulled
+        // out — see StoreProductRequest's comment.
+        if ($request->hasFile('image')) {
+            $attributes['image_path'] = $this->storeImage($request->file('image'), $slug);
+        }
+
+        $product->update($attributes);
 
         return back()->with('success', 'Product updated.');
     }
@@ -149,5 +166,25 @@ class ProductController extends Controller
         }
 
         return $slug;
+    }
+
+    /**
+     * Saved straight into public/images/products/ — the same
+     * physically-served-from-public convention every other product/lookbook
+     * image already uses (see tools/lookbook.php), not Laravel's
+     * storage/app/public symlink, so this stays consistent with how
+     * image_path is read everywhere else. A random suffix on every upload
+     * (not just the slug) means replacing an image on Edit never reuses a
+     * stale filename a browser might have cached, and never needs the old
+     * file deleted — images are sometimes shared with the Home page
+     * lookbook (see DatabaseSeeder's docblock), so an old image_path could
+     * still be in use elsewhere even after this product stops pointing at it.
+     */
+    private function storeImage(UploadedFile $file, string $slug): string
+    {
+        $filename = $slug.'-'.Str::random(8).'.'.$file->getClientOriginalExtension();
+        $file->move(public_path('images/products'), $filename);
+
+        return '/images/products/'.$filename;
     }
 }

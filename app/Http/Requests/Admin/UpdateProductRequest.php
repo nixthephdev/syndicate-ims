@@ -26,6 +26,8 @@ class UpdateProductRequest extends FormRequest
             ],
             'base_price' => ['required', 'numeric', 'min:0'],
             'is_active' => ['boolean'],
+            // Optional — omitted entirely means "keep the current image".
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ];
     }
 }

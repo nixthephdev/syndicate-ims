@@ -12,6 +12,9 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        //
+        // PayMongo's servers, not a logged-in browser — no session, no
+        // CSRF token to carry. PayMongoWebhookVerifier's signature check
+        // is what authenticates this route instead.
+        'webhooks/paymongo',
     ];
 }

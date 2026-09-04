@@ -83,13 +83,13 @@ class DatabaseSeeder extends Seeder
             ['Core Logo Tee — Black', 79900, '/images/lookbook/core-tee-black.jpg', 'Plain block "Syndicate" wordmark on heavyweight black cotton. The one to grab when a graphic is too much.', 'Black'],
             ['Core Logo Tee — White', 79900, '/images/lookbook/core-tee-white.jpg', 'Same wordmark, white cotton, red print. Runs true, boxy through the body.', 'White'],
             ['Flame Graphic Tee', 84900, '/images/lookbook/tee-rack-night.jpg', 'Flame "S" chest print, screen printed, on black cotton.', 'Black'],
-            ['Skate Or Die Tee', 84900, null, null, 'Black'],
+            ['Mind Matters Tee — Black', 84900, '/images/lookbook/mind-matters-tee-black.jpg', 'Bold "SYNDICATE / The Mind Is What Matters" badge print on heavyweight black cotton, back placement.', 'Black'],
             ['Peace By Plant Tee', 74900, '/images/lookbook/syndicate-cap-white-tee.jpg', '"SYND." peace-sign graphic on white cotton. Screen printed, soft hand, no scratch.', 'White'],
             ['Pretty Girls Love Syndicate Tee', 79900, '/images/lookbook/pretty-girls-tee.jpg', 'Red silhouette print on white cotton, straight off the shop\'s own capsule run.', 'White'],
             ['Beach Brain Tee — Mint', 89900, '/images/lookbook/mint-tee-rocks.jpg', 'Brain-mark "Supply Co." wordmark on mint cotton, oversized fit.', 'Mint'],
-            ['Pocket Tee — Olive', 74900, null, null, 'Olive'],
-            ['Long Sleeve Tee', 94900, null, null, 'Black'],
-            ['Tie-Dye Tee', 99900, null, null, 'Tie-Dye'],
+            ['Peace By Plant Tee — Green', 74900, '/images/lookbook/peace-by-plant-tee-green.jpg', 'Same "SYND. Peace By Plant" graphic, green cotton, oversized fit.', 'Green'],
+            ['Mind Matters Tee — White', 94900, '/images/lookbook/mind-matters-tee-white.jpg', 'Same "SYNDICATE / The Mind Is What Matters" badge print, white cotton, back placement.', 'White'],
+            ['Flame Graphic Tee — Navy', 99900, '/images/lookbook/flame-graphic-tee-navy.jpg', 'Flame "S" chest and back print, screen printed, on navy cotton.', 'Navy'],
             ['Beach Brain Tee — Pink', 89900, '/images/lookbook/pink-tee-shoreline.jpg', 'Same brain-mark "Supply Co." wordmark, pink colourway, oversized fit.', 'Pink'],
         ], ['S', 'M', 'L', 'XL']);
 
@@ -117,13 +117,13 @@ class DatabaseSeeder extends Seeder
             ['Wordmark Cap — Black', 59900, '/images/lookbook/wordmark-cap-black.jpg', 'Structured five-panel cap, embroidered "Syndicate" wordmark on the front panel.', 'Black'],
             ['Curved Brim Dad Cap', 54900, '/images/lookbook/dad-cap-shelf.jpg', 'Six-panel dad cap, curved brim, brain mark only — no wordmark. Black cotton twill.', 'Black'],
             ['Embroidered Brain Cap', 64900, '/images/lookbook/brain-cap-black.jpg', 'Five-panel cap, embroidered brain mark, zip-back pocket detail.', 'Black'],
-            ['Corduroy Cap', 69900, null, null, 'Black'],
-            ['Mesh Trucker Cap', 54900, null, null, 'Black'],
+            ['Bold Wordmark Cap — Red', 69900, '/images/lookbook/wordmark-cap-red-bold.jpg', 'Five-panel cap, bold embroidered "SYNDICATE" wordmark across the front panel, red cotton twill.', 'Red'],
+            ['Brain Mark 5-Panel Cap — Black', 54900, '/images/lookbook/brain-mark-cap-black.jpg', 'Five-panel nylon cap, embroidered brain mark only, no wordmark. Black.', 'Black'],
             ['Low-Profile Cap — Navy', 59900, null, null, 'Navy'],
             ['Bucket Hat', 64900, null, null, 'Black'],
             ['Beanie — Black', 49900, null, null, 'Black'],
             ['Wordmark Cap — Red', 59900, '/images/lookbook/wordmark-cap-red.jpg', 'Same wordmark cap, red colourway.', 'Red'],
-            ['Flame Bucket Hat', 69900, null, null, 'Black'],
+            ['Flame Snapback — Black', 69900, '/images/lookbook/flame-snapback-cap-black.jpg', 'Flame "S" mark embroidered on a black snapback, tone-on-tone stitching.', 'Black'],
         ], ['One Size']);
 
         // Small goods — keychains, straps. Real photos only exist in black.

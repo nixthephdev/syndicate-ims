@@ -3,7 +3,7 @@ import StorefrontAuthLayout from '@/Layouts/StorefrontAuthLayout';
 import { Field, SubmitButton, CheckboxRow } from '@/Components/Storefront/FormControls';
 import { Head, Link, useForm } from '@inertiajs/react';
 
-export default function Login({ status, canResetPassword }) {
+export default function Login({ canResetPassword }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
         password: '',
@@ -58,14 +58,12 @@ export default function Login({ status, canResetPassword }) {
         >
             <Head title="Log in" />
 
-            {/* Post-reset / post-verification notices land here. */}
-            {status && (
-                <div className="mb-6 border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300 light:text-volt-800">
-                    {status}
-                </div>
-            )}
-
-            {cameFromCart && !status && (
+            {/* Post-reset / post-verification notices now show as a toast
+                (StorefrontAuthLayout's ToastStack reads `status`). This one
+                stays inline — it's contextual page copy explaining why the
+                visitor landed here, not a one-time action result, so it
+                needs to stay visible while they fill the form. */}
+            {cameFromCart && (
                 <div className="mb-6 border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300 light:text-volt-800">
                     Sign in to add items to your cart.
                 </div>

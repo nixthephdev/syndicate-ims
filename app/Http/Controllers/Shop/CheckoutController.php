@@ -97,6 +97,11 @@ class CheckoutController extends Controller
                     'unit_price_centavos' => $line['unit_price_centavos'],
                     'quantity' => $line['quantity'],
                     'line_total_centavos' => $line['line_total_centavos'],
+                    // /parts hardware colour swatch, if one was picked — see
+                    // Cart::add()'s docblock. This is the one real use of
+                    // this column today; /customize's own colour picker
+                    // stays decorative-only and never reaches a cart line.
+                    'customization' => $line['color'] ? ['color' => $line['color']] : null,
                 ]);
             }
 

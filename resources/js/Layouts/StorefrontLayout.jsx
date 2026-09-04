@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import StoreHeader from '@/Components/Storefront/StoreHeader';
 import ThemeToggle from '@/Components/Storefront/ThemeToggle';
+import ToastStack from '@/Components/Storefront/ToastStack';
 
 /**
  * Customer-facing shell: near-black ground, one loud accent (volt), heavy
@@ -10,37 +11,15 @@ import ThemeToggle from '@/Components/Storefront/ThemeToggle';
  * dashboard.
  */
 export default function StorefrontLayout({ children }) {
-    const { auth, flash, errors } = usePage().props;
+    const { auth } = usePage().props;
     const isStaff = ['staff', 'admin'].includes(auth?.user?.role);
     const year = new Date().getFullYear();
-
-    // Cart and stock failures redirect back with these rather than rendering
-    // an error page, so the shell is the only place they can surface.
-    const banner = errors?.cart || errors?.payment;
 
     return (
         <div className="min-h-screen bg-ink-950 font-sans text-white selection:bg-volt-500 selection:text-ink-900 light:bg-paper light:text-ink-900">
             <StoreHeader />
             <ThemeToggle />
-
-            {(flash?.success || banner) && (
-                <div
-                    role="status"
-                    aria-live="polite"
-                    className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8"
-                >
-                    {flash?.success && (
-                        <p className="border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300 light:text-volt-800">
-                            {flash.success}
-                        </p>
-                    )}
-                    {banner && (
-                        <p className="mt-3 border-l-2 border-red-500 bg-red-500/10 px-4 py-3 text-sm text-red-300 light:text-red-700">
-                            {banner}
-                        </p>
-                    )}
-                </div>
-            )}
+            <ToastStack />
 
             {/* Inertia remounts this on every visit, so the entry animation
                 replays per navigation. The sticky header sits outside it and
@@ -130,10 +109,26 @@ export default function StorefrontLayout({ children }) {
                                 Shop
                             </p>
                             <ul className="mt-4 space-y-2 text-sm text-white/60">
-                                <li>Decks &amp; completes</li>
-                                <li>Wheels &amp; trucks</li>
-                                <li>Tees &amp; hoodies</li>
-                                <li>Caps &amp; accessories</li>
+                                <li>
+                                    <Link href={route('parts.index')} className="transition-colors hover:text-volt-500">
+                                        Decks &amp; completes
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link href={route('parts.index')} className="transition-colors hover:text-volt-500">
+                                        Wheels &amp; trucks
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link href={route('shop.index')} className="transition-colors hover:text-volt-500">
+                                        Tees &amp; hoodies
+                                    </Link>
+                                </li>
+                                <li>
+                                    <Link href={route('shop.index')} className="transition-colors hover:text-volt-500">
+                                        Caps &amp; accessories
+                                    </Link>
+                                </li>
                             </ul>
                         </div>
 

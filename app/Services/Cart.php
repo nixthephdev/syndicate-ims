@@ -68,8 +68,25 @@ class Cart
      * Adding the same item twice increases the quantity rather than making a
      * second line — otherwise the cart shows the same tee twice and the
      * shopper cannot tell the lines apart.
+     *
+     * $buildKey groups lines that were added together as one custom skateboard
+     * build (see CustomizeController::store()) so the cart page can render
+     * deck+wheels+trucks+bolts as a single entry. It is display metadata
+     * only — checkout still creates one OrderItem per line either way, so
+     * each part's stock keeps decrementing independently. If this call
+     * merges into an existing line (same purchasable already in the cart),
+     * the line's build_key is left as whatever it already was — first-write
+     * wins, so a later custom build never silently reclassifies a part the
+     * shopper already added on its own.
+     *
+     * $color is the /parts hardware colour swatch (Trucks/Bolts only — see
+     * PartController) — unlike /customize's own bolts/trucks recolour, which
+     * stays purely decorative and never reaches here, a standalone hardware
+     * purchase's colour is a real fulfilment instruction, so it rides the
+     * cart line through to OrderItem.customization at checkout. Same
+     * first-write-wins merge rule as build_key, for the same reason.
      */
-    public function add(Purchasable $item, int $quantity = 1): void
+    public function add(Purchasable $item, int $quantity = 1, ?string $buildKey = null, ?string $color = null): void
     {
         /** @var Model $item */
         $key = self::key(get_class($item), (int) $item->getKey());
@@ -79,6 +96,8 @@ class Cart
             'type' => get_class($item),
             'id' => (int) $item->getKey(),
             'quantity' => ($raw[$key]['quantity'] ?? 0) + $quantity,
+            'build_key' => $raw[$key]['build_key'] ?? $buildKey,
+            'color' => $raw[$key]['color'] ?? $color,
         ];
 
         $this->put($raw);
@@ -119,10 +138,38 @@ class Cart
         return $this->raw() === [];
     }
 
-    /** Total units in the cart — what the header badge shows. */
+    /**
+     * Total units in the cart — what the header badge shows.
+     *
+     * A custom build's 4 component rows (deck/wheels/trucks/bolts, sharing
+     * one build_key — see add()) count as ONE unit per board, not four: the
+     * cart page already shows them as a single "Custom Board" line, and the
+     * badge disagreeing with that (showing 4 for what reads as 1 item) is
+     * exactly the confusion grouping was meant to fix. Every member row of a
+     * build always carries the same quantity (the group's stepper sets them
+     * together), so counting the first one seen per build_key and skipping
+     * the rest is correct, not an approximation.
+     */
     public function count(): int
     {
-        return array_sum(array_column($this->raw(), 'quantity'));
+        $seenBuildKeys = [];
+        $total = 0;
+
+        foreach ($this->raw() as $row) {
+            $buildKey = $row['build_key'] ?? null;
+
+            if ($buildKey !== null) {
+                if (isset($seenBuildKeys[$buildKey])) {
+                    continue;
+                }
+
+                $seenBuildKeys[$buildKey] = true;
+            }
+
+            $total += (int) $row['quantity'];
+        }
+
+        return $total;
     }
 
     public function subtotalCentavos(): int
@@ -176,6 +223,12 @@ class Cart
                 'unit_price_centavos' => $unit,
                 'quantity' => $quantity,
                 'line_total_centavos' => $unit * $quantity,
+                // Null for everything except lines added together as one
+                // custom skateboard build — see add()'s docblock.
+                'build_key' => $row['build_key'] ?? null,
+                // Null except a /parts hardware line with a colour picked —
+                // see add()'s docblock.
+                'color' => $row['color'] ?? null,
                 // Advisory only — the cart does not reserve. Checkout
                 // re-checks behind a row lock and is the real answer.
                 'available_stock' => $model->availableStock(),

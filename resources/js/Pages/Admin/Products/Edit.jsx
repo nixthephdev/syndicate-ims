@@ -2,6 +2,8 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
+import PrimaryButton from '@/Components/Admin/PrimaryButton';
+import { ArrowLeftIcon, ArchiveBoxIcon } from '@/Components/Admin/icons';
 import VariantsSection from './Partials/VariantsSection';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 
@@ -33,7 +35,7 @@ export default function Edit({ product, categories, types, typeLabels, variants 
         <AdminLayout header={`Edit — ${product.name}`}>
             <Head title={`Admin · Edit ${product.name}`} />
 
-            <form onSubmit={submit} className="bg-white rounded-lg border border-gray-200 p-6 max-w-xl space-y-5">
+            <form onSubmit={submit} className="rounded-md border border-white/10 bg-ink-900 p-6 max-w-xl space-y-5 admin-light:border-ink-900/10 admin-light:bg-white">
                 <div>
                     <InputLabel htmlFor="name" value="Name" />
                     <TextInput
@@ -49,7 +51,7 @@ export default function Edit({ product, categories, types, typeLabels, variants 
                     <InputLabel htmlFor="category" value="Category" />
                     <select
                         id="category"
-                        className="mt-1 block w-full border-gray-300 focus:border-brand-500 focus:ring-brand-500 rounded-md shadow-sm"
+                        className="mt-1 block w-full rounded-md border-white/15 bg-ink-900 text-white shadow-sm focus:border-volt-500 focus:ring-volt-500 admin-light:border-ink-900/15 admin-light:bg-white admin-light:text-ink-900"
                         value={data.category}
                         onChange={(e) => setData('category', e.target.value)}
                     >
@@ -67,7 +69,7 @@ export default function Edit({ product, categories, types, typeLabels, variants 
                         <InputLabel htmlFor="type" value="Type" />
                         <select
                             id="type"
-                            className="mt-1 block w-full border-gray-300 focus:border-brand-500 focus:ring-brand-500 rounded-md shadow-sm"
+                            className="mt-1 block w-full rounded-md border-white/15 bg-ink-900 text-white shadow-sm focus:border-volt-500 focus:ring-volt-500 admin-light:border-ink-900/15 admin-light:bg-white admin-light:text-ink-900"
                             value={data.type}
                             onChange={(e) => setData('type', e.target.value)}
                         >
@@ -77,7 +79,7 @@ export default function Edit({ product, categories, types, typeLabels, variants 
                                 </option>
                             ))}
                         </select>
-                        <p className="mt-1 text-xs text-gray-500">
+                        <p className="mt-1 text-xs text-white/40 admin-light:text-ink-900/50">
                             Which shop section this appears under.
                         </p>
                         <InputError message={errors.type} className="mt-1" />
@@ -103,7 +105,7 @@ export default function Edit({ product, categories, types, typeLabels, variants 
                     <textarea
                         id="description"
                         rows={3}
-                        className="mt-1 block w-full border-gray-300 focus:border-brand-500 focus:ring-brand-500 rounded-md shadow-sm"
+                        className="mt-1 block w-full rounded-md border-white/15 bg-ink-900 text-white shadow-sm focus:border-volt-500 focus:ring-volt-500 admin-light:border-ink-900/15 admin-light:bg-white admin-light:text-ink-900"
                         value={data.description}
                         onChange={(e) => setData('description', e.target.value)}
                     />
@@ -114,7 +116,7 @@ export default function Edit({ product, categories, types, typeLabels, variants 
                     <input
                         id="is_active"
                         type="checkbox"
-                        className="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500"
+                        className="rounded border-white/15 bg-ink-900 text-volt-500 shadow-sm focus:ring-volt-500 admin-light:border-ink-900/15 admin-light:bg-white"
                         checked={data.is_active}
                         onChange={(e) => setData('is_active', e.target.checked)}
                     />
@@ -123,19 +125,24 @@ export default function Edit({ product, categories, types, typeLabels, variants 
 
                 <div className="flex items-center justify-between pt-2">
                     <div className="flex items-center gap-4">
-                        <button
-                            type="submit"
-                            disabled={processing}
-                            className="inline-flex items-center px-4 py-2 bg-brand-600 rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-brand-700 disabled:opacity-50 transition"
-                        >
+                        <PrimaryButton type="submit" disabled={processing}>
                             Save Changes
-                        </button>
-                        <Link href={route('admin.products.index')} className="text-sm text-gray-500 hover:text-gray-700">
+                        </PrimaryButton>
+                        <Link
+                            href={route('admin.products.index')}
+                            className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 admin-light:text-ink-900/50 admin-light:hover:text-ink-900/80"
+                        >
+                            <ArrowLeftIcon className="h-3.5 w-3.5" />
                             Back to list
                         </Link>
                     </div>
 
-                    <button type="button" onClick={archive} className="text-sm text-red-600 hover:text-red-700">
+                    <button
+                        type="button"
+                        onClick={archive}
+                        className="inline-flex items-center gap-1.5 text-sm text-red-400 hover:text-red-300"
+                    >
+                        <ArchiveBoxIcon className="h-3.5 w-3.5" />
                         Archive product
                     </button>
                 </div>

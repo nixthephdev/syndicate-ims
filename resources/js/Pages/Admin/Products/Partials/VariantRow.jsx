@@ -1,6 +1,10 @@
 import StockBadge from '@/Components/Admin/StockBadge';
+import IconButton from '@/Components/Admin/IconButton';
+import { PencilIcon, TrashIcon, CheckIcon, XIcon } from '@/Components/Admin/icons';
 import { router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+
+const inputClasses = 'rounded border-white/15 bg-ink-900 text-white text-sm focus:border-volt-500 focus:ring-volt-500 admin-light:border-ink-900/15 admin-light:bg-white admin-light:text-ink-900';
 
 /**
  * One variant, one independent form. Each row submits its own PATCH so
@@ -38,10 +42,10 @@ export default function VariantRow({ productId, variant }) {
 
     if (!editing) {
         return (
-            <tr>
-                <td className="px-4 py-3 text-sm text-gray-900">{[variant.size, variant.color].filter(Boolean).join(' / ') || '—'}</td>
-                <td className="px-4 py-3 text-sm font-mono text-gray-500">{variant.sku}</td>
-                <td className="px-4 py-3 text-sm text-gray-500">{variant.effective_price_formatted}</td>
+            <tr className="hover:bg-white/[0.03] admin-light:hover:bg-ink-900/[0.03]">
+                <td className="px-4 py-3 text-sm text-white admin-light:text-ink-900">{[variant.size, variant.color].filter(Boolean).join(' / ') || '—'}</td>
+                <td className="px-4 py-3 text-sm font-mono text-white/50 admin-light:text-ink-900/60">{variant.sku}</td>
+                <td className="px-4 py-3 text-sm text-white/50 admin-light:text-ink-900/60">{variant.effective_price_formatted}</td>
                 <td className="px-4 py-3">
                     <StockBadge
                         stock={variant.stock}
@@ -50,50 +54,50 @@ export default function VariantRow({ productId, variant }) {
                         threshold={variant.low_stock_threshold}
                     />
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-500">{variant.low_stock_threshold}</td>
+                <td className="px-4 py-3 text-sm text-white/50 admin-light:text-ink-900/60">{variant.low_stock_threshold}</td>
                 <td className="px-4 py-3">
-                    <span className={variant.is_active ? 'text-green-700 text-xs' : 'text-gray-400 text-xs'}>
+                    <span className={variant.is_active ? 'text-green-400 text-xs' : 'text-white/25 text-xs admin-light:text-ink-900/35'}>
                         {variant.is_active ? 'Active' : 'Inactive'}
                     </span>
                 </td>
-                <td className="px-4 py-3 text-right space-x-3 text-sm">
-                    <button onClick={() => setEditing(true)} className="text-brand-600 hover:text-brand-700">
-                        Edit
-                    </button>
-                    <button onClick={destroy} className="text-red-600 hover:text-red-700">
-                        Delete
-                    </button>
+                <td className="px-4 py-3 text-right">
+                    <IconButton onClick={() => setEditing(true)} label={`Edit ${variant.sku}`}>
+                        <PencilIcon />
+                    </IconButton>
+                    <IconButton onClick={destroy} label={`Delete ${variant.sku}`} tone="danger">
+                        <TrashIcon />
+                    </IconButton>
                 </td>
             </tr>
         );
     }
 
     return (
-        <tr className="bg-brand-50/40">
+        <tr className="bg-volt-500/10">
             <td className="px-4 py-2">
                 <div className="flex gap-1">
                     <input
-                        className="w-16 rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500"
+                        className={`w-16 ${inputClasses}`}
                         placeholder="Size"
                         value={data.size}
                         onChange={(e) => setData('size', e.target.value)}
                     />
                     <input
-                        className="w-20 rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500"
+                        className={`w-20 ${inputClasses}`}
                         placeholder="Color"
                         value={data.color}
                         onChange={(e) => setData('color', e.target.value)}
                     />
                 </div>
-                {errors.size && <p className="text-xs text-red-600 mt-1">{errors.size}</p>}
+                {errors.size && <p className="text-xs text-red-400 mt-1">{errors.size}</p>}
             </td>
             <td className="px-4 py-2">
                 <input
-                    className="w-28 rounded border-gray-300 text-sm font-mono focus:border-brand-500 focus:ring-brand-500"
+                    className={`w-28 font-mono ${inputClasses}`}
                     value={data.sku}
                     onChange={(e) => setData('sku', e.target.value)}
                 />
-                {errors.sku && <p className="text-xs text-red-600 mt-1">{errors.sku}</p>}
+                {errors.sku && <p className="text-xs text-red-400 mt-1">{errors.sku}</p>}
             </td>
             <td className="px-4 py-2">
                 <input
@@ -101,27 +105,27 @@ export default function VariantRow({ productId, variant }) {
                     step="0.01"
                     min="0"
                     placeholder="inherit"
-                    className="w-20 rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500"
+                    className={`w-20 ${inputClasses}`}
                     value={data.price}
                     onChange={(e) => setData('price', e.target.value)}
                 />
-                {errors.price && <p className="text-xs text-red-600 mt-1">{errors.price}</p>}
+                {errors.price && <p className="text-xs text-red-400 mt-1">{errors.price}</p>}
             </td>
             <td className="px-4 py-2">
                 <input
                     type="number"
                     min="0"
-                    className="w-20 rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500"
+                    className={`w-20 ${inputClasses}`}
                     value={data.stock}
                     onChange={(e) => setData('stock', e.target.value)}
                 />
-                {errors.stock && <p className="text-xs text-red-600 mt-1">{errors.stock}</p>}
+                {errors.stock && <p className="text-xs text-red-400 mt-1">{errors.stock}</p>}
             </td>
             <td className="px-4 py-2">
                 <input
                     type="number"
                     min="0"
-                    className="w-16 rounded border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500"
+                    className={`w-16 ${inputClasses}`}
                     value={data.low_stock_threshold}
                     onChange={(e) => setData('low_stock_threshold', e.target.value)}
                 />
@@ -129,24 +133,24 @@ export default function VariantRow({ productId, variant }) {
             <td className="px-4 py-2">
                 <input
                     type="checkbox"
-                    className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                    className="rounded border-white/15 bg-ink-900 text-volt-500 focus:ring-volt-500 admin-light:border-ink-900/15 admin-light:bg-white"
                     checked={data.is_active}
                     onChange={(e) => setData('is_active', e.target.checked)}
                 />
             </td>
-            <td className="px-4 py-2 text-right space-x-3 text-sm whitespace-nowrap">
-                <button onClick={save} disabled={processing} className="text-brand-600 hover:text-brand-700 disabled:opacity-50">
-                    Save
-                </button>
-                <button
+            <td className="px-4 py-2 text-right whitespace-nowrap">
+                <IconButton onClick={save} label="Save" disabled={processing}>
+                    <CheckIcon />
+                </IconButton>
+                <IconButton
                     onClick={() => {
                         reset();
                         setEditing(false);
                     }}
-                    className="text-gray-500 hover:text-gray-700"
+                    label="Cancel"
                 >
-                    Cancel
-                </button>
+                    <XIcon />
+                </IconButton>
             </td>
         </tr>
     );

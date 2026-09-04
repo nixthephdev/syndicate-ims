@@ -7,6 +7,7 @@ import { Canvas } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import Board from './Board';
 import Wheels from './Wheels';
+import AutoFitCamera from './AutoFitCamera';
 import { useTheme } from '@/utils/useTheme';
 
 function LoadingFallback() {
@@ -62,6 +63,8 @@ export default function Scene({
     enableZoom = true,
     enablePan = true,
     accentColor = null,
+    autoFit = false,
+    autoFitFocusName = null,
 }) {
     // <color> sets a raw Three.js scene background — outside Tailwind's
     // reach entirely, so the theme has to be read directly here rather than
@@ -100,19 +103,27 @@ export default function Scene({
             <Suspense fallback={<LoadingFallback />}>
                 <Board activeMeshName={deckMeshName} boltsColor={boltsColor} trucksColor={trucksColor} />
                 <Wheels activeMeshName={wheelsMeshName} />
+                {autoFit && <AutoFitCamera focusName={autoFitFocusName} />}
             </Suspense>
 
-            <OrbitControls
-                target={MODEL_CENTER}
-                enableDamping
-                dampingFactor={0.05}
-                minDistance={150}
-                maxDistance={2000}
-                enableZoom={enableZoom}
-                enablePan={enablePan}
-                autoRotate={autoRotate}
-                autoRotateSpeed={2.5}
-            />
+            {/* AutoFitCamera sets camera.position/up directly for a capture
+                shot — OrbitControls recomputes position from its own
+                internal spherical state every frame regardless of its
+                `enabled` prop, so it has to not be mounted at all here
+                rather than merely disabled, or it would fight that. */}
+            {!autoFit && (
+                <OrbitControls
+                    target={MODEL_CENTER}
+                    enableDamping
+                    dampingFactor={0.05}
+                    minDistance={150}
+                    maxDistance={2000}
+                    enableZoom={enableZoom}
+                    enablePan={enablePan}
+                    autoRotate={autoRotate}
+                    autoRotateSpeed={2.5}
+                />
+            )}
         </Canvas>
     );
 }

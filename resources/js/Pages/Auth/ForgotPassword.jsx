@@ -2,7 +2,7 @@ import StorefrontAuthLayout from '@/Layouts/StorefrontAuthLayout';
 import { Field, SubmitButton } from '@/Components/Storefront/FormControls';
 import { Head, Link, useForm } from '@inertiajs/react';
 
-export default function ForgotPassword({ status }) {
+export default function ForgotPassword() {
     const { data, setData, post, processing, errors } = useForm({
         email: '',
     });
@@ -44,15 +44,8 @@ export default function ForgotPassword({ status }) {
 
             {/* Laravel returns the same confirmation whether or not the email
                 is on file — deliberately, so the form can't be used to probe
-                which addresses have accounts. Wording stays vague to match. */}
-            {status && (
-                <div
-                    role="status"
-                    className="mb-6 border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300 light:text-volt-800"
-                >
-                    {status}
-                </div>
-            )}
+                which addresses have accounts. Wording stays vague to match.
+                Now shown as a toast (StorefrontAuthLayout's ToastStack). */}
 
             <form onSubmit={submit} className="space-y-6">
                 <Field

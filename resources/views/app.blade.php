@@ -36,8 +36,10 @@
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
-        {{-- figtree = UI/body (admin + storefront). anton = storefront display face only. --}}
-        <link href="https://fonts.bunny.net/css?family=anton:400|figtree:400,500,600,700,800&display=swap" rel="stylesheet" />
+        {{-- figtree = UI/body (storefront, pre-admin-redesign leftovers).
+             anton = storefront display face only. oswald/plus-jakarta-sans =
+             admin only (condensed headlines/stat figures + UI body). --}}
+        <link href="https://fonts.bunny.net/css?family=anton:400|figtree:400,500,600,700,800|oswald:500,600,700|plus-jakarta-sans:400,500,600,700,800&display=swap" rel="stylesheet" />
 
         {{-- Boot splash, shown only for customer-facing pages. The admin is a
              management tool and stays restrained — it gets no brand splash.

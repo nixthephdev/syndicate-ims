@@ -5,6 +5,7 @@ namespace Tests\Feature\Shop;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\SkateboardComponent;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -211,6 +212,45 @@ class CheckoutTest extends TestCase
         $this->actingAs(User::factory()->staff()->create())
             ->get(route('orders.show', $order->order_number))
             ->assertOk();
+    }
+
+    /**
+     * A /parts hardware colour choice (see PartBrowsingTest) has to survive
+     * all the way onto the order, or the shop has no idea what was asked
+     * for by the time it's actually fulfilling anything — see
+     * CheckoutController::store()'s snapshot into OrderItem.customization.
+     */
+    public function test_a_parts_colour_choice_survives_into_the_order(): void
+    {
+        $trucks = SkateboardComponent::factory()->trucks()->create(['stock' => 10]);
+        $user = User::factory()->create();
+
+        $this->actingAs($user);
+        $this->post(route('cart.store'), [
+            'type' => 'component',
+            'id' => $trucks->id,
+            'quantity' => 1,
+            'color' => '#E7312F',
+        ]);
+        $this->post(route('checkout.store'), $this->details());
+
+        $item = Order::firstOrFail()->items()->firstOrFail();
+
+        $this->assertSame(['color' => '#E7312F'], $item->customization);
+    }
+
+    public function test_a_line_without_a_colour_has_no_customization_snapshot(): void
+    {
+        $variant = $this->variantWithStock(10);
+        $user = User::factory()->create();
+
+        $this->actingAs($user);
+        $this->fill($variant, 1);
+        $this->post(route('checkout.store'), $this->details());
+
+        $item = Order::firstOrFail()->items()->firstOrFail();
+
+        $this->assertNull($item->customization);
     }
 
     public function test_a_customer_cannot_confirm_payment_on_another_persons_order(): void

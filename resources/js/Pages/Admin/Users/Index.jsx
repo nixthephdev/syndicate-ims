@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import Card from '@/Components/Admin/Card';
+import FilterTab from '@/Components/Admin/FilterTabs';
+import Pagination from '@/Components/Admin/Pagination';
+import PrimaryButton from '@/Components/Admin/PrimaryButton';
+import { MagnifyingGlassIcon, PowerIcon } from '@/Components/Admin/icons';
+import { Head, router, usePage } from '@inertiajs/react';
 
 const ROLE_LABELS = {
     customer: 'Customer',
@@ -36,23 +41,19 @@ export default function Index({ users, filters, roles }) {
         router.patch(route('admin.users.status.update', user.id), {}, { preserveScroll: true });
     };
 
-    const tab = (active) =>
-        'px-3 py-1.5 rounded-md text-sm font-medium transition ' +
-        (active ? 'bg-brand-600 text-white' : 'text-gray-600 hover:bg-gray-100');
-
     return (
         <AdminLayout header="Users">
             <Head title="Admin · Users" />
 
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-wrap gap-1">
-                    <button type="button" onClick={() => go({ q: filters.q || undefined })} className={tab(!filters.role)}>
+                    <FilterTab active={!filters.role} onClick={() => go({ q: filters.q || undefined })}>
                         All
-                    </button>
+                    </FilterTab>
                     {roles.map((role) => (
-                        <button key={role} type="button" onClick={() => go({ ...filters, role })} className={tab(filters.role === role)}>
+                        <FilterTab key={role} active={filters.role === role} onClick={() => go({ ...filters, role })}>
                             {ROLE_LABELS[role]}
-                        </button>
+                        </FilterTab>
                     ))}
                 </div>
 
@@ -66,32 +67,27 @@ export default function Index({ users, filters, roles }) {
                         value={term}
                         onChange={(e) => setTerm(e.target.value)}
                         placeholder="Name or email"
-                        className="w-64 rounded-md border-gray-300 text-sm shadow-sm focus:border-brand-500 focus:ring-brand-500"
+                        className="w-64 rounded-md border-white/15 bg-ink-900 text-sm text-white shadow-sm placeholder-white/30 focus:border-volt-500 focus:ring-volt-500 admin-light:border-ink-900/15 admin-light:bg-white admin-light:text-ink-900 admin-light:placeholder-ink-900/30"
                     />
-                    <button
-                        type="submit"
-                        className="rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-gray-700"
-                    >
-                        Search
-                    </button>
+                    <PrimaryButton type="submit" icon={MagnifyingGlassIcon} aria-label="Search" />
                 </form>
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+            <Card className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-white/10 admin-light:divide-ink-900/10">
+                    <thead className="bg-white/[0.04] admin-light:bg-ink-900/[0.04]">
                         <tr>
                             {['Name', 'Role', 'Orders', 'Status', 'Joined', ''].map((heading, i) => (
-                                <th key={i} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                <th key={i} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/40 admin-light:text-ink-900/50">
                                     {heading}
                                 </th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-white/10 admin-light:divide-ink-900/10">
                         {users.data.length === 0 && (
                             <tr>
-                                <td colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500">
+                                <td colSpan={6} className="px-6 py-10 text-center text-sm text-white/40 admin-light:text-ink-900/50">
                                     No users match this view.
                                 </td>
                             </tr>
@@ -101,20 +97,20 @@ export default function Index({ users, filters, roles }) {
                             const isSelf = user.id === auth.user.id;
 
                             return (
-                                <tr key={user.id} className="hover:bg-gray-50">
+                                <tr key={user.id} className="hover:bg-white/[0.03] admin-light:hover:bg-ink-900/[0.03]">
                                     <td className="px-6 py-4 text-sm">
-                                        <span className="block font-medium text-gray-900">
+                                        <span className="block font-medium text-white admin-light:text-ink-900">
                                             {user.name}
-                                            {isSelf && <span className="ml-2 text-xs font-normal text-gray-400">(you)</span>}
+                                            {isSelf && <span className="ml-2 text-xs font-normal text-white/25 admin-light:text-ink-900/35">(you)</span>}
                                         </span>
-                                        <span className="text-xs text-gray-500">{user.email}</span>
+                                        <span className="text-xs text-white/40 admin-light:text-ink-900/50">{user.email}</span>
                                     </td>
                                     <td className="px-6 py-4">
                                         <select
                                             value={user.role}
                                             disabled={isSelf}
                                             onChange={(e) => changeRole(user, e.target.value)}
-                                            className="rounded-md border-gray-300 text-sm focus:border-brand-500 focus:ring-brand-500 disabled:bg-gray-50 disabled:text-gray-400"
+                                            className="rounded-md border-white/15 bg-ink-900 text-sm text-white focus:border-volt-500 focus:ring-volt-500 disabled:bg-white/[0.04] disabled:text-white/25 admin-light:border-ink-900/15 admin-light:bg-white admin-light:text-ink-900 admin-light:disabled:bg-ink-900/[0.04] admin-light:disabled:text-ink-900/35"
                                         >
                                             {roles.map((role) => (
                                                 <option key={role} value={role}>
@@ -123,26 +119,30 @@ export default function Index({ users, filters, roles }) {
                                             ))}
                                         </select>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-500">{user.orders_count}</td>
+                                    <td className="px-6 py-4 text-sm text-white/50 admin-light:text-ink-900/60">{user.orders_count}</td>
                                     <td className="px-6 py-4">
                                         <span
                                             className={
                                                 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ' +
                                                 (user.is_active
-                                                    ? 'bg-green-50 text-green-700 ring-green-600/20'
-                                                    : 'bg-gray-100 text-gray-500 ring-gray-500/20')
+                                                    ? 'bg-green-500/10 text-green-400 ring-green-500/20'
+                                                    : 'bg-white/[0.06] text-white/40 ring-white/10 admin-light:bg-ink-900/[0.06] admin-light:text-ink-900/50 admin-light:ring-ink-900/10')
                                             }
                                         >
                                             {user.is_active ? 'Active' : 'Inactive'}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-500">{user.joined_at}</td>
+                                    <td className="px-6 py-4 text-sm text-white/50 admin-light:text-ink-900/60">{user.joined_at}</td>
                                     <td className="px-6 py-4 text-right text-sm">
                                         {!isSelf && (
                                             <button
                                                 onClick={() => toggleStatus(user)}
-                                                className={user.is_active ? 'text-red-600 hover:text-red-700' : 'text-brand-600 hover:text-brand-700'}
+                                                className={
+                                                    'inline-flex items-center gap-1.5 ' +
+                                                    (user.is_active ? 'text-red-400 hover:text-red-300' : 'text-volt-500 hover:text-volt-400 admin-light:text-volt-800 admin-light:hover:text-volt-800')
+                                                }
                                             >
+                                                <PowerIcon className="h-3.5 w-3.5" />
                                                 {user.is_active ? 'Deactivate' : 'Activate'}
                                             </button>
                                         )}
@@ -152,24 +152,9 @@ export default function Index({ users, filters, roles }) {
                         })}
                     </tbody>
                 </table>
-            </div>
+            </Card>
 
-            {users.links.length > 3 && (
-                <nav className="mt-4 flex flex-wrap gap-1">
-                    {users.links.map((link, i) => (
-                        <Link
-                            key={i}
-                            href={link.url ?? '#'}
-                            preserveScroll
-                            className={
-                                'rounded-md px-3 py-1.5 text-sm transition ' +
-                                (link.active ? 'bg-brand-600 text-white' : link.url ? 'text-gray-600 hover:bg-gray-100' : 'cursor-default text-gray-300')
-                            }
-                            dangerouslySetInnerHTML={{ __html: link.label }}
-                        />
-                    ))}
-                </nav>
-            )}
+            <Pagination links={users.links} />
         </AdminLayout>
     );
 }

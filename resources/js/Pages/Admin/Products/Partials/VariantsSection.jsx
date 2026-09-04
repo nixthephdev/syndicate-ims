@@ -1,40 +1,32 @@
+import Card from '@/Components/Admin/Card';
 import AddVariantForm from './AddVariantForm';
 import VariantRow from './VariantRow';
-import { usePage } from '@inertiajs/react';
 
 export default function VariantsSection({ productId, variants }) {
-    const { errors } = usePage().props;
-
     return (
-        <div className="bg-white rounded-lg border border-gray-200 mt-8">
-            <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="font-semibold text-gray-900">Variants</h2>
-                <p className="text-sm text-gray-500">
+        <Card className="mt-8">
+            <div className="px-6 py-4 border-b border-white/10 admin-light:border-ink-900/10">
+                <h2 className="font-semibold text-white admin-light:text-ink-900">Variants</h2>
+                <p className="text-sm text-white/40 admin-light:text-ink-900/50">
                     Size/colour combinations. This is where actual stock lives — a product with no variants has nothing to sell.
                 </p>
             </div>
 
-            {errors.variant && (
-                <div className="mx-6 mt-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
-                    {errors.variant}
-                </div>
-            )}
-
             {variants.length > 0 && (
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                    <table className="min-w-full divide-y divide-white/10 admin-light:divide-ink-900/10">
+                        <thead className="bg-white/[0.04] admin-light:bg-ink-900/[0.04]">
                             <tr>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Size / Color</th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Threshold</th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-white/40 uppercase admin-light:text-ink-900/50">Size / Color</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-white/40 uppercase admin-light:text-ink-900/50">SKU</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-white/40 uppercase admin-light:text-ink-900/50">Price</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-white/40 uppercase admin-light:text-ink-900/50">Stock</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-white/40 uppercase admin-light:text-ink-900/50">Threshold</th>
+                                <th className="px-4 py-2 text-left text-xs font-medium text-white/40 uppercase admin-light:text-ink-900/50">Status</th>
                                 <th className="px-4 py-2" />
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200">
+                        <tbody className="divide-y divide-white/10 admin-light:divide-ink-900/10">
                             {variants.map((variant) => (
                                 <VariantRow key={variant.id} productId={productId} variant={variant} />
                             ))}
@@ -44,6 +36,6 @@ export default function VariantsSection({ productId, variants }) {
             )}
 
             <AddVariantForm productId={productId} />
-        </div>
+        </Card>
     );
 }

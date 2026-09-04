@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import ThemeToggle from '@/Components/Storefront/ThemeToggle';
+import ToastStack from '@/Components/Storefront/ToastStack';
 
 /**
  * Auth shell for the storefront (login / register).
@@ -19,6 +20,7 @@ export default function StorefrontAuthLayout({ eyebrow, title, intro, children, 
     return (
         <div className="min-h-screen bg-ink-950 font-sans text-white selection:bg-volt-500 selection:text-ink-900 light:bg-paper light:text-ink-900 lg:grid lg:grid-cols-2">
             <ThemeToggle />
+            <ToastStack />
 
             {/* ── Brand panel ──────────────────────────────────────────── */}
             {/* Deliberately NOT theme-paired, same reasoning as

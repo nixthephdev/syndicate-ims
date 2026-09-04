@@ -29,6 +29,11 @@ class AddToCartRequest extends FormRequest
             // Capped: without an upper bound a shopper can put 100000 tees in
             // the cart and the checkout page has to render every line.
             'quantity' => ['required', 'integer', 'min:1', 'max:20'],
+            // /parts hardware colour swatch only (Trucks/Bolts) — format-
+            // checked, not matched against the real 11-swatch list, so
+            // there's no second PHP copy of Components/Customizer/
+            // hardwareColors.js to keep in sync.
+            'color' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
         ];
     }
 

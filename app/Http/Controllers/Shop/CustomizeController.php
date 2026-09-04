@@ -7,6 +7,7 @@ use App\Http\Requests\Shop\AddCustomBuildToCartRequest;
 use App\Models\SkateboardComponent;
 use App\Services\Cart;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -104,15 +105,21 @@ class CustomizeController extends Controller
             return back()->withErrors(['cart' => 'One of those parts just sold out.']);
         }
 
-        $this->cart->add($deck);
-        $this->cart->add($wheels);
+        // One build_key ties all four lines together purely for cart-page
+        // display (see Cart::add()'s docblock) — checkout still creates one
+        // OrderItem per line, so each part's stock still decrements on its
+        // own.
+        $buildKey = (string) Str::uuid();
+
+        $this->cart->add($deck, 1, $buildKey);
+        $this->cart->add($wheels, 1, $buildKey);
 
         if ($trucks) {
-            $this->cart->add($trucks);
+            $this->cart->add($trucks, 1, $buildKey);
         }
 
         if ($bolts) {
-            $this->cart->add($bolts);
+            $this->cart->add($bolts, 1, $buildKey);
         }
 
         return back()->with('success', 'Your custom build was added to the cart.');

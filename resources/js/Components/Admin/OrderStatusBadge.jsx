@@ -1,25 +1,35 @@
 /**
- * Order status pill. Like StockBadge, these colours sit outside the brand-blue
+ * Order status pill. Like StockBadge, these colours sit outside the volt
  * accent on purpose — they carry meaning (needs chasing / needs handing over /
  * done / dead) and must stay legible whatever the brand accent becomes.
+ * `paid` stays literal blue rather than volt deliberately — a status colour
+ * must never be mistaken for "this is a clickable action."
  */
 const STYLES = {
-    pending: 'bg-gray-100 text-gray-600 ring-gray-500/20',
-    awaiting_payment: 'bg-amber-50 text-amber-700 ring-amber-600/20',
-    paid: 'bg-blue-50 text-blue-700 ring-blue-600/20',
-    fulfilled: 'bg-green-50 text-green-700 ring-green-600/20',
-    cancelled: 'bg-gray-100 text-gray-500 ring-gray-400/20',
-    failed: 'bg-red-50 text-red-700 ring-red-600/20',
+    pending: {
+        pill: 'bg-white/[0.06] text-white/50 admin-light:bg-ink-900/[0.06] admin-light:text-ink-900/50',
+        dot: 'bg-white/40 admin-light:bg-ink-900/40',
+    },
+    awaiting_payment: { pill: 'bg-amber-500/10 text-amber-400', dot: 'bg-amber-400' },
+    paid: { pill: 'bg-blue-500/10 text-blue-400', dot: 'bg-blue-400' },
+    fulfilled: { pill: 'bg-green-500/10 text-green-400', dot: 'bg-green-400' },
+    cancelled: {
+        pill: 'bg-white/[0.06] text-white/30 admin-light:bg-ink-900/[0.06] admin-light:text-ink-900/35',
+        dot: 'bg-white/25 admin-light:bg-ink-900/25',
+    },
+    failed: { pill: 'bg-red-500/10 text-red-400', dot: 'bg-red-400' },
 };
 
 export default function OrderStatusBadge({ status }) {
+    const style = STYLES[status] ?? STYLES.pending;
+
     return (
         <span
             className={
-                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ring-1 ring-inset ' +
-                (STYLES[status] ?? STYLES.pending)
+                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ' + style.pill
             }
         >
+            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${style.dot}`} aria-hidden="true" />
             {status.replace(/_/g, ' ')}
         </span>
     );

@@ -35,9 +35,15 @@ class DashboardController extends Controller
                 // Revenue counts PAID orders only — scopePaid() keys off
                 // paid_at, so an order that was placed but never paid never
                 // reaches the sales figures.
-                'revenue_today' => Money::format(
-                    (int) Order::query()->paid()->where('paid_at', '>=', now()->startOfDay())->sum('total_centavos')
-                ),
+                'revenue_today_centavos' => (int) Order::query()->paid()->where('paid_at', '>=', now()->startOfDay())->sum('total_centavos'),
+                // Same shape as revenue_today, one day back — powers a real
+                // vs-yesterday trend badge on the Dashboard. Nothing else
+                // needs a period-over-period comparison the way a running
+                // "today" figure does, so this stays the one extra query
+                // rather than a general trend framework nothing else uses.
+                'revenue_yesterday_centavos' => (int) Order::query()->paid()
+                    ->whereBetween('paid_at', [now()->subDay()->startOfDay(), now()->startOfDay()])
+                    ->sum('total_centavos'),
                 'revenue_total' => Money::format(
                     (int) Order::query()->paid()->sum('total_centavos')
                 ),
@@ -51,6 +57,7 @@ class DashboardController extends Controller
                     'order_number' => $order->order_number,
                     'status' => $order->status,
                     'customer_name' => $order->customer_name,
+                    'items_count' => $order->items->count(),
                     'total_formatted' => Money::format($order->total_centavos),
                     'placed_at' => $order->created_at->format('d M, g:ia'),
                 ]),

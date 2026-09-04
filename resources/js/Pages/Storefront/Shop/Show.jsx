@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
+import SizeChart from '@/Components/Storefront/SizeChart';
 import { formatCentavos } from '@/utils/money';
 
 /** Unique, order-preserving. Variants arrive sorted by colour then id. */
@@ -120,7 +121,15 @@ export default function ProductShow({ product }) {
                         )}
 
                         <form onSubmit={submit} className="mt-10 space-y-8">
-                            {colors.length > 0 && (
+                            {/* Only rendered when there's an actual choice —
+                                every product today has exactly one real
+                                colour (image_path is one photo per product,
+                                not per colour, so a picker with nothing to
+                                pick was misleading). If a genuinely
+                                multi-colour product is ever added via the
+                                admin's variant form, this reappears on its
+                                own. */}
+                            {colors.length > 1 && (
                                 <fieldset>
                                     <legend className="mb-3 font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65">
                                         Colour
@@ -147,10 +156,13 @@ export default function ProductShow({ product }) {
                             )}
 
                             {sizes.length > 0 && (
-                                <fieldset>
+                                <fieldset className="relative">
                                     <legend className="mb-3 font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65">
                                         Size
                                     </legend>
+                                    <div className="absolute right-0 top-0">
+                                        <SizeChart type={product.type} />
+                                    </div>
                                     <div className="flex flex-wrap gap-3">
                                         {sizes.map(({ size: s, stock }) => (
                                             <button

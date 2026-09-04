@@ -120,6 +120,57 @@ class CustomizeTest extends TestCase
         $this->assertSame(4, $this->cartLineCount());
     }
 
+    /**
+     * The client wants a build to show as ONE cart entry (Cart.jsx groups by
+     * build_key) — this pins the backend half: all four lines from one
+     * customize.store call must share a single, non-null build_key.
+     */
+    public function test_add_custom_build_tags_all_lines_with_the_same_build_key(): void
+    {
+        $this->loginAsCustomer();
+
+        $deck = SkateboardComponent::factory()->deck()->create();
+        $wheels = SkateboardComponent::factory()->wheels()->create();
+        SkateboardComponent::factory()->trucks()->create();
+        SkateboardComponent::factory()->bolts()->create();
+
+        $this->post(route('customize.store'), [
+            'deck_id' => $deck->id,
+            'wheels_id' => $wheels->id,
+        ])->assertSessionHasNoErrors();
+
+        $buildKeys = array_column(app(Cart::class)->lines(), 'build_key');
+
+        $this->assertCount(4, $buildKeys);
+        $this->assertNotContains(null, $buildKeys);
+        $this->assertCount(1, array_unique($buildKeys));
+    }
+
+    /**
+     * The header cart badge (Cart::count(), shared via HandleInertiaRequests)
+     * must read 1 for one custom board, not 4 — the cart page already shows
+     * a build as a single "Custom Board" entry, and a badge that disagrees
+     * with what the customer sees on the cart page is the bug being fixed
+     * here, reported directly against the built feature.
+     */
+    public function test_a_custom_build_counts_as_one_item_on_the_cart_badge(): void
+    {
+        $this->loginAsCustomer();
+
+        $deck = SkateboardComponent::factory()->deck()->create();
+        $wheels = SkateboardComponent::factory()->wheels()->create();
+        SkateboardComponent::factory()->trucks()->create();
+        SkateboardComponent::factory()->bolts()->create();
+
+        $this->post(route('customize.store'), [
+            'deck_id' => $deck->id,
+            'wheels_id' => $wheels->id,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(4, $this->cartLineCount());
+        $this->assertSame(1, app(Cart::class)->count());
+    }
+
     public function test_add_custom_build_works_without_trucks_or_bolts_seeded(): void
     {
         $this->loginAsCustomer();

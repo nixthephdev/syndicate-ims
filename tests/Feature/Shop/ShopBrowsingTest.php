@@ -288,4 +288,68 @@ class ShopBrowsingTest extends TestCase
 
         $this->assertSame([], session(Cart::SESSION_KEY, []));
     }
+
+    /**
+     * Custom-board cart lines (see CustomizeTest) share a build_key and the
+     * cart page updates/removes them together via a `keys` array rather than
+     * a single `key`. This pins that cart.update/cart.destroy accept it —
+     * an ordinary single-`key` apparel line is unaffected either way.
+     */
+    public function test_cart_update_accepts_an_array_of_keys(): void
+    {
+        $this->loginAsCustomer();
+
+        $productA = $this->product();
+        $variantA = ProductVariant::factory()->create([
+            'product_id' => $productA->id, 'size' => 'M', 'stock' => 10, 'is_active' => true,
+        ]);
+        $productB = $this->product();
+        $variantB = ProductVariant::factory()->create([
+            'product_id' => $productB->id, 'size' => 'M', 'stock' => 10, 'is_active' => true,
+        ]);
+
+        $this->post(route('cart.store'), ['type' => 'variant', 'id' => $variantA->id, 'quantity' => 1]);
+        $this->post(route('cart.store'), ['type' => 'variant', 'id' => $variantB->id, 'quantity' => 1]);
+
+        $keys = [
+            Cart::key(ProductVariant::class, $variantA->id),
+            Cart::key(ProductVariant::class, $variantB->id),
+        ];
+
+        $this->patch(route('cart.update'), ['keys' => $keys, 'quantity' => 3]);
+
+        $this->get(route('cart.index'))
+            ->assertInertia(fn ($page) => $page
+                ->has('lines', 2)
+                ->where('lines.0.quantity', 3)
+                ->where('lines.1.quantity', 3)
+            );
+    }
+
+    public function test_cart_destroy_accepts_an_array_of_keys(): void
+    {
+        $this->loginAsCustomer();
+
+        $productA = $this->product();
+        $variantA = ProductVariant::factory()->create([
+            'product_id' => $productA->id, 'size' => 'M', 'stock' => 10, 'is_active' => true,
+        ]);
+        $productB = $this->product();
+        $variantB = ProductVariant::factory()->create([
+            'product_id' => $productB->id, 'size' => 'M', 'stock' => 10, 'is_active' => true,
+        ]);
+
+        $this->post(route('cart.store'), ['type' => 'variant', 'id' => $variantA->id, 'quantity' => 1]);
+        $this->post(route('cart.store'), ['type' => 'variant', 'id' => $variantB->id, 'quantity' => 1]);
+
+        $keys = [
+            Cart::key(ProductVariant::class, $variantA->id),
+            Cart::key(ProductVariant::class, $variantB->id),
+        ];
+
+        $this->delete(route('cart.destroy'), ['keys' => $keys]);
+
+        $this->get(route('cart.index'))
+            ->assertInertia(fn ($page) => $page->has('lines', 0));
+    }
 }

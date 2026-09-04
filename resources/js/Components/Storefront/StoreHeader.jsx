@@ -14,6 +14,7 @@ import AccountMenu from './AccountMenu';
 const NAV = [
     { label: 'Home', route: 'home' },
     { label: 'Shop', route: 'shop.index' },
+    { label: 'Parts', route: 'parts.index' },
     { label: 'Customize', route: 'customize' },
     { label: 'Contact', route: 'contact' },
 ];

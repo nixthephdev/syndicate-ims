@@ -1,10 +1,21 @@
 import AdminLayout from '@/Layouts/AdminLayout';
+import Card from '@/Components/Admin/Card';
 import OrderStatusBadge from '@/Components/Admin/OrderStatusBadge';
+import PrimaryButton from '@/Components/Admin/PrimaryButton';
+import SecondaryButton from '@/Components/Admin/SecondaryButton';
+import { ArrowLeftIcon, CheckCircleIcon, XIcon } from '@/Components/Admin/icons';
+import { HARDWARE_COLORS } from '@/Components/Customizer/hardwareColors';
 import { useState } from 'react';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+
+/** hardwareColors.js is a plain data module, not a styled component — safe
+ *  to share with the admin panel per CLAUDE.md's "shared hooks/utilities
+ *  are fine; shared presentational components are not" rule. */
+function colorLabel(hex) {
+    return HARDWARE_COLORS.find((c) => c.hex.toLowerCase() === hex.toLowerCase())?.label ?? hex;
+}
 
 export default function Show({ order, can }) {
-    const { errors } = usePage().props;
     const [processing, setProcessing] = useState(false);
 
     // router.patch, not useForm: there is no form state here, just a one-shot
@@ -28,194 +39,198 @@ export default function Show({ order, can }) {
 
             <Link
                 href={route('admin.orders.index')}
-                className="text-sm text-brand-600 hover:text-brand-700"
+                className="inline-flex items-center gap-1.5 text-sm text-volt-500 hover:text-volt-400 admin-light:text-volt-800 admin-light:hover:text-volt-800"
             >
-                ← All orders
+                <ArrowLeftIcon className="h-3.5 w-3.5" />
+                All orders
             </Link>
-
-            {errors.status && (
-                <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                    {errors.status}
-                </div>
-            )}
 
             <div className="mt-4 grid gap-6 lg:grid-cols-3">
                 {/* Items + totals */}
                 <div className="lg:col-span-2">
-                    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 px-6 py-4">
+                    <Card className="overflow-hidden">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-6 py-4 admin-light:border-ink-900/10">
                             <div className="flex items-center gap-3">
-                                <h2 className="font-semibold text-gray-900">
+                                <h2 className="font-semibold text-white admin-light:text-ink-900">
                                     {order.order_number}
                                 </h2>
                                 <OrderStatusBadge status={order.status} />
                             </div>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-white/40 admin-light:text-ink-900/50">
                                 Placed {order.placed_at}
                             </p>
                         </div>
 
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
+                        <table className="min-w-full divide-y divide-white/10 admin-light:divide-ink-900/10">
+                            <thead className="bg-white/[0.04] admin-light:bg-ink-900/[0.04]">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/40 admin-light:text-ink-900/50">
                                         Item
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/40 admin-light:text-ink-900/50">
                                         Unit
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-white/40 admin-light:text-ink-900/50">
                                         Qty
                                     </th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-white/40 admin-light:text-ink-900/50">
                                         Line total
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200">
+                            <tbody className="divide-y divide-white/10 admin-light:divide-ink-900/10">
                                 {order.items.map((item, i) => (
                                     <tr key={i}>
-                                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                                        <td className="px-6 py-4 text-sm font-medium text-white admin-light:text-ink-900">
                                             {item.name}
+                                            {item.color && (
+                                                <span className="ml-2 inline-flex items-center gap-1.5 text-xs font-normal text-white/40 admin-light:text-ink-900/50">
+                                                    <span
+                                                        className="h-2.5 w-2.5 rounded-full border border-white/15 admin-light:border-ink-900/15"
+                                                        style={{ backgroundColor: item.color }}
+                                                    />
+                                                    {colorLabel(item.color)} requested
+                                                </span>
+                                            )}
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-500">
+                                        <td className="px-6 py-4 text-sm text-white/40 admin-light:text-ink-900/50">
                                             {item.unit_price_formatted}
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-500">
+                                        <td className="px-6 py-4 text-sm text-white/40 admin-light:text-ink-900/50">
                                             {item.quantity}
                                         </td>
-                                        <td className="px-6 py-4 text-right text-sm text-gray-900">
+                                        <td className="px-6 py-4 text-right text-sm text-white admin-light:text-ink-900">
                                             {item.line_total_formatted}
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
-                            <tfoot className="bg-gray-50">
+                            <tfoot className="bg-white/[0.04] admin-light:bg-ink-900/[0.04]">
                                 <tr>
                                     <td
                                         colSpan={3}
-                                        className="px-6 py-3 text-right text-sm font-medium text-gray-600"
+                                        className="px-6 py-3 text-right text-sm font-medium text-white/50 admin-light:text-ink-900/60"
                                     >
                                         Total
                                     </td>
-                                    <td className="px-6 py-3 text-right text-base font-semibold text-gray-900">
+                                    <td className="px-6 py-3 text-right text-base font-semibold text-white admin-light:text-ink-900">
                                         {order.total_formatted}
                                     </td>
                                 </tr>
                             </tfoot>
                         </table>
 
-                        <p className="border-t border-gray-200 bg-gray-50 px-6 py-3 text-xs text-gray-500">
+                        <p className="border-t border-white/10 bg-white/[0.04] px-6 py-3 text-xs text-white/40 admin-light:border-ink-900/10 admin-light:bg-ink-900/[0.04] admin-light:text-ink-900/50">
                             Item names and prices are snapshots taken when the
                             order was placed — they do not change if the product
                             is later renamed or repriced.
                         </p>
-                    </div>
+                    </Card>
                 </div>
 
                 {/* Customer + actions */}
                 <div className="space-y-6">
-                    <div className="rounded-lg border border-gray-200 bg-white p-6">
-                        <h2 className="text-sm font-semibold text-gray-900">Customer</h2>
+                    <Card className="p-6">
+                        <h2 className="text-sm font-semibold text-white admin-light:text-ink-900">Customer</h2>
                         <dl className="mt-3 space-y-2 text-sm">
                             <div>
                                 <dt className="sr-only">Name</dt>
-                                <dd className="text-gray-900">{order.customer_name}</dd>
+                                <dd className="text-white admin-light:text-ink-900">{order.customer_name}</dd>
                             </div>
                             <div>
                                 <dt className="sr-only">Email</dt>
-                                <dd className="text-gray-500">{order.customer_email}</dd>
+                                <dd className="text-white/40 admin-light:text-ink-900/50">{order.customer_email}</dd>
                             </div>
                             <div>
                                 <dt className="sr-only">Phone</dt>
-                                <dd className="text-gray-500">{order.customer_phone}</dd>
+                                <dd className="text-white/40 admin-light:text-ink-900/50">{order.customer_phone}</dd>
                             </div>
                         </dl>
 
                         {order.notes && (
-                            <div className="mt-4 border-t border-gray-100 pt-4">
-                                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                            <div className="mt-4 border-t border-white/10 pt-4 admin-light:border-ink-900/10">
+                                <p className="text-xs font-medium uppercase tracking-wide text-white/25 admin-light:text-ink-900/35">
                                     Notes
                                 </p>
-                                <p className="mt-1 text-sm italic text-gray-600">
+                                <p className="mt-1 text-sm italic text-white/50 admin-light:text-ink-900/60">
                                     "{order.notes}"
                                 </p>
                             </div>
                         )}
 
                         {order.account && (
-                            <p className="mt-4 border-t border-gray-100 pt-4 text-xs text-gray-400">
+                            <p className="mt-4 border-t border-white/10 pt-4 text-xs text-white/25 admin-light:border-ink-900/10 admin-light:text-ink-900/35">
                                 Account: {order.account.name} ({order.account.role})
                             </p>
                         )}
-                    </div>
+                    </Card>
 
-                    <div className="rounded-lg border border-gray-200 bg-white p-6">
-                        <h2 className="text-sm font-semibold text-gray-900">Payment</h2>
-                        <p className="mt-2 text-sm text-gray-600">
+                    <Card className="p-6">
+                        <h2 className="text-sm font-semibold text-white admin-light:text-ink-900">Payment</h2>
+                        <p className="mt-2 text-sm text-white/50 admin-light:text-ink-900/60">
                             {order.is_paid
                                 ? `Paid ${order.paid_at}`
                                 : 'Not paid yet.'}
                         </p>
-                        <p className="mt-2 text-xs text-gray-500">
+                        <p className="mt-2 text-xs text-white/40 admin-light:text-ink-900/50">
                             {order.stock_committed
                                 ? 'Stock for this order has been deducted.'
                                 : 'No stock has been deducted for this order.'}
                         </p>
 
                         {Object.keys(order.paymongo).length > 0 && (
-                            <dl className="mt-4 space-y-1 border-t border-gray-100 pt-4 text-xs">
+                            <dl className="mt-4 space-y-1 border-t border-white/10 pt-4 text-xs admin-light:border-ink-900/10">
                                 {Object.entries(order.paymongo).map(([key, value]) => (
                                     <div key={key} className="flex justify-between gap-2">
-                                        <dt className="text-gray-400">
+                                        <dt className="text-white/25 admin-light:text-ink-900/35">
                                             {key.replace(/_/g, ' ')}
                                         </dt>
-                                        <dd className="truncate font-mono text-gray-600">
+                                        <dd className="truncate font-mono text-white/50 admin-light:text-ink-900/60">
                                             {value}
                                         </dd>
                                     </div>
                                 ))}
                             </dl>
                         )}
-                    </div>
+                    </Card>
 
                     {(can.fulfil || can.cancel) && (
-                        <div className="rounded-lg border border-gray-200 bg-white p-6">
-                            <h2 className="text-sm font-semibold text-gray-900">Actions</h2>
+                        <Card className="p-6">
+                            <h2 className="text-sm font-semibold text-white admin-light:text-ink-900">Actions</h2>
 
                             {can.fulfil && (
-                                <button
-                                    type="button"
+                                <PrimaryButton
+                                    className="mt-3 w-full justify-center"
                                     disabled={processing}
                                     onClick={() => move('fulfilled')}
-                                    className="mt-3 w-full rounded-md bg-brand-600 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-brand-700 disabled:opacity-40"
+                                    icon={CheckCircleIcon}
                                 >
                                     Mark fulfilled
-                                </button>
+                                </PrimaryButton>
                             )}
 
                             {can.cancel && (
-                                <button
-                                    type="button"
+                                <SecondaryButton
+                                    className="mt-3 w-full"
                                     disabled={processing}
                                     onClick={() => move('cancelled')}
-                                    className="mt-3 w-full rounded-md border border-gray-300 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-700 transition hover:bg-gray-50 disabled:opacity-40"
+                                    icon={XIcon}
                                 >
                                     Cancel order
-                                </button>
+                                </SecondaryButton>
                             )}
 
                             {/* A paid order cannot be cancelled here: that needs
                                 the stock putting back and the money refunding,
                                 and neither path exists yet. */}
                             {order.stock_committed && (
-                                <p className="mt-3 text-xs text-gray-400">
+                                <p className="mt-3 text-xs text-white/25 admin-light:text-ink-900/35">
                                     Paid orders can't be cancelled here — that
                                     needs a refund and a restock, which aren't
                                     built yet.
                                 </p>
                             )}
-                        </div>
+                        </Card>
                     )}
                 </div>
             </div>

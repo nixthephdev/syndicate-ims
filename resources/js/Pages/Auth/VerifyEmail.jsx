@@ -2,7 +2,7 @@ import StorefrontAuthLayout from '@/Layouts/StorefrontAuthLayout';
 import { SubmitButton } from '@/Components/Storefront/FormControls';
 import { Head, Link, useForm } from '@inertiajs/react';
 
-export default function VerifyEmail({ status }) {
+export default function VerifyEmail() {
     const { post, processing } = useForm({});
 
     const submit = (e) => {
@@ -34,12 +34,9 @@ export default function VerifyEmail({ status }) {
         >
             <Head title="Verify email" />
 
-            {status === 'verification-link-sent' && (
-                <div className="mb-6 border-l-2 border-volt-500 bg-volt-500/10 px-4 py-3 text-sm text-volt-300 light:text-volt-800">
-                    A new verification link has been sent to the email address
-                    you provided during registration.
-                </div>
-            )}
+            {/* Shown as a toast now — StorefrontAuthLayout's ToastStack
+                translates the `verification-link-sent` status flag into a
+                real message (see useFlashToasts.js's STATUS_MESSAGES). */}
 
             <form onSubmit={submit}>
                 <SubmitButton processing={processing}>

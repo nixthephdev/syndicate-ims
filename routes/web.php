@@ -13,6 +13,7 @@ use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CheckoutController;
 use App\Http\Controllers\Shop\CustomizeController;
 use App\Http\Controllers\Shop\OrderController as ShopOrderController;
+use App\Http\Controllers\Shop\PartController;
 use App\Http\Controllers\Shop\PaymentController;
 use App\Http\Controllers\Shop\ProductController as ShopProductController;
 use Illuminate\Support\Facades\Route;
@@ -71,6 +72,11 @@ Route::get('/dashboard', [AccountController::class, 'index'])
 */
 Route::get('/shop', [ShopProductController::class, 'index'])->name('shop.index');
 Route::get('/shop/{product:slug}', [ShopProductController::class, 'show'])->name('shop.show');
+
+// Buy a single skateboard part on its own (a deck, just wheels, trucks,
+// bolts) — separate from the /customize 3D builder below. Add to Cart here
+// posts to the same cart.store as everywhere else; no dedicated POST route.
+Route::get('/parts', [PartController::class, 'index'])->name('parts.index');
 
 // The 3D skateboard builder. Route name `customize` is load-bearing — see
 // StoreHeader's nav, which lights this chip up the moment the route exists.

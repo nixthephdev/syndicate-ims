@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
+import ToastStack from '@/Components/Admin/ToastStack';
+import Clock from '@/Components/Admin/Clock';
+import ThemeToggle from '@/Components/Admin/ThemeToggle';
+import { useAdminTheme } from '@/utils/useAdminTheme';
 
 /**
- * Admin shell: dark sidebar + light content, ONE accent (brand blue), light
- * mode only. Deliberately NOT the storefront — this is a management tool, and
- * the loud volt/Anton treatment stays on the customer side. See the Design
- * section of CLAUDE.md.
+ * Admin shell: dark throughout, sharing `volt`/`ink` with the storefront
+ * (client-requested "match the store" pass — see CLAUDE.md's Design
+ * section). Same tokens, still a completely different execution: Oswald/
+ * Jakarta not Anton, sharp 6px corners not the shop's loud full-bleed
+ * photography, dense restrained tables not a brand voice. Zero storefront
+ * JSX components imported — that's the real separation, not the hex value.
  *
  * The sidebar is a fixed off-canvas drawer below lg and static from lg up.
  * The previous version was a plain `w-60` flex child with no mobile handling,
@@ -68,23 +74,33 @@ function SidebarContent({ user, onNavigate }) {
 
     return (
         <>
-            <div className="flex h-16 shrink-0 items-center gap-3 border-b border-gray-800 px-5">
+            <div className="flex h-16 shrink-0 items-center gap-3 border-b border-white/10 px-5 admin-light:border-ink-900/10">
                 <img
                     src="/images/logo-mark.png"
                     alt=""
                     aria-hidden="true"
-                    className="h-8 w-auto"
+                    className="h-8 w-auto admin-light:hidden"
                 />
-                <span className="text-sm font-semibold tracking-tight text-white">
-                    Syndicate{' '}
-                    <span className="font-normal text-gray-400">Admin</span>
-                </span>
+                <img
+                    src="/images/logo-mark-dark.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="hidden h-8 w-auto admin-light:block"
+                />
+                <div className="leading-tight">
+                    <p className="font-oswald text-base font-semibold uppercase tracking-wide text-white admin-light:text-ink-900">
+                        Syndicate
+                    </p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40 admin-light:text-ink-900/50">
+                        Admin
+                    </p>
+                </div>
             </div>
 
             <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
                 {groups.map((group) => (
                     <div key={group.label}>
-                        <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+                        <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-widest text-white/30 admin-light:text-ink-900/40">
                             {group.label}
                         </p>
                         <div className="space-y-1">
@@ -102,15 +118,21 @@ function SidebarContent({ user, onNavigate }) {
                                         onClick={onNavigate}
                                         aria-current={active ? 'page' : undefined}
                                         className={
-                                            'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition ' +
+                                            'relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition ' +
                                             (active
-                                                ? 'bg-brand-600 text-white'
-                                                : 'text-gray-300 hover:bg-gray-800 hover:text-white')
+                                                ? 'bg-white/[0.06] text-white admin-light:bg-ink-900/[0.06] admin-light:text-ink-900'
+                                                : 'text-white/50 hover:bg-white/[0.04] hover:text-white admin-light:text-ink-900/50 admin-light:hover:bg-ink-900/[0.04] admin-light:hover:text-ink-900')
                                         }
                                     >
+                                        {active && (
+                                            <span
+                                                aria-hidden="true"
+                                                className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-volt-500 shadow-[0_0_8px_1px_rgba(204,255,0,0.5)]"
+                                            />
+                                        )}
                                         <NavIcon
                                             path={ICONS[item.icon]}
-                                            className="h-5 w-5 shrink-0"
+                                            className={'h-5 w-5 shrink-0 ' + (active ? 'text-volt-500 admin-light:text-volt-800' : '')}
                                         />
                                         {item.name}
                                     </Link>
@@ -121,53 +143,71 @@ function SidebarContent({ user, onNavigate }) {
                 ))}
             </nav>
 
-            <div className="shrink-0 border-t border-gray-800 p-3">
+            <div className="shrink-0 border-t border-white/10 p-3 admin-light:border-ink-900/10">
                 <div className="flex items-center gap-3 rounded-md px-2 py-2">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold uppercase text-white">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-volt-500 font-oswald text-xs font-semibold uppercase text-ink-900">
                         {user.name.slice(0, 2)}
                     </span>
                     <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-white">
+                        <p className="truncate text-sm font-medium text-white admin-light:text-ink-900">
                             {user.name}
                         </p>
-                        <p className="text-xs uppercase tracking-wide text-gray-500">
+                        <p className="text-xs uppercase tracking-wide text-white/30 admin-light:text-ink-900/40">
                             {user.role}
                         </p>
                     </div>
                 </div>
 
-                <div className="mt-2 space-y-1">
-                    <Link
-                        href={route('home')}
-                        onClick={onNavigate}
-                        className="block rounded-md px-3 py-2 text-sm text-gray-400 transition hover:bg-gray-800 hover:text-white"
-                    >
-                        ← View the shop
-                    </Link>
-                    <Link
-                        href={route('logout')}
-                        method="post"
-                        as="button"
-                        className="block w-full rounded-md px-3 py-2 text-left text-sm text-gray-400 transition hover:bg-gray-800 hover:text-white"
-                    >
-                        Log out
-                    </Link>
-                </div>
+                <Link
+                    href={route('logout')}
+                    method="post"
+                    as="button"
+                    className="mt-1 block w-full rounded-md px-3 py-2 text-left text-sm text-white/40 transition hover:bg-white/[0.04] hover:text-white admin-light:text-ink-900/50 admin-light:hover:bg-ink-900/[0.04] admin-light:hover:text-ink-900"
+                >
+                    Log out
+                </Link>
             </div>
         </>
     );
 }
 
+/** Which sidebar group the current route belongs to, for the topbar eyebrow —
+ *  reuses the exact same active-route check SidebarContent uses, so the two
+ *  never disagree about where you are. */
+function currentGroupLabel(user) {
+    const groups = user.role === 'admin' ? [...NAV_GROUPS, ADMIN_ONLY_GROUP] : NAV_GROUPS;
+    for (const group of groups) {
+        for (const item of group.items) {
+            if (
+                route().current(item.route) ||
+                route().current(item.route.replace(/\.index$/, '') + '.*')
+            ) {
+                return group.label;
+            }
+        }
+    }
+    return groups[0]?.label ?? '';
+}
+
 export default function AdminLayout({ header, actions, children }) {
-    const { auth, flash } = usePage().props;
+    const { auth } = usePage().props;
     const [open, setOpen] = useState(false);
+    const { theme } = useAdminTheme();
 
     // Close the drawer whenever a visit completes. Without this it stays open
     // over the page the visitor just navigated to.
     useEffect(() => router.on('navigate', () => setOpen(false)), []);
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        // `admin-light:` resolves to a `[data-admin-theme="light"] &`
+        // descendant selector, which can never match the SAME element that
+        // carries the attribute — so the attribute lives on this outer,
+        // unstyled wrapper, and every themed class sits on a genuine
+        // descendant starting with the inner div right below it.
+        <div data-admin-theme={theme}>
+        <div className="font-jakarta min-h-screen bg-ink-950 admin-light:bg-paper">
+            <ToastStack />
+
             {/* Mobile drawer */}
             <div
                 className={
@@ -177,13 +217,13 @@ export default function AdminLayout({ header, actions, children }) {
                 <div
                     onClick={() => setOpen(false)}
                     className={
-                        'absolute inset-0 bg-gray-900/60 transition-opacity ' +
+                        'absolute inset-0 bg-black/70 transition-opacity ' +
                         (open ? 'opacity-100' : 'opacity-0')
                     }
                 />
                 <aside
                     className={
-                        'absolute inset-y-0 left-0 flex w-64 flex-col bg-gray-900 transition-transform duration-200 ' +
+                        'absolute inset-y-0 left-0 flex w-64 flex-col bg-ink-900 transition-transform duration-200 admin-light:bg-white admin-light:shadow-xl ' +
                         (open ? 'translate-x-0' : '-translate-x-full')
                     }
                 >
@@ -192,17 +232,17 @@ export default function AdminLayout({ header, actions, children }) {
             </div>
 
             {/* Static sidebar */}
-            <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col bg-gray-900 lg:flex">
+            <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col bg-ink-900 lg:flex admin-light:bg-white admin-light:border-r admin-light:border-ink-900/10">
                 <SidebarContent user={auth.user} />
             </aside>
 
             <div className="lg:pl-64">
-                <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-gray-200 bg-white px-4 sm:px-6 lg:px-8">
+                <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-white/10 bg-ink-900/90 px-4 backdrop-blur-md sm:px-6 lg:px-8 admin-light:border-ink-900/10 admin-light:bg-white/90">
                     <button
                         type="button"
                         onClick={() => setOpen(true)}
                         aria-label="Open menu"
-                        className="-ml-1 rounded-md p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 lg:hidden"
+                        className="-ml-1 rounded-md p-2 text-white/50 transition hover:bg-white/[0.06] hover:text-white lg:hidden admin-light:text-ink-900/50 admin-light:hover:bg-ink-900/[0.06] admin-light:hover:text-ink-900"
                     >
                         <svg
                             className="h-6 w-6"
@@ -219,21 +259,34 @@ export default function AdminLayout({ header, actions, children }) {
                         </svg>
                     </button>
 
-                    <h1 className="min-w-0 flex-1 truncate text-lg font-semibold text-gray-900">
-                        {header}
-                    </h1>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-[10.5px] font-bold uppercase tracking-widest text-volt-500 admin-light:text-volt-800">
+                            {currentGroupLabel(auth.user)}
+                        </p>
+                        <h1 className="font-oswald truncate text-xl font-semibold uppercase tracking-wide text-white admin-light:text-ink-900">
+                            {header}
+                        </h1>
+                    </div>
 
                     {actions}
-                </header>
 
-                {flash?.success && (
-                    <div className="mx-4 mt-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 sm:mx-6 lg:mx-8">
-                        {flash.success}
-                    </div>
-                )}
+                    <Clock />
+                    <ThemeToggle />
+
+                    <Link
+                        href={route('home')}
+                        className="font-oswald inline-flex shrink-0 items-center gap-2 rounded-md bg-volt-500 px-3.5 py-2 text-xs font-bold uppercase tracking-wide text-ink-900 transition hover:bg-volt-400"
+                    >
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M19 12H5M12 19l-7-7 7-7" />
+                        </svg>
+                        <span className="hidden sm:inline">View Storefront</span>
+                    </Link>
+                </header>
 
                 <main className="p-4 sm:p-6 lg:p-8">{children}</main>
             </div>
+        </div>
         </div>
     );
 }

@@ -1,7 +1,12 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
+import { HARDWARE_COLORS } from '@/Components/Customizer/hardwareColors';
 import { formatCentavos } from '@/utils/money';
 import { statusChipClasses, formatStatusLabel } from '@/utils/orderStatus';
+
+function colorLabel(hex) {
+    return HARDWARE_COLORS.find((c) => c.hex.toLowerCase() === hex.toLowerCase())?.label ?? hex;
+}
 
 export default function OrderShow({ order }) {
     const { post, processing } = useForm({});
@@ -82,6 +87,15 @@ export default function OrderShow({ order }) {
                                     {formatCentavos(item.unit_price_centavos)} ×{' '}
                                     {item.quantity}
                                 </p>
+                                {item.color && (
+                                    <p className="mt-1.5 flex items-center gap-2 text-xs text-white/50 light:text-ink-900/60">
+                                        <span
+                                            className="h-3 w-3 shrink-0 rounded-full border border-white/20 light:border-ink-900/20"
+                                            style={{ backgroundColor: item.color }}
+                                        />
+                                        {colorLabel(item.color)} requested
+                                    </p>
+                                )}
                             </div>
                             <p className="shrink-0 font-display text-lg text-volt-500 light:text-volt-800">
                                 {formatCentavos(item.line_total_centavos)}

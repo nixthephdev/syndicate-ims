@@ -1,5 +1,5 @@
 /**
- * Red/amber/green stock status. Deliberately outside the brand-blue accent —
+ * Red/amber/green stock status. Deliberately outside the volt accent —
  * these three colours are already doing semantic work (out/low/healthy) and
  * must stay legible regardless of whatever the brand accent is.
  *
@@ -9,16 +9,16 @@
  * just as the same-looking pill with a different number inside it.
  */
 export default function StockBadge({ stock, isLowStock, isOutOfStock, threshold }) {
-    let classes = 'bg-green-50 text-green-700 ring-green-600/20';
+    let classes = 'bg-green-500/10 text-green-400 ring-green-500/20';
     let barClasses = 'bg-green-500';
     let label = `${stock} in stock`;
 
     if (isOutOfStock) {
-        classes = 'bg-red-50 text-red-700 ring-red-600/20';
+        classes = 'bg-red-500/10 text-red-400 ring-red-500/20';
         barClasses = 'bg-red-500';
         label = 'Out of stock';
     } else if (isLowStock) {
-        classes = 'bg-amber-50 text-amber-700 ring-amber-600/20';
+        classes = 'bg-amber-500/10 text-amber-400 ring-amber-500/20';
         barClasses = 'bg-amber-500';
         label = `${stock} left — low`;
     }
@@ -32,7 +32,7 @@ export default function StockBadge({ stock, isLowStock, isOutOfStock, threshold 
                 {label}
             </span>
             {showBar && (
-                <span className="block h-1 w-20 rounded-full bg-gray-100 overflow-hidden">
+                <span className="block h-1 w-20 rounded-full bg-white/10 overflow-hidden admin-light:bg-ink-900/10">
                     <span className={`block h-full rounded-full ${barClasses}`} style={{ width: `${fillPercent}%` }} />
                 </span>
             )}

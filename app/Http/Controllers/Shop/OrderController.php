@@ -66,6 +66,9 @@ class OrderController extends Controller
                     'unit_price_centavos' => $item->unit_price_centavos,
                     'quantity' => $item->quantity,
                     'line_total_centavos' => $item->line_total_centavos,
+                    // /parts hardware colour swatch, if one was picked at
+                    // checkout — see Cart::add()/CheckoutController::store().
+                    'color' => $item->customization['color'] ?? null,
                 ]),
             ],
         ]);

@@ -2,6 +2,8 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
+import PrimaryButton from '@/Components/Admin/PrimaryButton';
+import { ArrowLeftIcon } from '@/Components/Admin/icons';
 import { Head, Link, useForm } from '@inertiajs/react';
 
 export default function Edit({ component }) {
@@ -22,19 +24,19 @@ export default function Edit({ component }) {
         <AdminLayout header={`Edit — ${component.name}`}>
             <Head title={`Admin · Edit ${component.name}`} />
 
-            <form onSubmit={submit} className="bg-white rounded-lg border border-gray-200 p-6 max-w-xl space-y-5">
+            <form onSubmit={submit} className="rounded-md border border-white/10 bg-ink-900 p-6 max-w-xl space-y-5 admin-light:border-ink-900/10 admin-light:bg-white">
                 {/* Read-only: type/glb_file/mesh_name are tied to a real mesh
                     inside the 3D model files. Editing them here isn't offered
                     at all — a typo would silently break the customizer. */}
-                <div className="rounded-md bg-gray-50 border border-gray-200 p-4 text-sm text-gray-600 space-y-1">
+                <div className="rounded-md bg-white/[0.04] border border-white/10 p-4 text-sm text-white/50 space-y-1 admin-light:bg-ink-900/[0.04] admin-light:border-ink-900/10 admin-light:text-ink-900/60">
                     <div>
-                        <span className="text-gray-400">Type:</span> {component.type_label}
+                        <span className="text-white/25 admin-light:text-ink-900/35">Type:</span> {component.type_label}
                     </div>
                     <div>
-                        <span className="text-gray-400">Model file:</span> {component.glb_file}
+                        <span className="text-white/25 admin-light:text-ink-900/35">Model file:</span> {component.glb_file}
                     </div>
                     <div>
-                        <span className="text-gray-400">Mesh name:</span> {component.mesh_name}
+                        <span className="text-white/25 admin-light:text-ink-900/35">Mesh name:</span> {component.mesh_name}
                     </div>
                 </div>
 
@@ -95,7 +97,7 @@ export default function Edit({ component }) {
                     <input
                         id="is_active"
                         type="checkbox"
-                        className="rounded border-gray-300 text-brand-600 shadow-sm focus:ring-brand-500"
+                        className="rounded border-white/15 bg-ink-900 text-volt-500 shadow-sm focus:ring-volt-500 admin-light:border-ink-900/15 admin-light:bg-white"
                         checked={data.is_active}
                         onChange={(e) => setData('is_active', e.target.checked)}
                     />
@@ -103,14 +105,14 @@ export default function Edit({ component }) {
                 </div>
 
                 <div className="flex items-center gap-4 pt-2">
-                    <button
-                        type="submit"
-                        disabled={processing}
-                        className="inline-flex items-center px-4 py-2 bg-brand-600 rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-brand-700 disabled:opacity-50 transition"
-                    >
+                    <PrimaryButton type="submit" disabled={processing}>
                         Save Changes
-                    </button>
-                    <Link href={route('admin.skateboard-components.index')} className="text-sm text-gray-500 hover:text-gray-700">
+                    </PrimaryButton>
+                    <Link
+                        href={route('admin.skateboard-components.index')}
+                        className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 admin-light:text-ink-900/50 admin-light:hover:text-ink-900/80"
+                    >
+                        <ArrowLeftIcon className="h-3.5 w-3.5" />
                         Back to list
                     </Link>
                 </div>

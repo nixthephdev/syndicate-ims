@@ -9,12 +9,15 @@ import { DEFAULT_HARDWARE_COLOR } from '@/Components/Customizer/hardwareColors';
 import { formatCentavos } from '@/utils/money';
 import { useTheme } from '@/utils/useTheme';
 
-const firstAvailable = (options) =>
-    options.find((o) => !o.is_out_of_stock)?.id ?? options[0]?.id ?? null;
-
 export default function Customize({ decks, wheels, trucks, bolts }) {
-    const [deckId, setDeckId] = useState(() => firstAvailable(decks));
-    const [wheelsId, setWheelsId] = useState(() => firstAvailable(wheels));
+    // The builder opens EMPTY — no deck, no wheels, nothing preselected.
+    // It used to default to the first in-stock option of each, which quietly
+    // put someone else's graphic on the board before the shopper had chosen
+    // anything and made the running total look like a real price. Starting
+    // from nothing is what makes this read as a build rather than a preset.
+    // Board.jsx/Wheels.jsx already hide everything on a null selection.
+    const [deckId, setDeckId] = useState(null);
+    const [wheelsId, setWheelsId] = useState(null);
 
     // Free cosmetic recolour of the fixed Bolts/Trucks hardware — see
     // hardwareColors.js. Never affects totalCentavos or the cart payload:
@@ -38,29 +41,41 @@ export default function Customize({ decks, wheels, trucks, bolts }) {
         [wheels, wheelsId]
     );
 
-    const totalCentavos =
-        (selectedDeck?.price_centavos ?? 0) +
-        (selectedWheels?.price_centavos ?? 0) +
-        (trucks?.price_centavos ?? 0) +
-        (bolts?.price_centavos ?? 0);
+    const buildStarted = Boolean(selectedDeck || selectedWheels);
+
+    // Trucks and bolts are in every build, but they only join the total once
+    // the shopper has actually picked something — otherwise a page nobody has
+    // touched yet opens showing a real-looking price for parts they never
+    // chose. Nothing selected reads as zero, which is the truth.
+    const totalCentavos = buildStarted
+        ? (selectedDeck?.price_centavos ?? 0) +
+          (selectedWheels?.price_centavos ?? 0) +
+          (trucks?.price_centavos ?? 0) +
+          (bolts?.price_centavos ?? 0)
+        : 0;
 
     const { post, processing, transform } = useForm({
         deck_id: null,
         wheels_id: null,
     });
 
-    const outOfStock =
-        !selectedDeck ||
-        !selectedWheels ||
-        selectedDeck.is_out_of_stock ||
-        selectedWheels.is_out_of_stock ||
+    // Two genuinely different reasons the button can't be pressed, kept
+    // apart so the label can say which. They used to be one flag, which
+    // meant an untouched page greeted everyone with "Sold out".
+    const isIncomplete = !selectedDeck || !selectedWheels;
+
+    const soldOut =
+        selectedDeck?.is_out_of_stock ||
+        selectedWheels?.is_out_of_stock ||
         (trucks && trucks.is_out_of_stock) ||
         (bolts && bolts.is_out_of_stock);
+
+    const canAdd = !isIncomplete && !soldOut;
 
     const submit = (e) => {
         e.preventDefault();
 
-        if (outOfStock) return;
+        if (!canAdd) return;
 
         transform(() => ({ deck_id: deckId, wheels_id: wheelsId }));
         post(route('customize.store'), { preserveScroll: true });
@@ -164,15 +179,21 @@ export default function Customize({ decks, wheels, trucks, bolts }) {
 
                             <button
                                 type="submit"
-                                disabled={outOfStock || processing}
+                                disabled={!canAdd || processing}
                                 className="group mt-6 inline-flex w-full items-center justify-center gap-3 bg-volt-500 px-8 py-4 font-display text-base uppercase tracking-[0.2em] text-ink-900 transition-all hover:-translate-y-0.5 hover:bg-white light:hover:bg-ink-900 light:hover:text-white focus:outline-none focus:ring-2 focus:ring-volt-500 focus:ring-offset-2 focus:ring-offset-ink-950 light:focus:ring-offset-paper disabled:pointer-events-none disabled:opacity-30"
                             >
-                                {outOfStock
+                                {soldOut
                                     ? 'Sold out'
+                                    : isIncomplete
+                                    ? !selectedDeck && !selectedWheels
+                                        ? 'Pick a deck and wheels'
+                                        : !selectedDeck
+                                        ? 'Pick a deck'
+                                        : 'Pick your wheels'
                                     : processing
                                     ? 'Adding'
                                     : 'Add build to cart'}
-                                {!outOfStock && (
+                                {canAdd && (
                                     <span className="transition-transform group-hover:translate-x-1">
                                         →
                                     </span>

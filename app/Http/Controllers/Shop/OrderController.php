@@ -56,6 +56,8 @@ class OrderController extends Controller
                 'is_paid' => $order->isPaid(),
                 'fulfillment_method' => $order->fulfillment_method,
                 'payment_method' => $order->payment_method,
+                // Where the order physically is — see Order::trackingPayload().
+                'tracking' => $order->trackingPayload(),
                 'deposit_centavos' => $order->deposit_centavos,
                 'balance_centavos' => $order->balanceCentavos(),
                 // Real PayMongo integration is only usable once real test

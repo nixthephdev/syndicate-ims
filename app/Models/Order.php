@@ -52,6 +52,68 @@ class Order extends Model
     ];
 
     /**
+     * Where the order physically is — a SEPARATE axis from `status`, which
+     * tracks money. See the add_fulfillment_stage migration for why these
+     * cannot share a column (short version: a delivery order stays
+     * `deposit_paid` the whole way, and the revenue SQL depends on that).
+     *
+     * STAGE_* rather than FULFILLMENT_* on purpose: FULFILLMENT_PICKUP /
+     * FULFILLMENT_DELIVERY above are the *method*, a different thing.
+     */
+    public const STAGE_NOT_STARTED = 'not_started';
+    public const STAGE_PREPARING = 'preparing';
+    public const STAGE_READY = 'ready';
+    public const STAGE_OUT_FOR_DELIVERY = 'out_for_delivery';
+    public const STAGE_COMPLETED = 'completed';
+
+    public const STAGES = [
+        self::STAGE_NOT_STARTED,
+        self::STAGE_PREPARING,
+        self::STAGE_READY,
+        self::STAGE_OUT_FOR_DELIVERY,
+        self::STAGE_COMPLETED,
+    ];
+
+    /**
+     * The two journeys. A pickup order is never "out for delivery" and a
+     * delivery order is never "ready for pickup" — the stage list is per
+     * method, not one shared list with irrelevant steps greyed out.
+     */
+    public const STAGE_PATHS = [
+        self::FULFILLMENT_PICKUP => [
+            self::STAGE_NOT_STARTED,
+            self::STAGE_PREPARING,
+            self::STAGE_READY,
+            self::STAGE_COMPLETED,
+        ],
+        self::FULFILLMENT_DELIVERY => [
+            self::STAGE_NOT_STARTED,
+            self::STAGE_PREPARING,
+            self::STAGE_OUT_FOR_DELIVERY,
+            self::STAGE_COMPLETED,
+        ],
+    ];
+
+    /**
+     * Wording differs by method for the same underlying stage — "Ready for
+     * pickup" and "Handed over" only make sense for a pickup order.
+     */
+    public const STAGE_LABELS = [
+        self::FULFILLMENT_PICKUP => [
+            self::STAGE_NOT_STARTED => 'Not started',
+            self::STAGE_PREPARING => 'Preparing your order',
+            self::STAGE_READY => 'Ready for pickup',
+            self::STAGE_COMPLETED => 'Picked up',
+        ],
+        self::FULFILLMENT_DELIVERY => [
+            self::STAGE_NOT_STARTED => 'Not started',
+            self::STAGE_PREPARING => 'Preparing your order',
+            self::STAGE_OUT_FOR_DELIVERY => 'Out for delivery',
+            self::STAGE_COMPLETED => 'Delivered',
+        ],
+    ];
+
+    /**
      * gcash: full prepayment, pickup or delivery. cash: pickup only, staff
      * confirms in the admin panel — see Admin\OrderCashPaymentController.
      * gcash_deposit: delivery only, forced server-side regardless of what
@@ -67,6 +129,7 @@ class Order extends Model
         'user_id',
         'status',
         'fulfillment_method',
+        'fulfillment_stage',
         'payment_method',
         'subtotal_centavos',
         'total_centavos',
@@ -84,6 +147,16 @@ class Order extends Model
         'province',
         'postal_code',
         'notes',
+    ];
+
+    /**
+     * Mirrors the column default so a freshly created Order has a real stage
+     * in memory too, not null until someone refreshes it — trackingPayload()
+     * is reachable straight after Order::create() and would otherwise render
+     * a blank current step.
+     */
+    protected $attributes = [
+        'fulfillment_stage' => self::STAGE_NOT_STARTED,
     ];
 
     protected $casts = [
@@ -116,6 +189,123 @@ class Order extends Model
     public function isPaid(): bool
     {
         return $this->paid_at !== null;
+    }
+
+    /**
+     * Which status a successful GCash payment lands this order on.
+     *
+     * A delivery order's online leg is only ever the 50% deposit, so it lands
+     * on deposit_paid with the cash balance still due; everything else is a
+     * full payment. Lives here because TWO things now confirm payments — the
+     * webhook and the return-from-checkout reconciliation — and they must
+     * never disagree about which status a payment produces.
+     */
+    public function paidStatusForPaymentMethod(): string
+    {
+        return $this->payment_method === self::PAYMENT_METHOD_GCASH_DEPOSIT
+            ? self::STATUS_DEPOSIT_PAID
+            : self::STATUS_PAID;
+    }
+
+    /** The ordered stage list for THIS order's fulfillment method. */
+    public function stagePath(): array
+    {
+        return self::STAGE_PATHS[$this->fulfillment_method] ?? self::STAGE_PATHS[self::FULFILLMENT_PICKUP];
+    }
+
+    /** Human wording for a stage, in this order's method's vocabulary. */
+    public function stageLabel(?string $stage = null): string
+    {
+        $stage = $stage ?? $this->fulfillment_stage;
+        $labels = self::STAGE_LABELS[$this->fulfillment_method] ?? self::STAGE_LABELS[self::FULFILLMENT_PICKUP];
+
+        return $labels[$stage] ?? str_replace('_', ' ', (string) $stage);
+    }
+
+    /**
+     * The one stage staff may move to next, or null when there's nowhere to
+     * go. Tracking only starts once stock is actually committed — there is
+     * nothing to prepare for an order nobody has paid for, and a cancelled
+     * or failed order goes nowhere at all.
+     */
+    public function nextStage(): ?string
+    {
+        if (! $this->stockIsCommitted()) {
+            return null;
+        }
+
+        $path = $this->stagePath();
+        $at = array_search($this->fulfillment_stage, $path, true);
+
+        if ($at === false || $at === count($path) - 1) {
+            return null;
+        }
+
+        return $path[$at + 1];
+    }
+
+    /**
+     * How far along the journey, as a 0-based index into stagePath() — what
+     * the customer's progress tracker fills in up to.
+     */
+    public function stageIndex(): int
+    {
+        $at = array_search($this->fulfillment_stage, $this->stagePath(), true);
+
+        return $at === false ? 0 : $at;
+    }
+
+    /**
+     * Tracking is only meaningful once the shop actually owes the customer
+     * goods. Nothing is being prepared for an unpaid order, and a cancelled
+     * or failed one is going nowhere — both would show a progress bar that
+     * can only ever mislead.
+     */
+    public function isTrackable(): bool
+    {
+        return $this->stockIsCommitted();
+    }
+
+    /**
+     * The whole journey as renderable steps. Built here rather than in each
+     * controller because BOTH the admin panel and the customer's own order
+     * page draw the same tracker — duplicating the done/current arithmetic
+     * in two places is exactly how the two drift apart.
+     *
+     * @return array<int, array{key: string, label: string, done: bool, current: bool}>
+     */
+    public function trackingSteps(): array
+    {
+        $current = $this->stageIndex();
+
+        return array_values(array_map(
+            fn (string $stage, int $i) => [
+                'key' => $stage,
+                'label' => $this->stageLabel($stage),
+                'done' => $i <= $current,
+                'current' => $i === $current,
+            ],
+            $this->stagePath(),
+            array_keys($this->stagePath())
+        ));
+    }
+
+    /** The tracking block both order pages render. Null when not trackable. */
+    public function trackingPayload(): ?array
+    {
+        if (! $this->isTrackable()) {
+            return null;
+        }
+
+        $next = $this->nextStage();
+
+        return [
+            'stage' => $this->fulfillment_stage,
+            'stage_label' => $this->stageLabel(),
+            'steps' => $this->trackingSteps(),
+            'next_stage' => $next,
+            'next_stage_label' => $next ? $this->stageLabel($next) : null,
+        ];
     }
 
     /** Any address field filled in at all — a pickup order has none of these. */

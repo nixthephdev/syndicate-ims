@@ -4,13 +4,10 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Mail\OtpCodeMail;
-use App\Models\OtpCode;
 use App\Providers\RouteServiceProvider;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -31,27 +28,20 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      *
-     * Credentials verified (LoginRequest::authenticate() already checked
-     * password + active status via Auth::attempt()), but the session is
-     * deliberately NOT kept — logged straight back out, and the real
-     * session only gets established in Auth\LoginOtpController once the
-     * emailed code is verified. See that controller's docblock for why
-     * this lives as a separate step rather than inside LoginRequest.
+     * Password only — no emailed code. Signing in briefly required an OTP
+     * too, but that was scoped back to the three places it actually earns
+     * its friction: registration, checkout and a password reset (all three
+     * either create an account, spend money, or hand over account access).
+     * LoginRequest::authenticate() still enforces the password, the
+     * throttle, and the is_active check.
      */
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
 
-        $user = Auth::user();
-        Auth::logout();
+        $request->session()->regenerate();
 
-        [, $code] = OtpCode::issue($user, OtpCode::PURPOSE_LOGIN);
-        Mail::to($user->email)->send(new OtpCodeMail($code, OtpCode::PURPOSE_LOGIN));
-
-        $request->session()->put('otp_login_user_id', $user->id);
-        $request->session()->put('otp_login_remember', $request->boolean('remember'));
-
-        return redirect()->route('login.otp.create');
+        return redirect()->intended(RouteServiceProvider::HOME);
     }
 
     /**

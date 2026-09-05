@@ -82,6 +82,9 @@ class OrderController extends Controller
                 'stock_committed' => $order->stockIsCommitted(),
                 'fulfillment_method' => $order->fulfillment_method,
                 'payment_method' => $order->payment_method,
+                // Where the order physically is — see Order::trackingPayload().
+                // Null until stock is committed; there's nothing to track yet.
+                'tracking' => $order->trackingPayload(),
                 'subtotal_formatted' => Money::format($order->subtotal_centavos),
                 'total_formatted' => Money::format($order->total_centavos),
                 'deposit_formatted' => $order->deposit_centavos !== null ? Money::format($order->deposit_centavos) : null,

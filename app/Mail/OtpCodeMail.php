@@ -17,9 +17,13 @@ class OtpCodeMail extends Mailable
 
     public function build()
     {
-        $subject = $this->purpose === OtpCode::PURPOSE_LOGIN
-            ? 'Your sign-in code'
-            : 'Your order confirmation code';
+        $subjects = [
+            OtpCode::PURPOSE_REGISTER => 'Confirm your email',
+            OtpCode::PURPOSE_PASSWORD_RESET => 'Reset your password',
+            OtpCode::PURPOSE_CHECKOUT => 'Your order confirmation code',
+        ];
+
+        $subject = $subjects[$this->purpose] ?? 'Your verification code';
 
         return $this->subject("Syndicate IMS: {$subject}")
             ->view('emails.otp-code')

@@ -52,6 +52,16 @@ class OrderStatusController extends Controller
         }
 
         $order->status = $target;
+
+        // "Mark fulfilled" is a shortcut straight to the end of the
+        // fulfillment journey Admin\OrderFulfillmentController walks step by
+        // step. Move that axis too, or an order can end up handed over while
+        // its tracker still reads "Preparing" — two views of one order
+        // disagreeing, which is worse than either alone.
+        if ($target === Order::STATUS_FULFILLED) {
+            $order->fulfillment_stage = Order::STAGE_COMPLETED;
+        }
+
         $order->save();
 
         return back()->with(

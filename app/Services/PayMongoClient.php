@@ -98,6 +98,33 @@ class PayMongoClient
         ];
     }
 
+    /**
+     * Reads back an intent PayMongo already has — the authoritative answer to
+     * "did this actually get paid?", asked of PayMongo rather than inferred
+     * from anything the customer's browser carried back.
+     *
+     * `status` is 'succeeded' once the money moved. The nested payments array
+     * carries the pay_... id worth recording alongside it; field shapes here
+     * were confirmed against a real completed test payment, same as the rest
+     * of this client (PayMongo's docs pages were serving empty schemas).
+     *
+     * @return array{id: string, status: string, payment_id: ?string, amount: int}
+     */
+    public function getPaymentIntent(string $paymentIntentId): array
+    {
+        $response = $this->request()->get("/payment_intents/{$paymentIntentId}");
+
+        $data = $this->unwrap($response, 'retrieve payment intent');
+        $attributes = $data['attributes'];
+
+        return [
+            'id' => $data['id'],
+            'status' => $attributes['status'] ?? '',
+            'payment_id' => $attributes['payments'][0]['id'] ?? null,
+            'amount' => $attributes['amount'] ?? 0,
+        ];
+    }
+
     private function request()
     {
         if (! $this->secretKey) {

@@ -3,10 +3,8 @@ import StorefrontAuthLayout from '@/Layouts/StorefrontAuthLayout';
 import { Field, SubmitButton } from '@/Components/Storefront/FormControls';
 import { Head, useForm } from '@inertiajs/react';
 
-export default function ResetPassword({ token, email }) {
+export default function ResetPassword({ email }) {
     const { data, setData, post, processing, errors, reset } = useForm({
-        token: token,
-        email: email,
         password: '',
         password_confirmation: '',
     });
@@ -37,27 +35,20 @@ export default function ResetPassword({ token, email }) {
                     password.
                 </>
             }
-            intro="Pick something you'll actually remember. At least 8 characters."
+            intro={
+                email
+                    ? `Almost done — this will be the new password for ${email}.`
+                    : "Pick something you'll actually remember. At least 8 characters."
+            }
         >
             <Head title="Reset password" />
 
+            {/* No email field and no hidden token. Which account this resets
+                comes from the verified session written by the code step (see
+                NewPasswordController) — putting the address back in the form
+                would let someone who verified a code for their own mailbox
+                post a different address and reset a stranger's password. */}
             <form onSubmit={submit} className="space-y-6">
-                {/* Email arrives prefilled from the reset link and is part of
-                    what the token is validated against — editable, because
-                    Breeze validates it server-side and a mismatch must fail
-                    loudly rather than be silently corrected. */}
-                <Field
-                    id="email"
-                    name="email"
-                    type="email"
-                    label="Email"
-                    value={data.email}
-                    autoComplete="username"
-                    required
-                    error={errors.email}
-                    onChange={onHandleChange}
-                />
-
                 <Field
                     id="password"
                     name="password"
@@ -72,8 +63,6 @@ export default function ResetPassword({ token, email }) {
                     onChange={onHandleChange}
                 />
 
-                {/* Breeze shipped this field with no id, so its label was bound
-                    to nothing. Field always pairs htmlFor with id. */}
                 <Field
                     id="password_confirmation"
                     name="password_confirmation"

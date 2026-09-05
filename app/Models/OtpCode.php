@@ -2,21 +2,32 @@
 
 namespace App\Models;
 
+use App\Mail\OtpCodeMail;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 /**
- * A one-time 6-digit email code, used for two genuinely different things —
- * login 2FA and a checkout confirmation step — kept as one table with a
- * `purpose` column rather than two, since the issue/verify/expire/rate-limit
- * logic is identical either way and the two are never valid for each other
- * (a login code can't confirm a checkout, checked via the purpose column).
+ * A one-time 6-digit email code, used for three genuinely different things —
+ * proving email ownership at registration, proving it again before a
+ * password reset, and confirming a checkout — kept as one table with a
+ * `purpose` column rather than three, since the issue/verify/expire/
+ * rate-limit logic is identical either way and none are ever valid for each
+ * other (a registration code cannot be replayed to reset a password or
+ * confirm a checkout, checked via the purpose column).
+ *
+ * Signing in deliberately does NOT use one: password-only login was the
+ * scoped decision, on the grounds that these three moments (create an
+ * account, hand over account access, spend money) are where the extra step
+ * actually buys something.
  *
  * No enums — PHP 8.0. Class constants instead, same as Order::STATUS_*.
  */
 class OtpCode extends Model
 {
-    public const PURPOSE_LOGIN = 'login';
+    public const PURPOSE_REGISTER = 'register';
+    public const PURPOSE_PASSWORD_RESET = 'password_reset';
     public const PURPOSE_CHECKOUT = 'checkout';
 
     public const MAX_ATTEMPTS = 5;
@@ -66,6 +77,35 @@ class OtpCode extends Model
         ]);
 
         return [$otp, $code];
+    }
+
+    /**
+     * Issues a code and actually gets it to the user — the only two lines
+     * every caller ever wants, always together.
+     *
+     * Returns false, rather than throwing, when the mail transport is down.
+     * A misconfigured or unreachable SMTP host used to surface as a raw 500
+     * mid-checkout (losing the cart) or mid-login; a caller that gets false
+     * back can say "we couldn't send your code" and leave the visitor
+     * somewhere they can retry. The failure is logged, not swallowed.
+     */
+    public static function issueAndSend(User $user, string $purpose): bool
+    {
+        [, $code] = static::issue($user, $purpose);
+
+        try {
+            Mail::to($user->email)->send(new OtpCodeMail($code, $purpose));
+        } catch (\Throwable $e) {
+            Log::error('Failed to send OTP code', [
+                'user_id' => $user->id,
+                'purpose' => $purpose,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+
+        return true;
     }
 
     /**

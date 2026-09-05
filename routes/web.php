@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\OrderCashPaymentController as AdminOrderCashPaymentController;
+use App\Http\Controllers\Admin\OrderFulfillmentController as AdminOrderFulfillmentController;
 use App\Http\Controllers\Admin\OrderStatusController as AdminOrderStatusController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductVariantController as AdminProductVariantController;
@@ -118,10 +119,18 @@ Route::middleware('auth')->group(function () {
         ->name('payment.confirm');
 
     // The real path — reachable everywhere, marks nothing paid itself. Only
-    // gets the customer to PayMongo's checkout page; the webhook below is
-    // what actually confirms payment. See PayMongoController's docblock.
+    // gets the customer to PayMongo's checkout page. See the docblock on
+    // PayMongoController for what confirms a payment afterwards.
     Route::post('/orders/{order_number}/pay', [PayMongoController::class, 'create'])
         ->name('payment.paymongo.create');
+
+    // Where PayMongo returns the customer after the GCash page. A GET,
+    // because PayMongo navigates the browser here — it reconciles against
+    // PayMongo's API and never trusts the query string. Needed because the
+    // webhook below cannot reach an app PayMongo can't route to (a local
+    // `artisan serve`, most obviously).
+    Route::get('/orders/{order_number}/payment/return', [PayMongoController::class, 'returnFromCheckout'])
+        ->name('payment.paymongo.return');
 });
 
 // PayMongo calls this directly — no session, no CSRF token, no auth
@@ -177,6 +186,10 @@ Route::middleware(['auth', 'verified', 'role:staff'])
             ->name('orders.status.update');
         Route::patch('orders/{order_number}/confirm-cash', [AdminOrderCashPaymentController::class, 'confirm'])
             ->name('orders.cash.confirm');
+        // Where the order physically is — a different column from status,
+        // and a different controller. See Admin\OrderFulfillmentController.
+        Route::patch('orders/{order_number}/fulfillment', [AdminOrderFulfillmentController::class, 'update'])
+            ->name('orders.fulfillment.update');
 
         Route::post('products/{product}/variants', [AdminProductVariantController::class, 'store'])
             ->name('products.variants.store');

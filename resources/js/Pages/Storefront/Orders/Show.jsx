@@ -6,6 +6,7 @@ import { DangerButton, Field, GhostButton, SubmitButton } from '@/Components/Sto
 import { HARDWARE_COLORS } from '@/Components/Customizer/hardwareColors';
 import { formatCentavos } from '@/utils/money';
 import { statusChipClasses, formatStatusLabel } from '@/utils/orderStatus';
+import OrderTracker from '@/Components/Storefront/OrderTracker';
 
 function colorLabel(hex) {
     return HARDWARE_COLORS.find((c) => c.hex.toLowerCase() === hex.toLowerCase())?.label ?? hex;
@@ -77,6 +78,15 @@ export default function OrderShow({ order }) {
                     Placed {order.placed_at}
                     {order.paid_at && ` · Paid ${order.paid_at}`}
                 </p>
+
+                {/* Where the goods are — a different axis from the status
+                    chip above, which is about money. Renders nothing until
+                    stock is committed; see Order::trackingPayload(). */}
+                {order.tracking && (
+                    <div className="mt-8">
+                        <OrderTracker tracking={order.tracking} />
+                    </div>
+                )}
 
                 {/* Payment. order.payment_configured (real PayMongo test
                     keys present, see Shop\OrderController::show()) decides

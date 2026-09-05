@@ -2,7 +2,8 @@ import { useForm } from '@inertiajs/react';
 import { Field, SubmitButton } from '@/Components/Storefront/FormControls';
 
 /**
- * Shared by Auth/VerifyLoginOtp.jsx and Storefront/CheckoutOtp.jsx — same
+ * Shared by Auth/VerifyRegisterOtp.jsx, Auth/VerifyPasswordOtp.jsx and
+ * Storefront/CheckoutOtp.jsx — same
  * "type a 6-digit code, or resend it" shape either way, just posting to a
  * different pair of routes. Two separate `useForm` instances (the code
  * form and the resend button) since they're independent requests with

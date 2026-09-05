@@ -115,6 +115,8 @@ export default function Board({ activeMeshName, boltsColor, trucksColor }) {
             if (!isCore) child.visible = false;
         });
 
+        // No deck picked yet — the customizer opens empty on purpose, so
+        // everything above stays hidden and only Bolts/Trucks are shown.
         if (!activeMeshName) return;
 
         const needle = activeMeshName.toLowerCase();

@@ -4,11 +4,12 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
-use App\Http\Controllers\Auth\LoginOtpController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\PasswordResetOtpController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\RegisterOtpController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,25 +19,38 @@ Route::middleware('guest')->group(function () {
 
     Route::post('register', [RegisteredUserController::class, 'store']);
 
+    // Step two of registration — see RegisteredUserController::store()'s
+    // docblock. 'guest' fits: the row exists but nobody is signed in until
+    // the emailed code is verified here.
+    Route::get('register/otp', [RegisterOtpController::class, 'create'])->name('register.otp.create');
+    Route::post('register/otp', [RegisterOtpController::class, 'store'])->name('register.otp.store');
+    Route::post('register/otp/resend', [RegisterOtpController::class, 'resend'])->name('register.otp.resend');
+
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
                 ->name('login');
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
-    // Step two of login — see AuthenticatedSessionController::store()'s
-    // docblock. 'guest' middleware fits: the visitor genuinely isn't
-    // logged in yet at this point, credentials or not.
-    Route::get('login/otp', [LoginOtpController::class, 'create'])->name('login.otp.create');
-    Route::post('login/otp', [LoginOtpController::class, 'store'])->name('login.otp.store');
-    Route::post('login/otp/resend', [LoginOtpController::class, 'resend'])->name('login.otp.resend');
-
+    // Password reset, in three steps. There is no signed reset LINK any
+    // more — an emailed 6-digit code replaced it, so `password.reset` takes
+    // no {token} and is gated on a verified session instead. See
+    // PasswordResetOtpController for the two session keys involved.
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
                 ->name('password.request');
 
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
                 ->name('password.email');
 
-    Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
+    Route::get('forgot-password/verify', [PasswordResetOtpController::class, 'create'])
+                ->name('password.otp.create');
+
+    Route::post('forgot-password/verify', [PasswordResetOtpController::class, 'store'])
+                ->name('password.otp.store');
+
+    Route::post('forgot-password/verify/resend', [PasswordResetOtpController::class, 'resend'])
+                ->name('password.otp.resend');
+
+    Route::get('reset-password', [NewPasswordController::class, 'create'])
                 ->name('password.reset');
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])

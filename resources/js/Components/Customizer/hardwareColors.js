@@ -20,4 +20,12 @@ export const HARDWARE_COLORS = [
     { hex: '#0400C2', label: 'Blue' },
 ];
 
-export const DEFAULT_HARDWARE_COLOR = '#2b2b2b';
+/**
+ * White, matching the empty state the builder opens in — the board starts
+ * with nothing chosen, so the hardware starts neutral rather than on the
+ * black that used to be preselected and read as a deliberate choice.
+ *
+ * Must stay a hex that exists in HARDWARE_COLORS above, or the swatch picker
+ * opens with nothing highlighted.
+ */
+export const DEFAULT_HARDWARE_COLOR = '#f8f8f8';

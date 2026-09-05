@@ -11,15 +11,19 @@
                                 Syndicate
                             </p>
                             <h1 style="margin:0 0 16px; color:#ffffff; font-size:20px;">
-                                @if ($purpose === \App\Models\OtpCode::PURPOSE_LOGIN)
-                                    Your sign-in code
+                                @if ($purpose === \App\Models\OtpCode::PURPOSE_REGISTER)
+                                    Confirm your email
+                                @elseif ($purpose === \App\Models\OtpCode::PURPOSE_PASSWORD_RESET)
+                                    Reset your password
                                 @else
                                     Confirm your order
                                 @endif
                             </h1>
                             <p style="margin:0 0 24px; color:rgba(255,255,255,0.6); font-size:14px; line-height:1.6;">
-                                @if ($purpose === \App\Models\OtpCode::PURPOSE_LOGIN)
-                                    Enter this code to finish signing in to your account.
+                                @if ($purpose === \App\Models\OtpCode::PURPOSE_REGISTER)
+                                    Enter this code to finish creating your Syndicate account.
+                                @elseif ($purpose === \App\Models\OtpCode::PURPOSE_PASSWORD_RESET)
+                                    Enter this code to confirm it is you, then choose a new password. If you did not ask to reset it, ignore this email and nothing will change.
                                 @else
                                     Enter this code to confirm and place your order.
                                 @endif

@@ -159,16 +159,13 @@ class UserManagementTest extends TestCase
             'is_active' => true,
         ]);
 
-        // Credentials alone only get as far as the OTP step now — see
-        // Tests\Feature\Auth\LoginOtpTest for that step's own coverage.
-        // This test just needs to confirm deactivation isn't wrongly
-        // blocking an active account before that point.
+        // The mirror of the deactivated case above: an ACTIVE account must
+        // still get all the way in on its password alone.
         $this->post(route('login'), [
             'email' => $user->email,
             'password' => 'password',
-        ])->assertRedirect(route('login.otp.create'));
+        ]);
 
-        $this->assertGuest();
-        Mail::assertSent(OtpCodeMail::class);
+        $this->assertAuthenticated();
     }
 }

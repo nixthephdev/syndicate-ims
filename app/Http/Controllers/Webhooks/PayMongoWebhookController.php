@@ -68,17 +68,10 @@ class PayMongoWebhookController extends Controller
             return response('', 200);
         }
 
-        // A delivery order's GCash leg is only ever the 50% deposit — lands
-        // on deposit_paid, not paid, since the cash balance is still due on
-        // delivery. Everything else (pickup, full gcash) is unchanged.
-        $targetStatus = $order->payment_method === Order::PAYMENT_METHOD_GCASH_DEPOSIT
-            ? Order::STATUS_DEPOSIT_PAID
-            : Order::STATUS_PAID;
-
         try {
             $inventory->commitForPaidOrder($order, [
                 'payment_intent_id' => $paymentIntentId,
-            ], $targetStatus);
+            ], $order->paidStatusForPaymentMethod());
         } catch (InsufficientStockException $e) {
             // The order stays awaiting_payment. This is the same race
             // CheckoutController already accepts by not reserving stock —

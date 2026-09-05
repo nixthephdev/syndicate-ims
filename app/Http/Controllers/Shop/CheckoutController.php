@@ -80,10 +80,14 @@ class CheckoutController extends Controller
             ]);
         }
 
-        $request->session()->put(self::SESSION_KEY, $request->validated());
+        if (! OtpCode::issueAndSend($request->user(), OtpCode::PURPOSE_CHECKOUT)) {
+            return back()->withErrors([
+                'cart' => "We couldn't send your confirmation code right now. "
+                    .'Your cart is untouched — please try again in a moment.',
+            ]);
+        }
 
-        [, $code] = OtpCode::issue($request->user(), OtpCode::PURPOSE_CHECKOUT);
-        Mail::to($request->user()->email)->send(new OtpCodeMail($code, OtpCode::PURPOSE_CHECKOUT));
+        $request->session()->put(self::SESSION_KEY, $request->validated());
 
         return redirect()->route('checkout.otp.create');
     }
@@ -211,8 +215,11 @@ class CheckoutController extends Controller
     {
         abort_unless($request->session()->has(self::SESSION_KEY), 403);
 
-        [, $code] = OtpCode::issue($request->user(), OtpCode::PURPOSE_CHECKOUT);
-        Mail::to($request->user()->email)->send(new OtpCodeMail($code, OtpCode::PURPOSE_CHECKOUT));
+        if (! OtpCode::issueAndSend($request->user(), OtpCode::PURPOSE_CHECKOUT)) {
+            return back()->withErrors([
+                'code' => "We couldn't send that code right now. Please try again in a moment.",
+            ]);
+        }
 
         return back()->with('success', 'A new code has been sent.');
     }

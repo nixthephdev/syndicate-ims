@@ -3,7 +3,7 @@ import Card from '@/Components/Admin/Card';
 import OrderStatusBadge from '@/Components/Admin/OrderStatusBadge';
 import PrimaryButton from '@/Components/Admin/PrimaryButton';
 import SecondaryButton from '@/Components/Admin/SecondaryButton';
-import { ArrowLeftIcon, CheckCircleIcon, XIcon } from '@/Components/Admin/icons';
+import { ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, TruckIcon, XIcon } from '@/Components/Admin/icons';
 import { HARDWARE_COLORS } from '@/Components/Customizer/hardwareColors';
 import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
@@ -37,6 +37,20 @@ export default function Show({ order, can }) {
         router.patch(
             route('admin.orders.cash.confirm', order.order_number),
             {},
+            {
+                preserveScroll: true,
+                onStart: () => setProcessing(true),
+                onFinish: () => setProcessing(false),
+            }
+        );
+    };
+
+    // The fulfillment axis — a different column and a different controller
+    // from move() above, which changes payment status.
+    const advanceStage = (stage) => {
+        router.patch(
+            route('admin.orders.fulfillment.update', order.order_number),
+            { stage },
             {
                 preserveScroll: true,
                 onStart: () => setProcessing(true),
@@ -230,6 +244,62 @@ export default function Show({ order, can }) {
                         )}
                     </Card>
 
+                    {/* Where the order physically is. Separate card from
+                        Actions because it's a separate axis from payment —
+                        see Admin\OrderFulfillmentController. */}
+                    {order.tracking && (
+                        <Card className="p-6">
+                            <h2 className="text-sm font-semibold text-white admin-light:text-ink-900">
+                                Fulfillment
+                            </h2>
+                            <p className="mt-1 text-xs uppercase tracking-widest text-volt-500 admin-light:text-volt-800">
+                                {order.tracking.stage_label}
+                            </p>
+
+                            <ol className="mt-4 space-y-2">
+                                {order.tracking.steps.map((step) => (
+                                    <li key={step.key} className="flex items-center gap-2.5">
+                                        <span
+                                            className={
+                                                'h-2 w-2 shrink-0 rounded-full ' +
+                                                (step.done
+                                                    ? 'bg-volt-500'
+                                                    : 'bg-white/20 admin-light:bg-ink-900/20')
+                                            }
+                                        />
+                                        <span
+                                            className={
+                                                'text-xs ' +
+                                                (step.current
+                                                    ? 'font-semibold text-white admin-light:text-ink-900'
+                                                    : step.done
+                                                      ? 'text-white/60 admin-light:text-ink-900/65'
+                                                      : 'text-white/30 admin-light:text-ink-900/40')
+                                            }
+                                        >
+                                            {step.label}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ol>
+
+                            {order.tracking.next_stage && (
+                                <PrimaryButton
+                                    className="mt-4 w-full justify-center"
+                                    disabled={processing}
+                                    onClick={() => advanceStage(order.tracking.next_stage)}
+                                    icon={
+                                        order.tracking.next_stage === 'completed'
+                                            ? CheckCircleIcon
+                                            : TruckIcon
+                                    }
+                                >
+                                    Mark as {order.tracking.next_stage_label}
+                                </PrimaryButton>
+                            )}
+                        </Card>
+                    )}
+
                     {(can.fulfil || can.cancel || can.confirm_cash) && (
                         <Card className="p-6">
                             <h2 className="text-sm font-semibold text-white admin-light:text-ink-900">Actions</h2>
@@ -245,21 +315,25 @@ export default function Show({ order, can }) {
                                 </PrimaryButton>
                             )}
 
-                            {can.fulfil && (
-                                <PrimaryButton
-                                    className="mt-3 w-full justify-center"
+                            {/* Skip-to-done. Hidden when the tracker's own
+                                next step already IS "completed", or the two
+                                buttons would be the same action twice. */}
+                            {can.fulfil && order.tracking?.next_stage !== 'completed' && (
+                                <SecondaryButton
+                                    className="mt-3 w-full"
                                     disabled={processing}
                                     onClick={() => move('fulfilled')}
-                                    icon={CheckCircleIcon}
+                                    icon={ArrowRightIcon}
                                 >
-                                    Mark fulfilled
-                                </PrimaryButton>
+                                    Skip to fulfilled
+                                </SecondaryButton>
                             )}
 
                             {can.fulfil && order.status === 'deposit_paid' && (
                                 <p className="mt-2 text-xs text-white/25 admin-light:text-ink-900/35">
-                                    Confirms the {order.balance_formatted} cash
-                                    balance was collected on delivery.
+                                    Marking this delivered confirms the{' '}
+                                    {order.balance_formatted} cash balance was
+                                    collected.
                                 </p>
                             )}
 

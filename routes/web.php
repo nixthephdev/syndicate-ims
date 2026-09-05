@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ProductVariantController as AdminProductVariantCo
 use App\Http\Controllers\Admin\SkateboardComponentController as AdminSkateboardComponentController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\DeployController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CheckoutController;
@@ -99,6 +100,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/checkout', [CheckoutController::class, 'create'])->name('checkout.create');
     Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 
+    // Confirmation step — store() no longer creates the order directly, it
+    // stashes the validated form and requires this emailed code first. See
+    // CheckoutController's docblock.
+    Route::get('/checkout/verify', [CheckoutController::class, 'otpCreate'])->name('checkout.otp.create');
+    Route::post('/checkout/verify', [CheckoutController::class, 'otpStore'])->name('checkout.otp.store');
+    Route::post('/checkout/verify/resend', [CheckoutController::class, 'otpResend'])->name('checkout.otp.resend');
+
     Route::get('/orders', [ShopOrderController::class, 'index'])->name('orders.index');
     Route::get('/orders/{order_number}', [ShopOrderController::class, 'show'])->name('orders.show');
     Route::post('/orders/{order_number}/cancel', [ShopOrderController::class, 'cancel'])->name('orders.cancel');
@@ -121,6 +129,13 @@ Route::middleware('auth')->group(function () {
 // of this and PayMongoWebhookController's docblock for why.
 Route::post('/webhooks/paymongo', [PayMongoWebhookController::class, 'handle'])
     ->name('webhooks.paymongo');
+
+// No SSH on the target host = no way to run `php artisan migrate` there
+// directly. Token-gated (see DeployController), not auth-gated — 404s
+// entirely when DEPLOY_TOKEN is unset, which it is everywhere this isn't
+// actually needed.
+Route::get('/deploy/migrate', [DeployController::class, 'migrate'])
+    ->name('deploy.migrate');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

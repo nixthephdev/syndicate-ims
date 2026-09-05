@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Mail\OtpCodeMail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class UserManagementTest extends TestCase
@@ -151,16 +153,22 @@ class UserManagementTest extends TestCase
 
     public function test_an_active_user_can_still_log_in(): void
     {
+        Mail::fake();
         $user = User::factory()->create([
             'password' => bcrypt('password'),
             'is_active' => true,
         ]);
 
+        // Credentials alone only get as far as the OTP step now — see
+        // Tests\Feature\Auth\LoginOtpTest for that step's own coverage.
+        // This test just needs to confirm deactivation isn't wrongly
+        // blocking an active account before that point.
         $this->post(route('login'), [
             'email' => $user->email,
             'password' => 'password',
-        ])->assertRedirect();
+        ])->assertRedirect(route('login.otp.create'));
 
-        $this->assertAuthenticatedAs($user);
+        $this->assertGuest();
+        Mail::assertSent(OtpCodeMail::class);
     }
 }

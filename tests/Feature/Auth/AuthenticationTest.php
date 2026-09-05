@@ -3,7 +3,6 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
-use App\Providers\RouteServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -18,7 +17,13 @@ class AuthenticationTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_users_can_authenticate_using_the_login_screen(): void
+    /**
+     * Correct credentials alone no longer complete login — see
+     * Auth\AuthenticatedSessionController::store()'s docblock. Full
+     * completion (the emailed code) is covered by
+     * Tests\Feature\Auth\LoginOtpTest.
+     */
+    public function test_correct_credentials_are_accepted_but_require_an_otp_before_login_completes(): void
     {
         $user = User::factory()->create();
 
@@ -27,8 +32,8 @@ class AuthenticationTest extends TestCase
             'password' => 'password',
         ]);
 
-        $this->assertAuthenticated();
-        $response->assertRedirect(RouteServiceProvider::HOME);
+        $this->assertGuest();
+        $response->assertRedirect(route('login.otp.create'));
     }
 
     public function test_users_can_not_authenticate_with_invalid_password(): void

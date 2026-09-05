@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Services\PayMongoWebhookVerifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
+use Tests\Concerns\CompletesCheckoutOtp;
 use Tests\TestCase;
 
 /**
@@ -22,12 +24,15 @@ use Tests\TestCase;
  */
 class PayMongoPaymentTest extends TestCase
 {
+    use CompletesCheckoutOtp;
     use RefreshDatabase;
 
     private const WEBHOOK_SECRET = 'whsec_test_secret';
 
     private function orderAwaitingPayment(User $user, int $stock = 10): Order
     {
+        Mail::fake();
+
         $product = Product::factory()->create([
             'is_active' => true,
             'base_price_centavos' => 50000,
@@ -53,6 +58,7 @@ class PayMongoPaymentTest extends TestCase
             'customer_email' => 'juan@example.test',
             'customer_phone' => '0917 123 4567',
         ]);
+        $this->completeCheckoutOtp();
 
         return Order::firstOrFail();
     }

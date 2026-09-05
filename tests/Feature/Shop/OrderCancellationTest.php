@@ -7,6 +7,8 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
+use Tests\Concerns\CompletesCheckoutOtp;
 use Tests\TestCase;
 
 /**
@@ -17,10 +19,13 @@ use Tests\TestCase;
  */
 class OrderCancellationTest extends TestCase
 {
+    use CompletesCheckoutOtp;
     use RefreshDatabase;
 
     private function orderAwaitingPayment(User $user, int $stock = 10): Order
     {
+        Mail::fake();
+
         $product = Product::factory()->create([
             'is_active' => true,
             'base_price_centavos' => 50000,
@@ -46,6 +51,7 @@ class OrderCancellationTest extends TestCase
             'customer_email' => 'juan@example.test',
             'customer_phone' => '0917 123 4567',
         ]);
+        $this->completeCheckoutOtp();
 
         return Order::firstOrFail();
     }

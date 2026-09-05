@@ -8,15 +8,29 @@ use App\Models\ProductVariant;
 use App\Models\SkateboardComponent;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
+use Tests\Concerns\CompletesCheckoutOtp;
 use Tests\TestCase;
 
 /**
  * The path objective 3 rests on: cart -> order -> payment confirmed -> stock
  * decremented, atomically and exactly once.
+ *
+ * checkout.store no longer creates the order directly — it stashes the
+ * validated form and emails an OTP; completeCheckoutOtp() (see
+ * Tests\Concerns\CompletesCheckoutOtp) is what actually finishes it. Mail
+ * is faked class-wide since virtually every test here goes through that.
  */
 class CheckoutTest extends TestCase
 {
+    use CompletesCheckoutOtp;
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Mail::fake();
+    }
 
     private function variantWithStock(int $stock, int $price = 50000): ProductVariant
     {
@@ -54,12 +68,21 @@ class CheckoutTest extends TestCase
         ];
     }
 
+    /** Posts to checkout.store, completes the OTP step, returns the order. */
+    private function checkout(array $details = null): Order
+    {
+        $this->post(route('checkout.store'), $details ?? $this->details());
+        $this->completeCheckoutOtp();
+
+        return Order::firstOrFail();
+    }
+
     public function test_guests_are_sent_to_login_at_checkout(): void
     {
         $this->get(route('checkout.create'))->assertRedirect(route('login'));
     }
 
-    public function test_checkout_creates_an_order_but_does_not_touch_stock(): void
+    public function test_checkout_store_only_stashes_and_requires_an_otp_first(): void
     {
         $variant = $this->variantWithStock(10);
         $user = User::factory()->create();
@@ -68,9 +91,21 @@ class CheckoutTest extends TestCase
         $this->fill($variant, 3);
 
         $this->post(route('checkout.store'), $this->details())
-            ->assertRedirect();
+            ->assertRedirect(route('checkout.otp.create'));
 
-        $order = Order::firstOrFail();
+        // Nothing exists yet — the OTP step is what actually creates it.
+        $this->assertSame(0, Order::count());
+    }
+
+    public function test_completing_the_otp_creates_an_order_but_does_not_touch_stock(): void
+    {
+        $variant = $this->variantWithStock(10);
+        $user = User::factory()->create();
+
+        $this->actingAs($user);
+        $this->fill($variant, 3);
+
+        $order = $this->checkout();
 
         $this->assertSame(Order::STATUS_AWAITING_PAYMENT, $order->status);
         $this->assertNull($order->paid_at);
@@ -80,6 +115,21 @@ class CheckoutTest extends TestCase
         $this->assertSame(10, $variant->fresh()->stock);
     }
 
+    public function test_a_wrong_otp_does_not_create_an_order(): void
+    {
+        $variant = $this->variantWithStock(10);
+        $user = User::factory()->create();
+
+        $this->actingAs($user);
+        $this->fill($variant, 1);
+        $this->post(route('checkout.store'), $this->details());
+
+        $this->post(route('checkout.otp.store'), ['code' => '000000'])
+            ->assertSessionHasErrors('code');
+
+        $this->assertSame(0, Order::count());
+    }
+
     public function test_order_lines_snapshot_name_and_price(): void
     {
         $variant = $this->variantWithStock(10, 89900);
@@ -87,9 +137,9 @@ class CheckoutTest extends TestCase
 
         $this->actingAs($user);
         $this->fill($variant, 1);
-        $this->post(route('checkout.store'), $this->details());
+        $order = $this->checkout();
 
-        $item = Order::firstOrFail()->items()->firstOrFail();
+        $item = $order->items()->firstOrFail();
         $originalName = $item->name_snapshot;
 
         // Rename and reprice the live product; the order must not follow.
@@ -107,9 +157,7 @@ class CheckoutTest extends TestCase
 
         $this->actingAs($user);
         $this->fill($variant, 4);
-        $this->post(route('checkout.store'), $this->details());
-
-        $order = Order::firstOrFail();
+        $order = $this->checkout();
 
         $this->post(route('payment.confirm', $order->order_number))
             ->assertSessionHasNoErrors();
@@ -138,9 +186,7 @@ class CheckoutTest extends TestCase
 
         $this->actingAs($user);
         $this->fill($variant, 5);
-        $this->post(route('checkout.store'), $this->details());
-
-        $order = Order::firstOrFail();
+        $order = $this->checkout();
 
         // Someone else buys the lot between placing the order and paying.
         $variant->update(['stock' => 1]);
@@ -172,12 +218,38 @@ class CheckoutTest extends TestCase
         $this->assertSame(0, Order::count());
     }
 
+    public function test_the_otp_step_re_checks_stock_too(): void
+    {
+        // The advisory check in store() passes at that moment, but stock can
+        // still run out while the customer is typing in their code.
+        $variant = $this->variantWithStock(10);
+        $user = User::factory()->create();
+
+        $this->actingAs($user);
+        $this->fill($variant, 8);
+        $this->post(route('checkout.store'), $this->details());
+
+        $variant->update(['stock' => 2]);
+
+        $code = null;
+        Mail::assertSent(\App\Mail\OtpCodeMail::class, function ($mail) use (&$code) {
+            $code = $mail->code;
+
+            return true;
+        });
+
+        $this->post(route('checkout.otp.store'), ['code' => $code])
+            ->assertSessionHasErrors('cart');
+
+        $this->assertSame(0, Order::count());
+    }
+
     public function test_checkout_clears_the_cart(): void
     {
         $variant = $this->variantWithStock(10);
         $this->actingAs(User::factory()->create());
         $this->fill($variant, 1);
-        $this->post(route('checkout.store'), $this->details());
+        $this->checkout();
 
         $this->get(route('cart.index'))
             ->assertInertia(fn ($page) => $page->has('lines', 0));
@@ -190,9 +262,7 @@ class CheckoutTest extends TestCase
 
         $this->actingAs($buyer);
         $this->fill($variant, 1);
-        $this->post(route('checkout.store'), $this->details());
-
-        $order = Order::firstOrFail();
+        $order = $this->checkout();
 
         $this->actingAs(User::factory()->create())
             ->get(route('orders.show', $order->order_number))
@@ -205,9 +275,7 @@ class CheckoutTest extends TestCase
 
         $this->actingAs(User::factory()->create());
         $this->fill($variant, 1);
-        $this->post(route('checkout.store'), $this->details());
-
-        $order = Order::firstOrFail();
+        $order = $this->checkout();
 
         $this->actingAs(User::factory()->staff()->create())
             ->get(route('orders.show', $order->order_number))
@@ -218,7 +286,7 @@ class CheckoutTest extends TestCase
      * A /parts hardware colour choice (see PartBrowsingTest) has to survive
      * all the way onto the order, or the shop has no idea what was asked
      * for by the time it's actually fulfilling anything — see
-     * CheckoutController::store()'s snapshot into OrderItem.customization.
+     * CheckoutController::otpStore()'s snapshot into OrderItem.customization.
      */
     public function test_a_parts_colour_choice_survives_into_the_order(): void
     {
@@ -232,9 +300,9 @@ class CheckoutTest extends TestCase
             'quantity' => 1,
             'color' => '#E7312F',
         ]);
-        $this->post(route('checkout.store'), $this->details());
+        $order = $this->checkout();
 
-        $item = Order::firstOrFail()->items()->firstOrFail();
+        $item = $order->items()->firstOrFail();
 
         $this->assertSame(['color' => '#E7312F'], $item->customization);
     }
@@ -246,9 +314,9 @@ class CheckoutTest extends TestCase
 
         $this->actingAs($user);
         $this->fill($variant, 1);
-        $this->post(route('checkout.store'), $this->details());
+        $order = $this->checkout();
 
-        $item = Order::firstOrFail()->items()->firstOrFail();
+        $item = $order->items()->firstOrFail();
 
         $this->assertNull($item->customization);
     }
@@ -259,9 +327,7 @@ class CheckoutTest extends TestCase
 
         $this->actingAs(User::factory()->create());
         $this->fill($variant, 2);
-        $this->post(route('checkout.store'), $this->details());
-
-        $order = Order::firstOrFail();
+        $order = $this->checkout();
 
         $this->actingAs(User::factory()->create())
             ->post(route('payment.confirm', $order->order_number))
@@ -280,9 +346,7 @@ class CheckoutTest extends TestCase
 
         $this->actingAs(User::factory()->create());
         $this->fill($variant, 1);
-        $this->post(route('checkout.store'), $this->details());
-
-        $order = Order::firstOrFail();
+        $order = $this->checkout();
 
         $this->app['env'] = 'production';
 

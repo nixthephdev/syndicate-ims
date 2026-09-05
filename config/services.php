@@ -43,4 +43,15 @@ return [
         'webhook_secret' => env('PAYMONGO_WEBHOOK_SECRET'),
     ],
 
+    /*
+    | Only meaningful on a host with no SSH access — see DeployController
+    | and the Deployment section of CLAUDE.md. Empty by default, which
+    | disables the endpoint entirely (see DeployController::migrate()).
+    | Generate a long random value for this before ever setting it on a
+    | real deploy — anyone who knows it can trigger migrations.
+    */
+    'deploy' => [
+        'token' => env('DEPLOY_TOKEN'),
+    ],
+
 ];

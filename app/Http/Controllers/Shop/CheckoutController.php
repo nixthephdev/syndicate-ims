@@ -4,11 +4,15 @@ namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Shop\CheckoutRequest;
+use App\Mail\OtpCodeMail;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\OtpCode;
 use App\Services\Cart;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,9 +22,16 @@ use Inertia\Response;
  * This does NOT touch stock. The order is created `awaiting_payment`; stock
  * only moves when payment is confirmed, through InventoryService. That split
  * is the core project rule — see CLAUDE.md.
+ *
+ * store() no longer creates the order directly — it validates the form,
+ * stashes it in the session, and requires an emailed OTP (otpStore()) before
+ * anything is actually created. The cart itself already lives in the
+ * session, so only the typed form fields need stashing alongside it.
  */
 class CheckoutController extends Controller
 {
+    private const SESSION_KEY = 'pending_checkout';
+
     private Cart $cart;
 
     public function __construct(Cart $cart)
@@ -69,7 +80,61 @@ class CheckoutController extends Controller
             ]);
         }
 
-        $order = DB::transaction(function () use ($request, $lines) {
+        $request->session()->put(self::SESSION_KEY, $request->validated());
+
+        [, $code] = OtpCode::issue($request->user(), OtpCode::PURPOSE_CHECKOUT);
+        Mail::to($request->user()->email)->send(new OtpCodeMail($code, OtpCode::PURPOSE_CHECKOUT));
+
+        return redirect()->route('checkout.otp.create');
+    }
+
+    public function otpCreate(Request $request): Response|RedirectResponse
+    {
+        if (! $request->session()->has(self::SESSION_KEY)) {
+            return redirect()->route('checkout.create');
+        }
+
+        return Inertia::render('Storefront/CheckoutOtp');
+    }
+
+    public function otpStore(Request $request): RedirectResponse
+    {
+        $data = $request->session()->get(self::SESSION_KEY);
+
+        abort_unless($data, 403);
+
+        $request->validate(['code' => ['required', 'string']]);
+
+        $otp = OtpCode::currentFor($request->user()->id, OtpCode::PURPOSE_CHECKOUT);
+
+        if (! $otp || ! $otp->attempt($request->input('code'))) {
+            return back()->withErrors([
+                'code' => 'That code is incorrect or has expired.',
+            ]);
+        }
+
+        $lines = $this->cart->lines();
+
+        if ($lines === []) {
+            $request->session()->forget(self::SESSION_KEY);
+
+            return redirect()->route('shop.index');
+        }
+
+        // Re-checked: the cart can change while someone is typing in a code.
+        $short = array_filter($lines, fn ($line) => $line['exceeds_stock']);
+
+        if ($short !== []) {
+            $request->session()->forget(self::SESSION_KEY);
+
+            return redirect()->route('checkout.create')->withErrors([
+                'cart' => 'Someone got there first: '
+                    .implode(', ', array_column($short, 'name'))
+                    .' no longer has enough stock. Adjust your cart and try again.',
+            ]);
+        }
+
+        $order = DB::transaction(function () use ($data, $lines, $request) {
             $subtotal = array_sum(array_column($lines, 'line_total_centavos'));
 
             $order = Order::create([
@@ -80,15 +145,15 @@ class CheckoutController extends Controller
                 // No shipping or tax yet — when either lands, total stops
                 // equalling subtotal and this is the line that changes.
                 'total_centavos' => $subtotal,
-                'customer_name' => $request->validated('customer_name'),
-                'customer_email' => $request->validated('customer_email'),
-                'customer_phone' => $request->validated('customer_phone'),
-                'address_line' => $request->validated('address_line'),
-                'barangay' => $request->validated('barangay'),
-                'city' => $request->validated('city'),
-                'province' => $request->validated('province'),
-                'postal_code' => $request->validated('postal_code'),
-                'notes' => $request->validated('notes'),
+                'customer_name' => $data['customer_name'],
+                'customer_email' => $data['customer_email'],
+                'customer_phone' => $data['customer_phone'],
+                'address_line' => $data['address_line'] ?? null,
+                'barangay' => $data['barangay'] ?? null,
+                'city' => $data['city'] ?? null,
+                'province' => $data['province'] ?? null,
+                'postal_code' => $data['postal_code'] ?? null,
+                'notes' => $data['notes'] ?? null,
             ]);
 
             foreach ($lines as $line) {
@@ -114,7 +179,18 @@ class CheckoutController extends Controller
         });
 
         $this->cart->clear();
+        $request->session()->forget(self::SESSION_KEY);
 
         return redirect()->route('orders.show', $order->order_number);
+    }
+
+    public function otpResend(Request $request): RedirectResponse
+    {
+        abort_unless($request->session()->has(self::SESSION_KEY), 403);
+
+        [, $code] = OtpCode::issue($request->user(), OtpCode::PURPOSE_CHECKOUT);
+        Mail::to($request->user()->email)->send(new OtpCodeMail($code, OtpCode::PURPOSE_CHECKOUT));
+
+        return back()->with('success', 'A new code has been sent.');
     }
 }

@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
+use App\Http\Controllers\Auth\LoginOtpController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
@@ -21,6 +22,13 @@ Route::middleware('guest')->group(function () {
                 ->name('login');
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+
+    // Step two of login — see AuthenticatedSessionController::store()'s
+    // docblock. 'guest' middleware fits: the visitor genuinely isn't
+    // logged in yet at this point, credentials or not.
+    Route::get('login/otp', [LoginOtpController::class, 'create'])->name('login.otp.create');
+    Route::post('login/otp', [LoginOtpController::class, 'store'])->name('login.otp.store');
+    Route::post('login/otp/resend', [LoginOtpController::class, 'resend'])->name('login.otp.resend');
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
                 ->name('password.request');

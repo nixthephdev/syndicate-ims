@@ -7,6 +7,8 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
+use Tests\Concerns\CompletesCheckoutOtp;
 use Tests\TestCase;
 
 /**
@@ -16,6 +18,7 @@ use Tests\TestCase;
  */
 class OrderAddressTest extends TestCase
 {
+    use CompletesCheckoutOtp;
     use RefreshDatabase;
 
     private function fillCartWithOneVariant(User $user): void
@@ -51,20 +54,29 @@ class OrderAddressTest extends TestCase
         ], $overrides);
     }
 
+    /** Posts to checkout.store, completes the OTP step, returns the order. */
+    private function checkout(array $overrides = []): Order
+    {
+        Mail::fake();
+        $this->post(route('checkout.store'), $this->checkoutDetails($overrides))
+            ->assertSessionHasNoErrors();
+        $this->completeCheckoutOtp();
+
+        return Order::firstOrFail();
+    }
+
     public function test_checkout_stores_the_address_when_given(): void
     {
         $user = User::factory()->create();
         $this->fillCartWithOneVariant($user);
 
-        $this->post(route('checkout.store'), $this->checkoutDetails([
+        $order = $this->checkout([
             'address_line' => '123 Rizal St.',
             'barangay' => 'Tagas',
             'city' => 'Daraga',
             'province' => 'Albay',
             'postal_code' => '4501',
-        ]))->assertSessionHasNoErrors();
-
-        $order = Order::firstOrFail();
+        ]);
 
         $this->assertSame('123 Rizal St.', $order->address_line);
         $this->assertSame('Tagas', $order->barangay);
@@ -79,10 +91,7 @@ class OrderAddressTest extends TestCase
         $user = User::factory()->create();
         $this->fillCartWithOneVariant($user);
 
-        $this->post(route('checkout.store'), $this->checkoutDetails())
-            ->assertSessionHasNoErrors();
-
-        $order = Order::firstOrFail();
+        $order = $this->checkout();
 
         $this->assertNull($order->address_line);
         $this->assertFalse($order->hasAddress());
@@ -92,8 +101,7 @@ class OrderAddressTest extends TestCase
     {
         $user = User::factory()->create();
         $this->fillCartWithOneVariant($user);
-        $this->post(route('checkout.store'), $this->checkoutDetails());
-        $order = Order::firstOrFail();
+        $order = $this->checkout();
 
         $this->actingAs($user)
             ->patch(route('orders.address.update', $order->order_number), [
@@ -114,8 +122,7 @@ class OrderAddressTest extends TestCase
     {
         $user = User::factory()->create();
         $this->fillCartWithOneVariant($user);
-        $this->post(route('checkout.store'), $this->checkoutDetails());
-        $order = Order::firstOrFail();
+        $order = $this->checkout();
 
         $this->actingAs($user);
         $this->post(route('payment.confirm', $order->order_number));
@@ -132,8 +139,7 @@ class OrderAddressTest extends TestCase
     {
         $user = User::factory()->create();
         $this->fillCartWithOneVariant($user);
-        $this->post(route('checkout.store'), $this->checkoutDetails());
-        $order = Order::firstOrFail();
+        $order = $this->checkout();
 
         $this->actingAs($user);
         $this->post(route('payment.confirm', $order->order_number));
@@ -150,8 +156,7 @@ class OrderAddressTest extends TestCase
     {
         $user = User::factory()->create();
         $this->fillCartWithOneVariant($user);
-        $this->post(route('checkout.store'), $this->checkoutDetails());
-        $order = Order::firstOrFail();
+        $order = $this->checkout();
 
         $this->actingAs($user);
         $this->post(route('orders.cancel', $order->order_number));
@@ -165,8 +170,7 @@ class OrderAddressTest extends TestCase
     {
         $owner = User::factory()->create();
         $this->fillCartWithOneVariant($owner);
-        $this->post(route('checkout.store'), $this->checkoutDetails());
-        $order = Order::firstOrFail();
+        $order = $this->checkout();
 
         $this->actingAs(User::factory()->create())
             ->patch(route('orders.address.update', $order->order_number), [
@@ -181,8 +185,7 @@ class OrderAddressTest extends TestCase
     {
         $user = User::factory()->create();
         $this->fillCartWithOneVariant($user);
-        $this->post(route('checkout.store'), $this->checkoutDetails());
-        $order = Order::firstOrFail();
+        $order = $this->checkout();
 
         $this->actingAs(User::factory()->staff()->create())
             ->patch(route('orders.address.update', $order->order_number), [
@@ -195,8 +198,7 @@ class OrderAddressTest extends TestCase
     {
         $user = User::factory()->create();
         $this->fillCartWithOneVariant($user);
-        $this->post(route('checkout.store'), $this->checkoutDetails());
-        $order = Order::firstOrFail();
+        $order = $this->checkout();
 
         auth()->logout();
 

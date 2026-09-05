@@ -47,6 +47,13 @@ class CheckoutController extends Controller
 
         $user = request()->user();
 
+        // ID verification gates EVERY order — the scoped decision. Sent to
+        // the upload page rather than shown a dead end; the cart is session
+        // -backed and survives the detour, so nothing is lost.
+        if (! $user->canPlaceOrders()) {
+            return redirect()->route('verify-id.create');
+        }
+
         return Inertia::render('Storefront/Checkout', [
             'lines' => $this->cart->lines(),
             'subtotal_centavos' => $this->cart->subtotalCentavos(),
@@ -60,6 +67,12 @@ class CheckoutController extends Controller
 
     public function store(CheckoutRequest $request): RedirectResponse
     {
+        // Defence in depth: create() already redirects an unverified customer
+        // away, but nothing stops a POST straight to this route.
+        if (! $request->user()->canPlaceOrders()) {
+            return redirect()->route('verify-id.create');
+        }
+
         $lines = $this->cart->lines();
 
         if ($lines === []) {
@@ -106,6 +119,15 @@ class CheckoutController extends Controller
         $data = $request->session()->get(self::SESSION_KEY);
 
         abort_unless($data, 403);
+
+        // This is the step that actually creates the Order, so it carries
+        // the verification check too — a stashed checkout from before an ID
+        // was revoked must not still be able to land an order.
+        if (! $request->user()->canPlaceOrders()) {
+            $request->session()->forget(self::SESSION_KEY);
+
+            return redirect()->route('verify-id.create');
+        }
 
         $request->validate(['code' => ['required', 'string']]);
 

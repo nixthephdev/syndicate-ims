@@ -38,6 +38,10 @@ class DatabaseSeeder extends Seeder
             $user->password = Hash::make('password');
             $user->email_verified_at = now();
             $user->role = $role;
+            // Pre-verified, or the seeded customer can't reach checkout at
+            // all until somebody logs into /admin and approves an ID that
+            // doesn't exist — which would make a fresh install look broken.
+            $user->id_verification_status = User::ID_STATUS_APPROVED;
             $user->save();
         }
     }

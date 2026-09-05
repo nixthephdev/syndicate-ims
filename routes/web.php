@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\OrderStatusController as AdminOrderStatusControll
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductVariantController as AdminProductVariantController;
 use App\Http\Controllers\Admin\SkateboardComponentController as AdminSkateboardComponentController;
+use App\Http\Controllers\Admin\IdVerificationController as AdminIdVerificationController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\DeployController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CheckoutController;
 use App\Http\Controllers\Shop\CustomizeController;
+use App\Http\Controllers\Shop\IdVerificationController;
 use App\Http\Controllers\Shop\OrderController as ShopOrderController;
 use App\Http\Controllers\Shop\PartController;
 use App\Http\Controllers\Shop\PaymentController;
@@ -148,6 +150,15 @@ Route::get('/deploy/migrate', [DeployController::class, 'migrate'])
     ->name('deploy.migrate');
 
 Route::middleware('auth')->group(function () {
+    // Buyer ID verification, customer half. The photo route streams from
+    // PRIVATE storage and is owner-or-staff only — see the controller's
+    // docblock for why these files are deliberately not under public/.
+    Route::get('/verify-id', [IdVerificationController::class, 'create'])->name('verify-id.create');
+    Route::post('/verify-id', [IdVerificationController::class, 'store'])->name('verify-id.store');
+    Route::get('/verify-id/{user}/photo', [IdVerificationController::class, 'show'])->name('verify-id.photo');
+});
+
+Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -197,6 +208,21 @@ Route::middleware(['auth', 'verified', 'role:staff'])
             ->name('products.variants.update');
         Route::delete('products/{product}/variants/{variant}', [AdminProductVariantController::class, 'destroy'])
             ->name('products.variants.destroy');
+    });
+
+// ID verification review sits with the rest of /admin at role:staff, NOT
+// with user management below. Looking at a photo and deciding is counter
+// work; granting someone a role is not.
+Route::middleware(['auth', 'verified', 'role:staff'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('id-verifications', [AdminIdVerificationController::class, 'index'])
+            ->name('id-verifications.index');
+        Route::get('id-verifications/{user}', [AdminIdVerificationController::class, 'show'])
+            ->name('id-verifications.show');
+        Route::patch('id-verifications/{user}', [AdminIdVerificationController::class, 'update'])
+            ->name('id-verifications.update');
     });
 
 // User management is a step above the rest of /admin — role:admin only, so

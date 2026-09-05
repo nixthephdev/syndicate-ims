@@ -190,4 +190,114 @@ class OrderManagementTest extends TestCase
                 ->has('recentOrders', 2)
             );
     }
+
+    /**
+     * A delivery order's 50% deposit only has the deposit amount actually
+     * collected — the dashboard's headline revenue figure must not count
+     * the full order total until the balance is later collected in cash.
+     */
+    public function test_dashboard_revenue_counts_only_the_deposit_for_a_deposit_paid_order(): void
+    {
+        $this->order(Order::STATUS_DEPOSIT_PAID, [
+            'paid_at' => now(),
+            'total_centavos' => 100000,
+            'deposit_centavos' => 50000,
+            'fulfillment_method' => Order::FULFILLMENT_DELIVERY,
+            'payment_method' => Order::PAYMENT_METHOD_GCASH_DEPOSIT,
+        ]);
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('stats.revenue_total', '₱500.00')
+                ->where('stats.to_fulfil', 1)
+            );
+    }
+
+    /**
+     * A delivery order's stock is already committed once the deposit clears —
+     * marking it fulfilled (delivered, balance collected in cash) is the
+     * same one-step action a fully paid order gets, not a separate flow.
+     */
+    public function test_a_deposit_paid_order_can_be_marked_fulfilled(): void
+    {
+        $order = $this->order(Order::STATUS_DEPOSIT_PAID, [
+            'paid_at' => now(),
+            'deposit_centavos' => 25000,
+            'fulfillment_method' => Order::FULFILLMENT_DELIVERY,
+            'payment_method' => Order::PAYMENT_METHOD_GCASH_DEPOSIT,
+        ]);
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.orders.show', $order->order_number))
+            ->assertInertia(fn ($page) => $page->where('can.fulfil', true));
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->patch(route('admin.orders.status.update', $order->order_number), [
+                'status' => Order::STATUS_FULFILLED,
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(Order::STATUS_FULFILLED, $order->fresh()->status);
+    }
+
+    /** Same rule a plain paid order already follows: committed stock means no cancelling here. */
+    public function test_a_deposit_paid_order_cannot_be_cancelled(): void
+    {
+        $order = $this->order(Order::STATUS_DEPOSIT_PAID, [
+            'paid_at' => now(),
+            'deposit_centavos' => 25000,
+        ]);
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->patch(route('admin.orders.status.update', $order->order_number), [
+                'status' => Order::STATUS_CANCELLED,
+            ])
+            ->assertSessionHasErrors('status');
+
+        $this->assertSame(Order::STATUS_DEPOSIT_PAID, $order->fresh()->status);
+    }
+
+    public function test_staff_can_confirm_a_cash_pickup_order_and_stock_is_committed(): void
+    {
+        $order = $this->order(Order::STATUS_AWAITING_PAYMENT, [
+            'payment_method' => Order::PAYMENT_METHOD_CASH,
+        ]);
+        $variant = $order->items()->firstOrFail()->purchasable;
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->patch(route('admin.orders.cash.confirm', $order->order_number))
+            ->assertSessionHasNoErrors();
+
+        $order->refresh();
+        $this->assertSame(Order::STATUS_PAID, $order->status);
+        $this->assertNotNull($order->paid_at);
+        $this->assertSame(9, $variant->fresh()->stock);
+    }
+
+    public function test_confirming_cash_is_refused_for_a_gcash_order(): void
+    {
+        $order = $this->order(Order::STATUS_AWAITING_PAYMENT, [
+            'payment_method' => Order::PAYMENT_METHOD_GCASH,
+        ]);
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->patch(route('admin.orders.cash.confirm', $order->order_number))
+            ->assertSessionHasErrors('payment');
+
+        $this->assertSame(Order::STATUS_AWAITING_PAYMENT, $order->fresh()->status);
+    }
+
+    public function test_confirming_cash_is_refused_once_already_paid(): void
+    {
+        $order = $this->order(Order::STATUS_PAID, [
+            'paid_at' => now(),
+            'payment_method' => Order::PAYMENT_METHOD_CASH,
+        ]);
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->patch(route('admin.orders.cash.confirm', $order->order_number))
+            ->assertSessionHasErrors('payment');
+    }
 }

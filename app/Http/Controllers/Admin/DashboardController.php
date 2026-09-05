@@ -14,6 +14,14 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    /**
+     * Money actually collected on an order — total_centavos, except a
+     * still-deposit_paid delivery order, which has only had its
+     * deposit_centavos collected so far (the cash balance is still due on
+     * delivery). See the revenue stats' own comment below.
+     */
+    private const COLLECTED_AMOUNT_SQL = "CASE WHEN status = 'deposit_paid' THEN deposit_centavos ELSE total_centavos END";
+
     public function index(): Response
     {
         $lowVariants = ProductVariant::query()->lowStock()->inStock()->with('product')->get();
@@ -28,14 +36,22 @@ class DashboardController extends Controller
                 'components' => SkateboardComponent::query()->count(),
                 'low_stock_count' => $lowVariants->count() + $lowComponents->count(),
                 'out_of_stock_count' => $outOfStockVariants + $outOfStockComponents,
-                // Orders needing someone to act: unpaid ones to chase, paid
-                // ones to hand over.
+                // Orders needing someone to act: unpaid ones to chase,
+                // paid/deposit-paid ones to hand over (a delivery order's
+                // 50% deposit still leaves someone needing to deliver it and
+                // collect the cash balance).
                 'awaiting_payment' => Order::query()->status(Order::STATUS_AWAITING_PAYMENT)->count(),
-                'to_fulfil' => Order::query()->status(Order::STATUS_PAID)->count(),
-                // Revenue counts PAID orders only — scopePaid() keys off
-                // paid_at, so an order that was placed but never paid never
-                // reaches the sales figures.
-                'revenue_today_centavos' => (int) Order::query()->paid()->where('paid_at', '>=', now()->startOfDay())->sum('total_centavos'),
+                'to_fulfil' => Order::query()->whereIn('status', [Order::STATUS_PAID, Order::STATUS_DEPOSIT_PAID])->count(),
+                // Revenue counts PAID/DEPOSIT_PAID orders only — scopePaid()
+                // keys off paid_at, so an order that was placed but never
+                // paid never reaches the sales figures. Money actually
+                // collected, not the order's face value: a deposit_paid
+                // delivery order has only had its 50% deposit collected so
+                // far, so it counts at deposit_centavos here, not
+                // total_centavos, until it's marked fulfilled (balance
+                // collected in cash) and its own total_centavos becomes the
+                // true collected amount.
+                'revenue_today_centavos' => (int) Order::query()->paid()->where('paid_at', '>=', now()->startOfDay())->sum(DB::raw(self::COLLECTED_AMOUNT_SQL)),
                 // Same shape as revenue_today, one day back — powers a real
                 // vs-yesterday trend badge on the Dashboard. Nothing else
                 // needs a period-over-period comparison the way a running
@@ -43,9 +59,9 @@ class DashboardController extends Controller
                 // rather than a general trend framework nothing else uses.
                 'revenue_yesterday_centavos' => (int) Order::query()->paid()
                     ->whereBetween('paid_at', [now()->subDay()->startOfDay(), now()->startOfDay()])
-                    ->sum('total_centavos'),
+                    ->sum(DB::raw(self::COLLECTED_AMOUNT_SQL)),
                 'revenue_total' => Money::format(
-                    (int) Order::query()->paid()->sum('total_centavos')
+                    (int) Order::query()->paid()->sum(DB::raw(self::COLLECTED_AMOUNT_SQL))
                 ),
             ],
             'recentOrders' => Order::query()
@@ -97,7 +113,7 @@ class DashboardController extends Controller
         $rows = DB::table('orders')
             ->whereNotNull('paid_at')
             ->where('paid_at', '>=', now()->subDays(29)->startOfDay())
-            ->selectRaw('DATE(paid_at) as day, SUM(total_centavos) as revenue_centavos')
+            ->selectRaw('DATE(paid_at) as day, SUM('.self::COLLECTED_AMOUNT_SQL.') as revenue_centavos')
             ->groupBy('day')
             ->pluck('revenue_centavos', 'day');
 
@@ -117,6 +133,12 @@ class DashboardController extends Controller
      * order_items.purchasable_type already distinguishes apparel
      * (ProductVariant) from skateboard (SkateboardComponent) sales directly —
      * no need to touch Product.category at all.
+     *
+     * Known simplification: unlike the revenue stats above, this counts a
+     * still-deposit_paid delivery order's lines at their full value, not
+     * the 50% actually collected so far — proportioning a per-line split
+     * that precisely isn't worth the complexity for what's just a rough
+     * apparel-vs-skateboard mix chart.
      */
     private function categorySplit(): array
     {

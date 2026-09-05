@@ -80,8 +80,12 @@ class OrderController extends Controller
                 'status' => $order->status,
                 'is_paid' => $order->isPaid(),
                 'stock_committed' => $order->stockIsCommitted(),
+                'fulfillment_method' => $order->fulfillment_method,
+                'payment_method' => $order->payment_method,
                 'subtotal_formatted' => Money::format($order->subtotal_centavos),
                 'total_formatted' => Money::format($order->total_centavos),
+                'deposit_formatted' => $order->deposit_centavos !== null ? Money::format($order->deposit_centavos) : null,
+                'balance_formatted' => $order->balanceCentavos() !== null ? Money::format($order->balanceCentavos()) : null,
                 'customer_name' => $order->customer_name,
                 'customer_email' => $order->customer_email,
                 'customer_phone' => $order->customer_phone,
@@ -118,8 +122,10 @@ class OrderController extends Controller
                 ]),
             ],
             'can' => [
-                'fulfil' => $order->status === Order::STATUS_PAID,
+                'fulfil' => in_array($order->status, [Order::STATUS_PAID, Order::STATUS_DEPOSIT_PAID], true),
                 'cancel' => $order->status === Order::STATUS_AWAITING_PAYMENT,
+                'confirm_cash' => $order->status === Order::STATUS_AWAITING_PAYMENT
+                    && $order->payment_method === Order::PAYMENT_METHOD_CASH,
             ],
         ]);
     }

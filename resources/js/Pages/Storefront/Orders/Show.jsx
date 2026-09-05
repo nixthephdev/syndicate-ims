@@ -85,19 +85,47 @@ export default function OrderShow({ order }) {
                     checkout) or the local/testing-only stub, PaymentController
                     — but the button itself doesn't otherwise change: either
                     way this form starts payment, it never completes it.
-                    Completion is always the webhook's job. */}
-                {!order.is_paid && order.status === 'awaiting_payment' && (
+                    Completion is always the webhook's job.
+
+                    Branches on payment_method: cash (pickup) needs no online
+                    action at all — staff confirm it in the admin panel —
+                    and gcash_deposit (delivery) only ever charges the 50%
+                    deposit here, never the full total. */}
+                {order.status === 'awaiting_payment' && order.payment_method === 'cash' && (
+                    <div className="mt-10 border-2 border-amber-400/60 p-6">
+                        <h2 className="font-display text-lg uppercase tracking-wide text-white light:text-ink-900">
+                            Pay cash at pickup
+                        </h2>
+                        <p className="mt-2 text-sm leading-relaxed text-white/50 light:text-ink-900/65">
+                            No online payment needed — bring{' '}
+                            {formatCentavos(order.total_centavos)} to the shop
+                            when you collect your order.
+                        </p>
+                    </div>
+                )}
+
+                {order.status === 'awaiting_payment' && order.payment_method !== 'cash' && (
                     <form
                         onSubmit={confirmPayment}
                         className="mt-10 border-2 border-volt-500 p-6"
                     >
                         <h2 className="font-display text-lg uppercase tracking-wide text-white light:text-ink-900">
-                            Pay with GCash
+                            {order.payment_method === 'gcash_deposit' ? 'Pay your 50% deposit' : 'Pay with GCash'}
                         </h2>
                         <p className="mt-2 text-sm leading-relaxed text-white/50 light:text-ink-900/65">
-                            Stock is deducted the moment payment is confirmed,
-                            not before — so nothing is held for you until you
-                            pay.
+                            {order.payment_method === 'gcash_deposit' ? (
+                                <>
+                                    A deposit of{' '}
+                                    <span className="text-volt-500 light:text-volt-800">
+                                        {formatCentavos(order.deposit_centavos)}
+                                    </span>{' '}
+                                    secures your order for delivery. The
+                                    remaining {formatCentavos(order.balance_centavos)} is
+                                    paid in cash when it arrives.
+                                </>
+                            ) : (
+                                "Stock is deducted the moment payment is confirmed, not before — so nothing is held for you until you pay."
+                            )}
                         </p>
                         <button
                             type="submit"
@@ -111,6 +139,20 @@ export default function OrderShow({ order }) {
                                     : 'Confirm payment'} →
                         </button>
                     </form>
+                )}
+
+                {order.status === 'deposit_paid' && (
+                    <div className="mt-10 border-2 border-cyan-400/60 p-6">
+                        <h2 className="font-display text-lg uppercase tracking-wide text-white light:text-ink-900">
+                            Deposit paid
+                        </h2>
+                        <p className="mt-2 text-sm leading-relaxed text-white/50 light:text-ink-900/65">
+                            Your {formatCentavos(order.deposit_centavos)} deposit
+                            is confirmed. The remaining{' '}
+                            {formatCentavos(order.balance_centavos)} is paid in
+                            cash when your order is delivered.
+                        </p>
+                    </div>
                 )}
 
                 {/* Cancel — owner-only, and only before payment. Nothing has

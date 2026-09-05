@@ -54,6 +54,10 @@ class OrderController extends Controller
                 'order_number' => $order->order_number,
                 'status' => $order->status,
                 'is_paid' => $order->isPaid(),
+                'fulfillment_method' => $order->fulfillment_method,
+                'payment_method' => $order->payment_method,
+                'deposit_centavos' => $order->deposit_centavos,
+                'balance_centavos' => $order->balanceCentavos(),
                 // Real PayMongo integration is only usable once real test
                 // keys are configured — see PayMongoController. Until then
                 // the storefront falls back to the local/testing-only stub

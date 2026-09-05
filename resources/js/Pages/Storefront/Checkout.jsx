@@ -3,11 +3,38 @@ import StorefrontLayout from '@/Layouts/StorefrontLayout';
 import { Field, SubmitButton } from '@/Components/Storefront/FormControls';
 import { formatCentavos } from '@/utils/money';
 
+/** Two-way toggle — pickup/delivery here, gcash/cash further down. Only used
+ * in this one form, so it stays inline rather than becoming a third shared
+ * button variant. */
+function ToggleOption({ selected, onClick, title, description }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={
+                'flex-1 border-2 px-4 py-3 text-left transition-colors ' +
+                (selected
+                    ? 'border-volt-500 bg-volt-500/10 light:border-volt-800 light:bg-volt-800/10'
+                    : 'border-white/15 hover:border-white/30 light:border-ink-900/20 light:hover:border-ink-900/35')
+            }
+        >
+            <span className="block font-display text-xs uppercase tracking-[0.2em] text-white light:text-ink-900">
+                {title}
+            </span>
+            <span className="mt-1 block text-xs text-white/40 light:text-ink-900/55">
+                {description}
+            </span>
+        </button>
+    );
+}
+
 export default function Checkout({ lines, subtotal_centavos, defaults }) {
     const { data, setData, post, processing, errors } = useForm({
         customer_name: defaults.customer_name ?? '',
         customer_email: defaults.customer_email ?? '',
         customer_phone: '',
+        fulfillment_method: 'pickup',
+        payment_method: 'gcash',
         address_line: '',
         barangay: '',
         city: '',
@@ -17,6 +44,10 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
     });
 
     const onChange = (e) => setData(e.target.name, e.target.value);
+    const isDelivery = data.fulfillment_method === 'delivery';
+    // Mirrors CheckoutController::otpStore()'s (int) ceil($subtotal / 2) —
+    // display only, the server always recomputes this itself.
+    const depositPreview = Math.ceil(subtotal_centavos / 2);
 
     const submit = (e) => {
         e.preventDefault();
@@ -77,73 +108,129 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
                             onChange={onChange}
                         />
 
-                        {/* Philippine delivery address — every branch and
-                            every customer this shop has ever had is in the
-                            Philippines, so the form is shaped for that
-                            (barangay included) rather than a generic
-                            international one. Entirely optional: this shop
-                            is pickup-first, and a customer picking up at a
-                            branch has nothing to fill in here. */}
+                        {/* Fulfillment — decides both whether an address is
+                            needed and how payment works below (see
+                            CheckoutController::otpStore()). */}
                         <div className="border-t border-white/10 pt-6 light:border-ink-900/10">
                             <h2 className="font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65">
-                                Delivery address{' '}
-                                <span className="text-white/25 light:text-ink-900/40">(optional — leave blank for pickup)</span>
+                                How will you get this?
                             </h2>
-
-                            <div className="mt-4 space-y-4">
-                                <Field
-                                    id="address_line"
-                                    name="address_line"
-                                    label="House / unit / street"
-                                    placeholder="123 Rizal St."
-                                    value={data.address_line}
-                                    autoComplete="address-line1"
-                                    error={errors.address_line}
-                                    onChange={onChange}
+                            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                                <ToggleOption
+                                    selected={!isDelivery}
+                                    onClick={() => setData('fulfillment_method', 'pickup')}
+                                    title="Pickup"
+                                    description="Collect it at one of our branches."
                                 />
+                                <ToggleOption
+                                    selected={isDelivery}
+                                    onClick={() => setData('fulfillment_method', 'delivery')}
+                                    title="Delivery"
+                                    description="50% deposit now, rest in cash on delivery."
+                                />
+                            </div>
+                        </div>
 
-                                <div className="grid gap-4 sm:grid-cols-2">
+                        {isDelivery ? (
+                            /* Philippine delivery address — every branch and
+                               every customer this shop has ever had is in
+                               the Philippines, so the form is shaped for
+                               that (barangay included) rather than a
+                               generic international one. Required once
+                               delivery is chosen — see CheckoutRequest. */
+                            <div className="border-t border-white/10 pt-6 light:border-ink-900/10">
+                                <h2 className="font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65">
+                                    Delivery address
+                                </h2>
+                                <p className="mt-2 text-xs text-white/40 light:text-ink-900/55">
+                                    A 50% deposit of{' '}
+                                    <span className="text-volt-500 light:text-volt-800">
+                                        {formatCentavos(depositPreview)}
+                                    </span>{' '}
+                                    is paid now via GCash to secure your order — the
+                                    remaining {formatCentavos(subtotal_centavos - depositPreview)} is
+                                    paid in cash when it's delivered.
+                                </p>
+
+                                <div className="mt-4 space-y-4">
                                     <Field
-                                        id="barangay"
-                                        name="barangay"
-                                        label="Barangay"
-                                        value={data.barangay}
-                                        error={errors.barangay}
+                                        id="address_line"
+                                        name="address_line"
+                                        label="House / unit / street"
+                                        placeholder="123 Rizal St."
+                                        value={data.address_line}
+                                        autoComplete="address-line1"
+                                        required
+                                        error={errors.address_line}
                                         onChange={onChange}
                                     />
-                                    <Field
-                                        id="city"
-                                        name="city"
-                                        label="City / municipality"
-                                        value={data.city}
-                                        autoComplete="address-level2"
-                                        error={errors.city}
-                                        onChange={onChange}
-                                    />
+
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <Field
+                                            id="barangay"
+                                            name="barangay"
+                                            label="Barangay"
+                                            value={data.barangay}
+                                            required
+                                            error={errors.barangay}
+                                            onChange={onChange}
+                                        />
+                                        <Field
+                                            id="city"
+                                            name="city"
+                                            label="City / municipality"
+                                            value={data.city}
+                                            autoComplete="address-level2"
+                                            required
+                                            error={errors.city}
+                                            onChange={onChange}
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <Field
+                                            id="province"
+                                            name="province"
+                                            label="Province"
+                                            value={data.province}
+                                            autoComplete="address-level1"
+                                            required
+                                            error={errors.province}
+                                            onChange={onChange}
+                                        />
+                                        <Field
+                                            id="postal_code"
+                                            name="postal_code"
+                                            label="ZIP code"
+                                            value={data.postal_code}
+                                            autoComplete="postal-code"
+                                            error={errors.postal_code}
+                                            onChange={onChange}
+                                        />
+                                    </div>
                                 </div>
-
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    <Field
-                                        id="province"
-                                        name="province"
-                                        label="Province"
-                                        value={data.province}
-                                        autoComplete="address-level1"
-                                        error={errors.province}
-                                        onChange={onChange}
+                            </div>
+                        ) : (
+                            <div className="border-t border-white/10 pt-6 light:border-ink-900/10">
+                                <h2 className="font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65">
+                                    Payment
+                                </h2>
+                                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                                    <ToggleOption
+                                        selected={data.payment_method === 'gcash'}
+                                        onClick={() => setData('payment_method', 'gcash')}
+                                        title="Pay with GCash now"
+                                        description="Confirm payment on the next screen."
                                     />
-                                    <Field
-                                        id="postal_code"
-                                        name="postal_code"
-                                        label="ZIP code"
-                                        value={data.postal_code}
-                                        autoComplete="postal-code"
-                                        error={errors.postal_code}
-                                        onChange={onChange}
+                                    <ToggleOption
+                                        selected={data.payment_method === 'cash'}
+                                        onClick={() => setData('payment_method', 'cash')}
+                                        title="Pay cash at pickup"
+                                        description="No online payment needed."
                                     />
                                 </div>
                             </div>
-                        </div>
+                        )}
 
                         <div>
                             <label
@@ -158,7 +245,7 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
                                 rows={3}
                                 value={data.notes}
                                 onChange={onChange}
-                                placeholder="Pickup or delivery? Anything the shop should know."
+                                placeholder="Anything the shop should know."
                                 className="block w-full rounded-none border-2 border-white/15 bg-ink-800 px-4 py-3 text-white placeholder-white/25 transition-colors focus:border-volt-500 focus:outline-none focus:ring-0 light:border-ink-900/20 light:bg-white light:text-ink-900 light:placeholder-ink-900/35 light:focus:border-volt-800"
                             />
                             {errors.notes && (
@@ -174,8 +261,8 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
 
                         <p className="text-xs leading-relaxed text-white/30 light:text-ink-900/45">
                             Placing the order does not take payment or reserve
-                            stock. You'll confirm payment on the next screen,
-                            and stock is only deducted then.
+                            stock — stock is only deducted once payment (or
+                            the deposit, for delivery) actually goes through.
                         </p>
                     </form>
 

@@ -33,6 +33,18 @@ export default function Show({ order, can }) {
         );
     };
 
+    const confirmCash = () => {
+        router.patch(
+            route('admin.orders.cash.confirm', order.order_number),
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setProcessing(true),
+                onFinish: () => setProcessing(false),
+            }
+        );
+    };
+
     return (
         <AdminLayout header={`Order ${order.order_number}`}>
             <Head title={`Admin · ${order.order_number}`} />
@@ -180,6 +192,17 @@ export default function Show({ order, can }) {
 
                     <Card className="p-6">
                         <h2 className="text-sm font-semibold text-white admin-light:text-ink-900">Payment</h2>
+                        <p className="mt-2 text-sm capitalize text-white/60 admin-light:text-ink-900/70">
+                            {order.fulfillment_method}
+                            {' · '}
+                            {order.payment_method === 'gcash_deposit' ? '50% GCash deposit' : order.payment_method}
+                        </p>
+                        {order.deposit_formatted && (
+                            <p className="mt-1 text-xs text-white/40 admin-light:text-ink-900/50">
+                                Deposit {order.deposit_formatted} · Balance {order.balance_formatted}
+                                {order.status === 'deposit_paid' ? ' (due in cash on delivery)' : ''}
+                            </p>
+                        )}
                         <p className="mt-2 text-sm text-white/50 admin-light:text-ink-900/60">
                             {order.is_paid
                                 ? `Paid ${order.paid_at}`
@@ -207,9 +230,20 @@ export default function Show({ order, can }) {
                         )}
                     </Card>
 
-                    {(can.fulfil || can.cancel) && (
+                    {(can.fulfil || can.cancel || can.confirm_cash) && (
                         <Card className="p-6">
                             <h2 className="text-sm font-semibold text-white admin-light:text-ink-900">Actions</h2>
+
+                            {can.confirm_cash && (
+                                <PrimaryButton
+                                    className="mt-3 w-full justify-center"
+                                    disabled={processing}
+                                    onClick={confirmCash}
+                                    icon={CheckCircleIcon}
+                                >
+                                    Confirm cash received
+                                </PrimaryButton>
+                            )}
 
                             {can.fulfil && (
                                 <PrimaryButton
@@ -220,6 +254,13 @@ export default function Show({ order, can }) {
                                 >
                                     Mark fulfilled
                                 </PrimaryButton>
+                            )}
+
+                            {can.fulfil && order.status === 'deposit_paid' && (
+                                <p className="mt-2 text-xs text-white/25 admin-light:text-ink-900/35">
+                                    Confirms the {order.balance_formatted} cash
+                                    balance was collected on delivery.
+                                </p>
                             )}
 
                             {can.cancel && (

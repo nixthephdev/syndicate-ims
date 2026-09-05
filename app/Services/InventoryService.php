@@ -23,12 +23,18 @@ class InventoryService
      * to prevent.
      *
      * @param  array<string, string|null>  $paymongoRefs  Optional gateway ids.
+     * @param  string  $targetStatus  Order::STATUS_PAID by default. A
+     *   delivery order's 50% deposit also commits stock — the whole point
+     *   of a deposit is that it reserves the item — but must land on
+     *   Order::STATUS_DEPOSIT_PAID instead, since the balance is still due
+     *   in cash on delivery. Nothing else about the lock/idempotency/decrement
+     *   logic below changes; only which status it lands on does.
      *
      * @throws InsufficientStockException  Rolls the whole transaction back.
      */
-    public function commitForPaidOrder(Order $order, array $paymongoRefs = []): Order
+    public function commitForPaidOrder(Order $order, array $paymongoRefs = [], string $targetStatus = Order::STATUS_PAID): Order
     {
-        return DB::transaction(function () use ($order, $paymongoRefs) {
+        return DB::transaction(function () use ($order, $paymongoRefs, $targetStatus) {
             // Re-read under a lock. Guards against two PayMongo webhook
             // deliveries for the same order racing each other.
             /** @var Order $order */
@@ -53,7 +59,7 @@ class InventoryService
                 'paymongo_payment_id' => $paymongoRefs['payment_id'] ?? null,
             ]));
 
-            $order->status = Order::STATUS_PAID;
+            $order->status = $targetStatus;
             $order->paid_at = now();
             $order->save();
 

@@ -58,14 +58,14 @@ class CheckoutTest extends TestCase
         ]);
     }
 
-    private function details(): array
+    private function details(array $overrides = []): array
     {
-        return [
+        return array_merge([
             'customer_name' => 'Juan Dela Cruz',
             'customer_email' => 'juan@example.test',
             'customer_phone' => '0917 123 4567',
             'notes' => 'Pickup at the shop.',
-        ];
+        ], $overrides);
     }
 
     /** Posts to checkout.store, completes the OTP step, returns the order. */
@@ -216,6 +216,84 @@ class CheckoutTest extends TestCase
             ->assertSessionHasErrors('cart');
 
         $this->assertSame(0, Order::count());
+    }
+
+    public function test_a_plain_checkout_defaults_to_pickup_and_gcash(): void
+    {
+        $variant = $this->variantWithStock(10);
+        $this->actingAs(User::factory()->create());
+        $this->fill($variant, 1);
+
+        $order = $this->checkout();
+
+        $this->assertSame('pickup', $order->fulfillment_method);
+        $this->assertSame('gcash', $order->payment_method);
+        $this->assertNull($order->deposit_centavos);
+    }
+
+    public function test_pickup_can_be_paid_by_cash_instead_of_gcash(): void
+    {
+        $variant = $this->variantWithStock(10);
+        $this->actingAs(User::factory()->create());
+        $this->fill($variant, 1);
+
+        $order = $this->checkout($this->details(['payment_method' => 'cash']));
+
+        $this->assertSame('cash', $order->payment_method);
+        $this->assertSame(Order::STATUS_AWAITING_PAYMENT, $order->status);
+    }
+
+    public function test_delivery_requires_an_address(): void
+    {
+        $variant = $this->variantWithStock(10);
+        $this->actingAs(User::factory()->create());
+        $this->fill($variant, 1);
+
+        Mail::fake();
+        $this->post(route('checkout.store'), $this->details(['fulfillment_method' => 'delivery']))
+            ->assertSessionHasErrors(['address_line', 'barangay', 'city', 'province']);
+
+        $this->assertSame(0, Order::count());
+    }
+
+    /** ceil(), not round() — deposit + balance must always sum back to the total exactly. */
+    public function test_delivery_computes_a_50_percent_deposit_rounded_up(): void
+    {
+        $variant = $this->variantWithStock(10, 50001); // odd total centavos
+        $this->actingAs(User::factory()->create());
+        $this->fill($variant, 1);
+
+        $order = $this->checkout($this->details([
+            'fulfillment_method' => 'delivery',
+            'address_line' => '123 Rizal St.',
+            'barangay' => 'Tagas',
+            'city' => 'Daraga',
+            'province' => 'Albay',
+        ]));
+
+        $this->assertSame(50001, $order->total_centavos);
+        $this->assertSame(25001, $order->deposit_centavos);
+        $this->assertSame(25000, $order->balanceCentavos());
+        $this->assertSame($order->deposit_centavos + $order->balanceCentavos(), $order->total_centavos);
+    }
+
+    /** Delivery is always the 50% deposit flow — a submitted payment_method must never override that. */
+    public function test_delivery_forces_gcash_deposit_regardless_of_submitted_payment_method(): void
+    {
+        $variant = $this->variantWithStock(10);
+        $this->actingAs(User::factory()->create());
+        $this->fill($variant, 1);
+
+        $order = $this->checkout($this->details([
+            'fulfillment_method' => 'delivery',
+            'payment_method' => 'cash',
+            'address_line' => '123 Rizal St.',
+            'barangay' => 'Tagas',
+            'city' => 'Daraga',
+            'province' => 'Albay',
+        ]));
+
+        $this->assertSame('gcash_deposit', $order->payment_method);
     }
 
     public function test_the_otp_step_re_checks_stock_too(): void

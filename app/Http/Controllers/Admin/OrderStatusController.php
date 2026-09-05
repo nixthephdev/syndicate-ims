@@ -12,14 +12,19 @@ use Illuminate\Http\Request;
  *
  * Deliberately narrow. Two moves are allowed:
  *
- *   paid -> fulfilled          (handed to the customer; stock already gone)
+ *   paid -> fulfilled              (handed to the customer; stock already gone)
+ *   deposit_paid -> fulfilled      (delivered; marking this also implies the
+ *                                   cash balance was collected — one action,
+ *                                   not two, since there's no real courier
+ *                                   system to model separately)
  *   awaiting_payment -> cancelled  (nothing was ever committed)
  *
- * NOT allowed: cancelling a PAID order. That would need the stock putting
- * back and the money refunding, and neither exists — InventoryService has no
- * inverse, on purpose, because "give the stock back" is a different operation
- * from "never took it" and needs its own audit trail. Build a proper
- * refund/restock path before adding it; do not widen the match below.
+ * NOT allowed: cancelling a PAID or DEPOSIT_PAID order. Both already have
+ * stock committed, and that would need the stock putting back and the money
+ * refunding — neither exists. InventoryService has no inverse, on purpose,
+ * because "give the stock back" is a different operation from "never took
+ * it" and needs its own audit trail. Build a proper refund/restock path
+ * before adding it; do not widen the match below.
  */
 class OrderStatusController extends Controller
 {
@@ -33,7 +38,7 @@ class OrderStatusController extends Controller
 
         $target = $validated['status'];
 
-        $allowed = ($target === Order::STATUS_FULFILLED && $order->status === Order::STATUS_PAID)
+        $allowed = ($target === Order::STATUS_FULFILLED && in_array($order->status, [Order::STATUS_PAID, Order::STATUS_DEPOSIT_PAID], true))
             || ($target === Order::STATUS_CANCELLED && $order->status === Order::STATUS_AWAITING_PAYMENT);
 
         if (! $allowed) {

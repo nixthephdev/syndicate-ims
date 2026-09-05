@@ -137,14 +137,37 @@ class CheckoutController extends Controller
         $order = DB::transaction(function () use ($data, $lines, $request) {
             $subtotal = array_sum(array_column($lines, 'line_total_centavos'));
 
+            // Both default rather than being required — see CheckoutRequest's
+            // docblock — so every caller that predates this split (existing
+            // tests included) still produces a plain pickup+gcash order.
+            $fulfillment = $data['fulfillment_method'] ?? Order::FULFILLMENT_PICKUP;
+            $isDelivery = $fulfillment === Order::FULFILLMENT_DELIVERY;
+
+            // Delivery is always the 50% deposit flow — never trust the
+            // client to have sent (or not sent) a payment_method for this;
+            // pickup keeps whatever the customer actually chose (default
+            // gcash for the same backward-compatibility reason as above).
+            $paymentMethod = $isDelivery
+                ? Order::PAYMENT_METHOD_GCASH_DEPOSIT
+                : ($data['payment_method'] ?? Order::PAYMENT_METHOD_GCASH);
+
+            // ceil(), not round() or intdiv(): deposit + balance must always
+            // equal the total exactly, and rounding the deposit UP is what
+            // guarantees that (any leftover centavo lands in the deposit,
+            // never silently dropped from either half).
+            $deposit = $isDelivery ? (int) ceil($subtotal / 2) : null;
+
             $order = Order::create([
                 'order_number' => Order::generateOrderNumber(),
                 'user_id' => $request->user()->id,
                 'status' => Order::STATUS_AWAITING_PAYMENT,
+                'fulfillment_method' => $fulfillment,
+                'payment_method' => $paymentMethod,
                 'subtotal_centavos' => $subtotal,
                 // No shipping or tax yet — when either lands, total stops
                 // equalling subtotal and this is the line that changes.
                 'total_centavos' => $subtotal,
+                'deposit_centavos' => $deposit,
                 'customer_name' => $data['customer_name'],
                 'customer_email' => $data['customer_email'],
                 'customer_phone' => $data['customer_phone'],

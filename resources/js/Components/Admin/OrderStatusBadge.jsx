@@ -11,6 +11,9 @@ const STYLES = {
         dot: 'bg-white/40 admin-light:bg-ink-900/40',
     },
     awaiting_payment: { pill: 'bg-amber-500/10 text-amber-400', dot: 'bg-amber-400' },
+    // A 50% delivery deposit — partially settled, distinct from both
+    // "nothing paid yet" (amber) and "fully paid" (blue).
+    deposit_paid: { pill: 'bg-cyan-500/10 text-cyan-400', dot: 'bg-cyan-400' },
     paid: { pill: 'bg-blue-500/10 text-blue-400', dot: 'bg-blue-400' },
     fulfilled: { pill: 'bg-green-500/10 text-green-400', dot: 'bg-green-400' },
     cancelled: {

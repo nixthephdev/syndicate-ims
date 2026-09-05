@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\OrderCashPaymentController as AdminOrderCashPaymentController;
 use App\Http\Controllers\Admin\OrderStatusController as AdminOrderStatusController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductVariantController as AdminProductVariantController;
@@ -167,11 +168,15 @@ Route::middleware(['auth', 'verified', 'role:staff'])
             ->only(['index', 'edit', 'update']);
 
         // Orders are read-only here apart from one narrow status transition —
-        // see Admin\OrderStatusController. Staff never write stock directly.
+        // see Admin\OrderStatusController. Staff never write stock directly,
+        // except through the one cash-confirmation action below, which goes
+        // through the same InventoryService the PayMongo webhook uses.
         Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
         Route::get('orders/{order_number}', [AdminOrderController::class, 'show'])->name('orders.show');
         Route::patch('orders/{order_number}/status', [AdminOrderStatusController::class, 'update'])
             ->name('orders.status.update');
+        Route::patch('orders/{order_number}/confirm-cash', [AdminOrderCashPaymentController::class, 'confirm'])
+            ->name('orders.cash.confirm');
 
         Route::post('products/{product}/variants', [AdminProductVariantController::class, 'store'])
             ->name('products.variants.store');

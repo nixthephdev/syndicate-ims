@@ -36,9 +36,26 @@ class PayMongoController extends Controller
             ]);
         }
 
+        // A cash-pickup order has no online leg at all — staff confirm it
+        // directly in the admin panel (Admin\OrderCashPaymentController).
+        // Defense in depth: the storefront never renders a GCash button for
+        // one of these, but nothing stops a forged request to this route.
+        if ($order->payment_method === Order::PAYMENT_METHOD_CASH) {
+            return back()->withErrors([
+                'payment' => 'This order is set to pay by cash, not GCash.',
+            ]);
+        }
+
+        // A delivery order only ever charges the 50% deposit here — the
+        // remaining balance is cash, collected on delivery, never a second
+        // online charge.
+        $amount = $order->payment_method === Order::PAYMENT_METHOD_GCASH_DEPOSIT
+            ? $order->deposit_centavos
+            : $order->total_centavos;
+
         try {
             $intent = $paymongo->createPaymentIntent(
-                $order->total_centavos,
+                $amount,
                 'Syndicate IMS order '.$order->order_number
             );
 

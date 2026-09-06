@@ -2,9 +2,42 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
 import { statusChipClasses, formatStatusLabel } from '@/utils/orderStatus';
 
-export default function Account({ recentOrders, stats }) {
+/**
+ * Copy for each ID verification state. This card is the ONLY way a customer
+ * reaches /verify-id — nothing blocks them, so nothing else pushes them
+ * there. Worded as an invitation rather than a demand for the same reason.
+ */
+const ID_STATES = {
+    none: {
+        tone: 'border-white/10 light:border-ink-900/10',
+        title: 'Verify your ID',
+        body: 'Optional, and it helps us get your orders out faster. One photo of any government ID — only our staff ever see it.',
+        cta: 'Verify my ID',
+    },
+    pending: {
+        tone: 'border-amber-400/50 bg-amber-400/[0.05]',
+        title: 'ID under review',
+        body: 'We have your ID and someone will check it shortly. Nothing for you to do.',
+        cta: 'View what you sent',
+    },
+    approved: {
+        tone: 'border-volt-500/50 bg-volt-500/[0.05]',
+        title: 'ID verified',
+        body: null,
+        cta: null,
+    },
+    rejected: {
+        tone: 'border-red-500/50 bg-red-500/[0.05]',
+        title: "We couldn't accept that ID",
+        body: null,
+        cta: 'Upload another photo',
+    },
+};
+
+export default function Account({ recentOrders, stats, idVerification }) {
     const { auth } = usePage().props;
     const firstName = auth.user.name.split(' ')[0];
+    const idState = ID_STATES[idVerification?.status] ?? ID_STATES.none;
 
     return (
         <StorefrontLayout>
@@ -36,6 +69,48 @@ export default function Account({ recentOrders, stats }) {
                         <p className="mt-2 font-display text-4xl text-volt-500 light:text-volt-800">
                             {stats.spent_formatted}
                         </p>
+                    </div>
+                </div>
+
+                {/* The customer's only route into ID verification — see
+                    AccountController. It gates nothing, so it invites rather
+                    than demands, and says up front who sees the photo. */}
+                <div className={`mt-4 border-2 p-6 ${idState.tone}`}>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0">
+                            <p className="font-display text-lg uppercase tracking-wide text-white light:text-ink-900">
+                                {idState.title}
+                            </p>
+
+                            {idState.body && (
+                                <p className="mt-2 max-w-prose text-sm leading-relaxed text-white/50 light:text-ink-900/65">
+                                    {idState.body}
+                                </p>
+                            )}
+
+                            {idVerification?.status === 'approved' && (
+                                <p className="mt-2 text-sm text-white/50 light:text-ink-900/65">
+                                    Checked{' '}
+                                    {idVerification.reviewed_at ?? 'by our team'}. Nothing
+                                    else needed.
+                                </p>
+                            )}
+
+                            {idVerification?.status === 'rejected' && (
+                                <p className="mt-2 max-w-prose text-sm leading-relaxed text-white/50 light:text-ink-900/65">
+                                    {idVerification.rejection_reason}
+                                </p>
+                            )}
+                        </div>
+
+                        {idState.cta && (
+                            <Link
+                                href={route('verify-id.create')}
+                                className="shrink-0 border-2 border-white/20 px-5 py-2.5 font-display text-xs uppercase tracking-[0.2em] text-white transition-colors hover:border-volt-500 hover:text-volt-500 light:border-ink-900/20 light:text-ink-900 light:hover:border-volt-800 light:hover:text-volt-800"
+                            >
+                                {idState.cta}
+                            </Link>
+                        )}
                     </div>
                 </div>
 

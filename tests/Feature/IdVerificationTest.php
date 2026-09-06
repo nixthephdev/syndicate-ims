@@ -128,6 +128,37 @@ class IdVerificationTest extends TestCase
         $this->assertSame(User::ID_STATUS_APPROVED, $user->fresh()->id_verification_status);
     }
 
+    /**
+     * The account page is the customer's ONLY route into verification —
+     * nothing blocks them, so nothing else pushes them there. When the
+     * checkout gate was removed, it took the page's last entry point with
+     * it and the feature became reachable only by typing the URL.
+     */
+    public function test_the_account_page_offers_a_way_in(): void
+    {
+        $user = User::factory()->unverifiedId()->create();
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Storefront/Account')
+                ->where('idVerification.status', User::ID_STATUS_NONE)
+            );
+    }
+
+    public function test_the_account_page_shows_a_rejection_reason(): void
+    {
+        $user = User::factory()->rejectedId()->create();
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertInertia(fn ($page) => $page
+                ->where('idVerification.status', User::ID_STATUS_REJECTED)
+                ->where('idVerification.rejection_reason', 'The photo is too blurry to read.')
+            );
+    }
+
     // ----------------------------------------------------------- photo access
 
     public function test_only_the_owner_or_staff_can_view_a_photo(): void

@@ -56,6 +56,16 @@ class AccountController extends Controller
                     (int) Order::query()->where('user_id', $user->id)->paid()->sum('total_centavos')
                 ),
             ],
+            // ID verification is entirely opt-in — it blocks nothing. This is
+            // the customer's way IN to it. Without a card here the page has
+            // no entry point at all and is reachable only by typing the URL,
+            // which is exactly what happened when the checkout gate (its only
+            // previous route) was removed.
+            'idVerification' => [
+                'status' => $user->id_verification_status,
+                'rejection_reason' => $user->id_rejection_reason,
+                'reviewed_at' => $user->id_reviewed_at?->format('d M Y'),
+            ],
         ]);
     }
 }

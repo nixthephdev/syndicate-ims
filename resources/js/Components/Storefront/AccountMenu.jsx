@@ -81,6 +81,19 @@ export default function AccountMenu({ user }) {
                                 </Link>
                             )}
                         </Menu.Item>
+                        {/* Verification blocks nothing, so there is no prompt
+                            anywhere pushing customers to it — without this
+                            and the Account page card, the page has no route
+                            in at all. Staff are shop accounts, not buyers. */}
+                        {!isStaff && (
+                            <Menu.Item>
+                                {({ active }) => (
+                                    <Link href={route('verify-id.create')} className={itemClasses(active)}>
+                                        Verify ID
+                                    </Link>
+                                )}
+                            </Menu.Item>
+                        )}
                         <Menu.Item>
                             {({ active }) => (
                                 <Link href={route('profile.edit')} className={itemClasses(active)}>

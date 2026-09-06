@@ -94,8 +94,13 @@ obviously fake (`@example.com` addresses) — say so if anyone asks to see
 The app emails a 6-digit code for **registration, password reset and
 checkout**. If mail doesn't work, nobody can sign up or place an order.
 
-**Do not copy the developer's personal Gmail credentials onto this laptop.**
-Pick one:
+> **If the handover package already contained a `.env`** (the developer ran
+> `package-for-handover.ps1 -IncludePrivateData`), mail is already set up and
+> you can skip this step — just check `DB_DATABASE` matches the database you
+> made in step 4. Steps 5's `key:generate` is also unnecessary; that `.env`
+> already has a key.
+
+Otherwise, pick one:
 
 **Option A — the shop's own Gmail (best).** Sign in to the shop's account,
 turn on 2-Step Verification, create an *App Password* (Google account →

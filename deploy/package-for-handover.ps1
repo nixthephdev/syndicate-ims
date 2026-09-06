@@ -33,7 +33,11 @@ param(
     [string]$Destination = "$env:USERPROFILE\Desktop\syndicate-ims-handover",
 
     # Strip the .env and everything under storage/app. Off by default.
-    [switch]$Clean
+    [switch]$Clean,
+
+    # Skip the stale-asset prompt. mtime is only a hint -- a git checkout
+    # rewrites timestamps, so a perfectly current build can look stale.
+    [switch]$Force
 )
 
 # Everything below was written the other way round; one flip keeps it honest.
@@ -58,15 +62,38 @@ be fixed there. Build it here first:
 }
 
 # A stale build is worse than an obvious one: it silently ships old JS.
+#
+# Only resources/js and resources/css feed Vite. Watching all of resources/
+# gives false positives on Blade templates, which are server-rendered and
+# never compiled -- editing an email template flagged a "stale build" and
+# blocked packaging for no reason.
 $manifest = Get-Item (Join-Path $root 'public\build\manifest.json')
-$newestSource = Get-ChildItem (Join-Path $root 'resources') -Recurse -File |
+
+$buildInputs = @('resources\js', 'resources\css') |
+    ForEach-Object { Join-Path $root $_ } |
+    Where-Object { Test-Path $_ }
+
+$newestSource = Get-ChildItem $buildInputs -Recurse -File -ErrorAction SilentlyContinue |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
 if ($newestSource -and $newestSource.LastWriteTime -gt $manifest.LastWriteTime) {
-    Warn "resources/ has changed since the last build ($($newestSource.Name))."
-    Warn 'Run  npm.cmd run build  first, or the handover ships stale assets.'
-    $answer = Read-Host '  Continue anyway? (y/N)'
-    if ($answer -ne 'y') { exit 1 }
+    Warn "$($newestSource.Name) is newer than the last build."
+    Warn 'The target machine has no Node, so stale assets cannot be fixed there.'
+
+    # mtime is a rough signal: `git checkout` rewrites timestamps, so a
+    # branch switch can flag a build that is actually current. Hence a
+    # prompt rather than a hard stop -- and -Force for when you already know.
+    if (-not $Force) {
+        try {
+            $answer = Read-Host '  Continue anyway? (y/N)'
+        } catch {
+            # Non-interactive host: refuse rather than silently ship stale
+            # assets, and say exactly how to get past it.
+            Die "Run  npm.cmd run build  first, or re-run this with -Force."
+        }
+
+        if ($answer -ne 'y') { exit 1 }
+    }
 }
 
 Step "Preparing $Destination"

@@ -106,11 +106,26 @@ New-Item -ItemType Directory -Path $Destination -Force | Out-Null
 Step 'Copying'
 
 # Everything the app needs to run, and nothing that identifies anyone.
+#
+# The frontend build config (package.json, vite/tailwind/postcss) ships even
+# though public/build is prebuilt: without it the recipient can NEVER rebuild
+# assets, which turns any future change into "send another 100 MB". They only
+# need Node installed to use it, and an earlier version of this list omitted
+# them, which quietly made the handover a dead end.
+#
+# Deliberately NOT included: reference/ (the group's original Three.js demo,
+# whose .glb files are gitignored anyway, so it would arrive broken) and
+# tools/ (the lookbook image pipeline -- a developer tool, not part of the
+# running app).
 $include = @(
     'app', 'bootstrap', 'config', 'database', 'lang', 'public', 'resources',
     'routes', 'storage', 'vendor', 'tests',
     'artisan', 'composer.json', 'composer.lock', 'phpunit.xml',
-    '.env.example', 'SETUP.md', 'start-syndicate.bat', 'CLAUDE.md'
+    'package.json', 'package-lock.json',
+    'vite.config.js', 'tailwind.config.js', 'postcss.config.js', 'jsconfig.json',
+    '.editorconfig', '.gitignore',
+    '.env.example', 'SETUP.md', 'README.md', 'DECISIONS.md', 'CLAUDE.md',
+    'start-syndicate.bat'
 )
 
 if ($IncludePrivateData) { $include += '.env' }

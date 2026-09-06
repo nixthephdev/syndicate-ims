@@ -93,8 +93,8 @@ College capstone (STI College Legazpi, BSIT). I'm the freelance full-stack dev b
 |---|---|
 | PHP | **8.2.12** on this machine (`composer.json` requires `^8.0.2`) |
 | Laravel | 9.52.22 |
-| Node | 22.16.0 |
-| MySQL | via XAMPP, `root`, no password |
+| Node | **24.19.0** (build tool only — never runs the app; see the note below) |
+| Database | **MariaDB 10.4.32** via XAMPP (`root`, no password) — XAMPP labels it "MySQL", but it is MariaDB |
 | DB name | `syndicate_ims` |
 | OS | Windows 10 + XAMPP |
 
@@ -231,7 +231,7 @@ Non-obvious constraints, all learned the hard way:
 | `docs/client/` | The group's capstone paper + client documents. | no |
 
 ## Housekeeping owed
-- The group must fix their paper: Technical Background says Node.js, Table 6.0 says PHP. It's Laravel/PHP. The panel compares doc against live system.
+- **The group must fix their paper: Technical Background says Node.js, Table 6.0 says PHP.** Table 6.0 is the correct one. The resolution to give them, since it is a real distinction and not just a typo: **Node never runs this application.** It is a build-time tool only — Vite uses it to compile React and Tailwind into plain JS/CSS, and after that nothing touches it. The running app is PHP/Laravel. The proof is the handover install itself: the client's laptop serves the whole site with **only XAMPP**, no Node process alive. So Node belongs in the paper under development tools alongside Composer and npm, never in the runtime stack. Same pass should fix **"MySQL" → "MariaDB 10.4 (MySQL-compatible)"** — XAMPP ships MariaDB and merely labels the button MySQL. The panel compares doc against live system.
 - **Back up `reference/skate-demo/public/*.glb` outside the project.** Git-ignored — GitHub is not protecting them.
 
 ## Deployment — NONE. This project runs locally only.

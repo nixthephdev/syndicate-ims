@@ -149,19 +149,25 @@ class InventoryServiceTest extends TestCase
         }
     }
 
-    public function test_it_records_paymongo_references(): void
+    /**
+     * A delivery order's 50% deposit commits stock like a full payment does
+     * — reserving the item is the point of the deposit — but must land on
+     * deposit_paid, since the balance is still due in cash on arrival.
+     */
+    public function test_a_deposit_commits_stock_but_lands_on_deposit_paid(): void
     {
         $variant = ProductVariant::factory()->withStock(5)->create();
-        $order = Order::factory()->awaitingPayment()->create();
-        OrderItem::factory()->for_($variant, 1)->create(['order_id' => $order->id]);
-
-        $this->inventory->commitForPaidOrder($order, [
-            'payment_intent_id' => 'pi_test_123',
-            'payment_id' => 'pay_test_456',
+        $order = Order::factory()->awaitingPayment()->create([
+            'fulfillment_method' => Order::FULFILLMENT_DELIVERY,
+            'deposit_centavos' => 25000,
         ]);
+        OrderItem::factory()->for_($variant, 2)->create(['order_id' => $order->id]);
+
+        $this->inventory->commitForPaidOrder($order, $order->paidStatusForPaymentMethod());
 
         $order->refresh();
-        $this->assertSame('pi_test_123', $order->paymongo_payment_intent_id);
-        $this->assertSame('pay_test_456', $order->paymongo_payment_id);
+        $this->assertSame(Order::STATUS_DEPOSIT_PAID, $order->status);
+        $this->assertNotNull($order->paid_at);
+        $this->assertSame(3, $variant->fresh()->stock);
     }
 }

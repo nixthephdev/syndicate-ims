@@ -22,7 +22,6 @@ class InventoryService
      * never deducted — silent oversell, and exactly the bug objective 3 exists
      * to prevent.
      *
-     * @param  array<string, string|null>  $paymongoRefs  Optional gateway ids.
      * @param  string  $targetStatus  Order::STATUS_PAID by default. A
      *   delivery order's 50% deposit also commits stock — the whole point
      *   of a deposit is that it reserves the item — but must land on
@@ -32,19 +31,19 @@ class InventoryService
      *
      * @throws InsufficientStockException  Rolls the whole transaction back.
      */
-    public function commitForPaidOrder(Order $order, array $paymongoRefs = [], string $targetStatus = Order::STATUS_PAID): Order
+    public function commitForPaidOrder(Order $order, string $targetStatus = Order::STATUS_PAID): Order
     {
-        return DB::transaction(function () use ($order, $paymongoRefs, $targetStatus) {
-            // Re-read under a lock. Guards against two PayMongo webhook
-            // deliveries for the same order racing each other.
+        return DB::transaction(function () use ($order, $targetStatus) {
+            // Re-read under a lock. Guards against two staff confirming the
+            // same order's payment at the same moment.
             /** @var Order $order */
             $order = Order::query()
                 ->whereKey($order->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            // Idempotency: PayMongo can deliver the same webhook more than
-            // once. A second delivery must be a no-op, not a second decrement.
+            // Idempotency: a double-click, or two people working the queue,
+            // must be a no-op rather than a second decrement.
             if ($order->stockIsCommitted()) {
                 return $order;
             }
@@ -52,12 +51,6 @@ class InventoryService
             foreach ($this->requiredQuantities($order) as $row) {
                 $this->decrementOne($row['type'], $row['id'], $row['quantity']);
             }
-
-            $order->fill(array_filter([
-                'paymongo_payment_intent_id' => $paymongoRefs['payment_intent_id'] ?? null,
-                'paymongo_source_id' => $paymongoRefs['source_id'] ?? null,
-                'paymongo_payment_id' => $paymongoRefs['payment_id'] ?? null,
-            ]));
 
             $order->status = $targetStatus;
             $order->paid_at = now();

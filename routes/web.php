@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
-use App\Http\Controllers\Admin\OrderCashPaymentController as AdminOrderCashPaymentController;
+use App\Http\Controllers\Admin\OrderPaymentController as AdminOrderPaymentController;
 use App\Http\Controllers\Admin\OrderFulfillmentController as AdminOrderFulfillmentController;
 use App\Http\Controllers\Admin\OrderStatusController as AdminOrderStatusController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
@@ -19,10 +19,8 @@ use App\Http\Controllers\Shop\CustomizeController;
 use App\Http\Controllers\Shop\IdVerificationController;
 use App\Http\Controllers\Shop\OrderController as ShopOrderController;
 use App\Http\Controllers\Shop\PartController;
-use App\Http\Controllers\Shop\PaymentController;
-use App\Http\Controllers\Shop\PayMongoController;
+use App\Http\Controllers\Shop\PaymentProofController;
 use App\Http\Controllers\Shop\ProductController as ShopProductController;
-use App\Http\Controllers\Webhooks\PayMongoWebhookController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -116,31 +114,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/orders/{order_number}/cancel', [ShopOrderController::class, 'cancel'])->name('orders.cancel');
     Route::patch('/orders/{order_number}/address', [ShopOrderController::class, 'updateAddress'])->name('orders.address.update');
 
-    // TEMPORARY stand-in — 404s outside local/testing. See PaymentController.
-    Route::post('/orders/{order_number}/confirm-payment', [PaymentController::class, 'confirm'])
-        ->name('payment.confirm');
-
-    // The real path — reachable everywhere, marks nothing paid itself. Only
-    // gets the customer to PayMongo's checkout page. See the docblock on
-    // PayMongoController for what confirms a payment afterwards.
-    Route::post('/orders/{order_number}/pay', [PayMongoController::class, 'create'])
-        ->name('payment.paymongo.create');
-
-    // Where PayMongo returns the customer after the GCash page. A GET,
-    // because PayMongo navigates the browser here — it reconciles against
-    // PayMongo's API and never trusts the query string. Needed because the
-    // webhook below cannot reach an app PayMongo can't route to (a local
-    // `artisan serve`, most obviously).
-    Route::get('/orders/{order_number}/payment/return', [PayMongoController::class, 'returnFromCheckout'])
-        ->name('payment.paymongo.return');
+    // The customer uploads their GCash / bank transfer receipt here. It
+    // marks NOTHING paid — staff confirm it against the shop's own account
+    // in the admin panel, which is the only thing that moves stock.
+    Route::post('/orders/{order_number}/payment-proof', [PaymentProofController::class, 'store'])
+        ->name('payment.proof.store');
+    Route::get('/orders/{order_number}/payment-proof', [PaymentProofController::class, 'show'])
+        ->name('payment.proof.show');
 });
-
-// PayMongo calls this directly — no session, no CSRF token, no auth
-// middleware. Its own signature verification (PayMongoWebhookVerifier)
-// stands in for all three. See VerifyCsrfToken's $except for the CSRF side
-// of this and PayMongoWebhookController's docblock for why.
-Route::post('/webhooks/paymongo', [PayMongoWebhookController::class, 'handle'])
-    ->name('webhooks.paymongo');
 
 // No SSH on the target host = no way to run `php artisan migrate` there
 // directly. Token-gated (see DeployController), not auth-gated — 404s
@@ -190,13 +171,13 @@ Route::middleware(['auth', 'verified', 'role:staff'])
         // Orders are read-only here apart from one narrow status transition —
         // see Admin\OrderStatusController. Staff never write stock directly,
         // except through the one cash-confirmation action below, which goes
-        // through the same InventoryService the PayMongo webhook uses.
+        // through the same InventoryService every confirmed payment uses.
         Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
         Route::get('orders/{order_number}', [AdminOrderController::class, 'show'])->name('orders.show');
         Route::patch('orders/{order_number}/status', [AdminOrderStatusController::class, 'update'])
             ->name('orders.status.update');
-        Route::patch('orders/{order_number}/confirm-cash', [AdminOrderCashPaymentController::class, 'confirm'])
-            ->name('orders.cash.confirm');
+        Route::patch('orders/{order_number}/confirm-payment', [AdminOrderPaymentController::class, 'confirm'])
+            ->name('orders.payment.confirm');
         // Where the order physically is — a different column from status,
         // and a different controller. See Admin\OrderFulfillmentController.
         Route::patch('orders/{order_number}/fulfillment', [AdminOrderFulfillmentController::class, 'update'])

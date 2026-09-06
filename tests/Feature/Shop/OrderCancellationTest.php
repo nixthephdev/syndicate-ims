@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\CompletesCheckoutOtp;
+use Tests\Concerns\ConfirmsPayment;
 use Tests\TestCase;
 
 /**
@@ -20,6 +21,7 @@ use Tests\TestCase;
 class OrderCancellationTest extends TestCase
 {
     use CompletesCheckoutOtp;
+    use ConfirmsPayment;
     use RefreshDatabase;
 
     private function orderAwaitingPayment(User $user, int $stock = 10): Order
@@ -98,7 +100,7 @@ class OrderCancellationTest extends TestCase
         $order = $this->orderAwaitingPayment($user);
 
         $this->actingAs($user);
-        $this->post(route('payment.confirm', $order->order_number));
+        $this->markPaid($order);
         $this->assertSame(Order::STATUS_PAID, $order->fresh()->status);
 
         $this->post(route('orders.cancel', $order->order_number))

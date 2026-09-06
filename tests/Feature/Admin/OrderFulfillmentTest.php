@@ -80,7 +80,7 @@ class OrderFulfillmentTest extends TestCase
     {
         $order = $this->order(Order::STATUS_DEPOSIT_PAID, [
             'fulfillment_method' => Order::FULFILLMENT_DELIVERY,
-            'payment_method' => Order::PAYMENT_METHOD_GCASH_DEPOSIT,
+            'payment_method' => Order::PAYMENT_METHOD_GCASH,
             'deposit_centavos' => 25000,
         ]);
 
@@ -103,7 +103,7 @@ class OrderFulfillmentTest extends TestCase
     {
         $order = $this->order(Order::STATUS_DEPOSIT_PAID, [
             'fulfillment_method' => Order::FULFILLMENT_DELIVERY,
-            'payment_method' => Order::PAYMENT_METHOD_GCASH_DEPOSIT,
+            'payment_method' => Order::PAYMENT_METHOD_GCASH,
             'deposit_centavos' => 25000,
         ]);
 

@@ -151,13 +151,11 @@ class IdVerificationTest extends TestCase
 
     // ---------------------------------------------------------- staff review
 
-    public function test_staff_can_approve_and_the_customer_can_then_order(): void
+    public function test_staff_can_approve_an_id(): void
     {
         Storage::fake('local');
         $customer = User::factory()->pendingId()->create();
         $staff = User::factory()->staff()->create();
-
-        $this->assertFalse($customer->canPlaceOrders());
 
         $this->actingAs($staff)->patch(
             route('admin.id-verifications.update', $customer),
@@ -168,7 +166,6 @@ class IdVerificationTest extends TestCase
         $this->assertSame(User::ID_STATUS_APPROVED, $customer->id_verification_status);
         $this->assertSame($staff->id, $customer->id_reviewed_by);
         $this->assertNotNull($customer->id_reviewed_at);
-        $this->assertTrue($customer->canPlaceOrders());
     }
 
     public function test_rejecting_requires_a_reason(): void
@@ -236,17 +233,21 @@ class IdVerificationTest extends TestCase
         ]);
     }
 
-    public function test_an_unverified_customer_is_sent_to_verify_instead_of_checkout(): void
+    /**
+     * Verification no longer BLOCKS anything — a deliberate reversal. It
+     * used to require staff approval before a first order, which meant a new
+     * customer dead-ended until a human was at a keyboard. The ID is now
+     * reviewed alongside the order instead, so ordering is never gated.
+     */
+    public function test_an_unverified_customer_can_still_reach_checkout(): void
     {
         $user = User::factory()->unverifiedId()->create();
         $this->fillCart($user);
 
-        $this->actingAs($user)->get(route('checkout.create'))
-            ->assertRedirect(route('verify-id.create'));
+        $this->actingAs($user)->get(route('checkout.create'))->assertOk();
     }
 
-    /** Defence in depth — nothing stops a POST straight past the page. */
-    public function test_an_unverified_customer_cannot_post_a_checkout(): void
+    public function test_an_unverified_customer_can_place_an_order(): void
     {
         $user = User::factory()->pendingId()->create();
         $this->fillCart($user);
@@ -255,9 +256,7 @@ class IdVerificationTest extends TestCase
             'customer_name' => 'Juan Dela Cruz',
             'customer_email' => 'juan@example.test',
             'customer_phone' => '0917 123 4567',
-        ])->assertRedirect(route('verify-id.create'));
-
-        $this->assertDatabaseCount('orders', 0);
+        ])->assertRedirect(route('checkout.otp.create'));
     }
 
     public function test_a_verified_customer_reaches_checkout_normally(): void
@@ -268,15 +267,4 @@ class IdVerificationTest extends TestCase
         $this->actingAs($user)->get(route('checkout.create'))->assertOk();
     }
 
-    /**
-     * Staff are exempt: they are shop accounts, not buyers, and making the
-     * owner photograph their own ID to test a checkout is friction with
-     * nothing behind it.
-     */
-    public function test_staff_are_exempt_from_the_requirement(): void
-    {
-        $staff = User::factory()->staff()->unverifiedId()->create();
-
-        $this->assertTrue($staff->canPlaceOrders());
-    }
 }

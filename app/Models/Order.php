@@ -114,15 +114,39 @@ class Order extends Model
     ];
 
     /**
-     * gcash: full prepayment, pickup or delivery. cash: pickup only, staff
-     * confirms in the admin panel — see Admin\OrderCashPaymentController.
-     * gcash_deposit: delivery only, forced server-side regardless of what
-     * the checkout form sends — 50% now via GCash, the rest in cash on
-     * delivery. See CheckoutController::otpStore().
+     * How the customer pays. There is no payment gateway — the shop takes
+     * money the way it really does, and staff confirm it against their own
+     * GCash or bank account before any stock moves.
+     *
+     * gcash / bank_transfer: customer sends it, uploads a screenshot of the
+     * receipt, staff verify. cash: pickup only, collected at the branch, so
+     * there is nothing to upload.
+     *
+     * Note there is no 'gcash_deposit' method any more. "Is this a 50%
+     * deposit?" was never a payment method — it follows from choosing
+     * delivery, and requiresDeposit() derives it from fulfillment_method.
      */
     public const PAYMENT_METHOD_GCASH = 'gcash';
+    public const PAYMENT_METHOD_BANK_TRANSFER = 'bank_transfer';
     public const PAYMENT_METHOD_CASH = 'cash';
-    public const PAYMENT_METHOD_GCASH_DEPOSIT = 'gcash_deposit';
+
+    public const PAYMENT_METHODS = [
+        self::PAYMENT_METHOD_GCASH,
+        self::PAYMENT_METHOD_BANK_TRANSFER,
+        self::PAYMENT_METHOD_CASH,
+    ];
+
+    public const PAYMENT_METHOD_LABELS = [
+        self::PAYMENT_METHOD_GCASH => 'GCash',
+        self::PAYMENT_METHOD_BANK_TRANSFER => 'Bank transfer',
+        self::PAYMENT_METHOD_CASH => 'Cash on pickup',
+    ];
+
+    /** The two that require the customer to send money and prove it. */
+    public const PAYMENT_METHODS_NEEDING_PROOF = [
+        self::PAYMENT_METHOD_GCASH,
+        self::PAYMENT_METHOD_BANK_TRANSFER,
+    ];
 
     protected $fillable = [
         'order_number',
@@ -134,10 +158,10 @@ class Order extends Model
         'subtotal_centavos',
         'total_centavos',
         'deposit_centavos',
-        'paymongo_payment_intent_id',
-        'paymongo_source_id',
-        'paymongo_payment_id',
         'paid_at',
+        'payment_proof_path',
+        'payment_proof_uploaded_at',
+        'payment_reference',
         'customer_name',
         'customer_email',
         'customer_phone',
@@ -164,6 +188,7 @@ class Order extends Model
         'total_centavos' => 'integer',
         'deposit_centavos' => 'integer',
         'paid_at' => 'datetime',
+        'payment_proof_uploaded_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -178,7 +203,7 @@ class Order extends Model
 
     /**
      * Has stock already been committed for this order? InventoryService uses
-     * this as its idempotency guard so a repeated PayMongo webhook cannot
+     * this as its idempotency guard, so confirming a payment twice cannot
      * decrement stock twice.
      */
     public function stockIsCommitted(): bool
@@ -196,15 +221,47 @@ class Order extends Model
      *
      * A delivery order's online leg is only ever the 50% deposit, so it lands
      * on deposit_paid with the cash balance still due; everything else is a
-     * full payment. Lives here because TWO things now confirm payments — the
-     * webhook and the return-from-checkout reconciliation — and they must
-     * never disagree about which status a payment produces.
+     * full payment.
      */
     public function paidStatusForPaymentMethod(): string
     {
-        return $this->payment_method === self::PAYMENT_METHOD_GCASH_DEPOSIT
+        return $this->requiresDeposit()
             ? self::STATUS_DEPOSIT_PAID
             : self::STATUS_PAID;
+    }
+
+    /**
+     * Delivery orders pay 50% up front and the balance in cash on arrival.
+     * Derived from the fulfillment method rather than stored as a payment
+     * method of its own — a customer can never talk their way out of the
+     * deposit by picking a different option, because there is no option.
+     */
+    public function requiresDeposit(): bool
+    {
+        return $this->fulfillment_method === self::FULFILLMENT_DELIVERY;
+    }
+
+    /** What the customer has to send NOW — the deposit, or the whole thing. */
+    public function amountDueNowCentavos(): int
+    {
+        return $this->requiresDeposit()
+            ? (int) ($this->deposit_centavos ?? 0)
+            : (int) $this->total_centavos;
+    }
+
+    public function needsPaymentProof(): bool
+    {
+        return in_array($this->payment_method, self::PAYMENT_METHODS_NEEDING_PROOF, true);
+    }
+
+    public function hasPaymentProof(): bool
+    {
+        return $this->payment_proof_path !== null;
+    }
+
+    public function paymentMethodLabel(): string
+    {
+        return self::PAYMENT_METHOD_LABELS[$this->payment_method] ?? (string) $this->payment_method;
     }
 
     /** The ordered stage list for THIS order's fulfillment method. */

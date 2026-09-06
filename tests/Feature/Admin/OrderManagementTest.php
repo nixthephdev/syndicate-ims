@@ -203,7 +203,7 @@ class OrderManagementTest extends TestCase
             'total_centavos' => 100000,
             'deposit_centavos' => 50000,
             'fulfillment_method' => Order::FULFILLMENT_DELIVERY,
-            'payment_method' => Order::PAYMENT_METHOD_GCASH_DEPOSIT,
+            'payment_method' => Order::PAYMENT_METHOD_GCASH,
         ]);
 
         $this->actingAs(User::factory()->admin()->create())
@@ -226,7 +226,7 @@ class OrderManagementTest extends TestCase
             'paid_at' => now(),
             'deposit_centavos' => 25000,
             'fulfillment_method' => Order::FULFILLMENT_DELIVERY,
-            'payment_method' => Order::PAYMENT_METHOD_GCASH_DEPOSIT,
+            'payment_method' => Order::PAYMENT_METHOD_GCASH,
         ]);
 
         $this->actingAs(User::factory()->staff()->create())
@@ -267,7 +267,7 @@ class OrderManagementTest extends TestCase
         $variant = $order->items()->firstOrFail()->purchasable;
 
         $this->actingAs(User::factory()->staff()->create())
-            ->patch(route('admin.orders.cash.confirm', $order->order_number))
+            ->patch(route('admin.orders.payment.confirm', $order->order_number))
             ->assertSessionHasNoErrors();
 
         $order->refresh();
@@ -276,20 +276,43 @@ class OrderManagementTest extends TestCase
         $this->assertSame(9, $variant->fresh()->stock);
     }
 
-    public function test_confirming_cash_is_refused_for_a_gcash_order(): void
+    /**
+     * With no gateway, staff confirm EVERY method — they check the shop's
+     * own GCash or bank account and press confirm. This used to be refused
+     * for anything but cash, back when a webhook confirmed the rest.
+     */
+    public function test_staff_can_confirm_a_gcash_order_too(): void
     {
         $order = $this->order(Order::STATUS_AWAITING_PAYMENT, [
             'payment_method' => Order::PAYMENT_METHOD_GCASH,
         ]);
+        $variant = $order->items()->firstOrFail()->purchasable;
 
         $this->actingAs(User::factory()->staff()->create())
-            ->patch(route('admin.orders.cash.confirm', $order->order_number))
-            ->assertSessionHasErrors('payment');
+            ->patch(route('admin.orders.payment.confirm', $order->order_number))
+            ->assertSessionHasNoErrors();
 
-        $this->assertSame(Order::STATUS_AWAITING_PAYMENT, $order->fresh()->status);
+        $this->assertSame(Order::STATUS_PAID, $order->fresh()->status);
+        $this->assertSame(9, $variant->fresh()->stock);
     }
 
-    public function test_confirming_cash_is_refused_once_already_paid(): void
+    /** A delivery order's confirmation is only its 50% deposit. */
+    public function test_confirming_a_delivery_order_lands_on_deposit_paid(): void
+    {
+        $order = $this->order(Order::STATUS_AWAITING_PAYMENT, [
+            'payment_method' => Order::PAYMENT_METHOD_GCASH,
+            'fulfillment_method' => Order::FULFILLMENT_DELIVERY,
+            'deposit_centavos' => 25000,
+        ]);
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->patch(route('admin.orders.payment.confirm', $order->order_number))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(Order::STATUS_DEPOSIT_PAID, $order->fresh()->status);
+    }
+
+    public function test_confirming_payment_is_refused_once_already_paid(): void
     {
         $order = $this->order(Order::STATUS_PAID, [
             'paid_at' => now(),
@@ -297,7 +320,7 @@ class OrderManagementTest extends TestCase
         ]);
 
         $this->actingAs(User::factory()->staff()->create())
-            ->patch(route('admin.orders.cash.confirm', $order->order_number))
+            ->patch(route('admin.orders.payment.confirm', $order->order_number))
             ->assertSessionHasErrors('payment');
     }
 }

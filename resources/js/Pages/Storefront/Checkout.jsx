@@ -124,7 +124,21 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
                                 />
                                 <ToggleOption
                                     selected={isDelivery}
-                                    onClick={() => setData('fulfillment_method', 'delivery')}
+                                    onClick={() =>
+                                        // Cash is pickup-only, so switching to
+                                        // delivery has to drop it — leaving it
+                                        // selected would submit a combination
+                                        // the server rejects, and the option
+                                        // isn't even rendered below any more.
+                                        setData((current) => ({
+                                            ...current,
+                                            fulfillment_method: 'delivery',
+                                            payment_method:
+                                                current.payment_method === 'cash'
+                                                    ? 'gcash'
+                                                    : current.payment_method,
+                                        }))
+                                    }
                                     title="Delivery"
                                     description="50% deposit now, rest in cash on delivery."
                                 />
@@ -210,27 +224,56 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
                                     </div>
                                 </div>
                             </div>
-                        ) : (
-                            <div className="border-t border-white/10 pt-6 light:border-ink-900/10">
-                                <h2 className="font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65">
-                                    Payment
-                                </h2>
-                                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                                    <ToggleOption
-                                        selected={data.payment_method === 'gcash'}
-                                        onClick={() => setData('payment_method', 'gcash')}
-                                        title="Pay with GCash now"
-                                        description="Confirm payment on the next screen."
-                                    />
+                        ) : null}
+
+                        {/* Payment method. Shown for BOTH fulfillment options —
+                            a delivery order still has to choose HOW it sends
+                            its 50% deposit. Cash is the one that isn't
+                            universal: it means "hand it over at the branch",
+                            which a delivery order cannot do, so it disappears
+                            rather than being offered and then rejected.
+                            CheckoutRequest enforces the same rule server-side. */}
+                        <div className="border-t border-white/10 pt-6 light:border-ink-900/10">
+                            <h2 className="font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65">
+                                {isDelivery ? 'How will you send the deposit?' : 'Payment'}
+                            </h2>
+
+                            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                                <ToggleOption
+                                    selected={data.payment_method === 'gcash'}
+                                    onClick={() => setData('payment_method', 'gcash')}
+                                    title="GCash"
+                                    description="Send it, then upload your receipt."
+                                />
+                                <ToggleOption
+                                    selected={data.payment_method === 'bank_transfer'}
+                                    onClick={() => setData('payment_method', 'bank_transfer')}
+                                    title="Bank transfer"
+                                    description="Send it, then upload your receipt."
+                                />
+                                {!isDelivery && (
                                     <ToggleOption
                                         selected={data.payment_method === 'cash'}
                                         onClick={() => setData('payment_method', 'cash')}
-                                        title="Pay cash at pickup"
-                                        description="No online payment needed."
+                                        title="Cash at pickup"
+                                        description="Pay when you collect it."
                                     />
-                                </div>
+                                )}
                             </div>
-                        )}
+
+                            {data.payment_method !== 'cash' && (
+                                <p className="mt-3 text-xs leading-relaxed text-white/40 light:text-ink-900/55">
+                                    We'll show you where to send{' '}
+                                    {formatCentavos(isDelivery ? depositPreview : subtotal_centavos)}{' '}
+                                    on the next screen. Your order is confirmed once we've
+                                    checked the payment arrived.
+                                </p>
+                            )}
+
+                            {errors.payment_method && (
+                                <p className="mt-2 text-sm text-red-400">{errors.payment_method}</p>
+                            )}
+                        </div>
 
                         <div>
                             <label

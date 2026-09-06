@@ -13,7 +13,6 @@ function colorLabel(hex) {
 }
 
 export default function OrderShow({ order }) {
-    const { post, processing } = useForm({});
     const { post: postCancel, processing: cancelling } = useForm({});
     const [changingAddress, setChangingAddress] = useState(false);
 
@@ -25,11 +24,24 @@ export default function OrderShow({ order }) {
         postal_code: order.address.postal_code ?? '',
     });
 
-    const confirmPayment = (e) => {
+    // Uploading a receipt is a CLAIM, not a payment — staff confirm it
+    // against the shop's own account before anything is marked paid. See
+    // Shop\PaymentProofController.
+    const proofForm = useForm({ proof: null, reference: '' });
+    const [proofPreview, setProofPreview] = useState(null);
+
+    const pickProof = (e) => {
+        const file = e.target.files[0] ?? null;
+        proofForm.setData('proof', file);
+        setProofPreview(file ? URL.createObjectURL(file) : null);
+    };
+
+    const uploadProof = (e) => {
         e.preventDefault();
-        const routeName = order.payment_configured ? 'payment.paymongo.create' : 'payment.confirm';
-        post(route(routeName, order.order_number), {
+        proofForm.post(route('payment.proof.store', order.order_number), {
             preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => setProofPreview(null),
         });
     };
 
@@ -88,67 +100,184 @@ export default function OrderShow({ order }) {
                     </div>
                 )}
 
-                {/* Payment. order.payment_configured (real PayMongo test
-                    keys present, see Shop\OrderController::show()) decides
-                    which route this form posts to — either the real
-                    PayMongoController (redirects to PayMongo's hosted GCash
-                    checkout) or the local/testing-only stub, PaymentController
-                    — but the button itself doesn't otherwise change: either
-                    way this form starts payment, it never completes it.
-                    Completion is always the webhook's job.
+                {/* Payment. There is no gateway — the customer sends money
+                    the way the shop actually takes it, uploads the receipt,
+                    and STAFF confirm it against the shop's own account. This
+                    form never marks anything paid.
 
-                    Branches on payment_method: cash (pickup) needs no online
-                    action at all — staff confirm it in the admin panel —
-                    and gcash_deposit (delivery) only ever charges the 50%
-                    deposit here, never the full total. */}
+                    Cash (pickup only) has nothing to upload; delivery only
+                    ever asks for the 50% deposit here, never the full total
+                    (amount_due_now_centavos handles which). */}
                 {order.status === 'awaiting_payment' && order.payment_method === 'cash' && (
                     <div className="mt-10 border-2 border-amber-400/60 p-6">
                         <h2 className="font-display text-lg uppercase tracking-wide text-white light:text-ink-900">
                             Pay cash at pickup
                         </h2>
                         <p className="mt-2 text-sm leading-relaxed text-white/50 light:text-ink-900/65">
-                            No online payment needed — bring{' '}
+                            Nothing to pay online — bring{' '}
                             {formatCentavos(order.total_centavos)} to the shop
                             when you collect your order.
                         </p>
                     </div>
                 )}
 
-                {order.status === 'awaiting_payment' && order.payment_method !== 'cash' && (
-                    <form
-                        onSubmit={confirmPayment}
-                        className="mt-10 border-2 border-volt-500 p-6"
-                    >
+                {order.status === 'awaiting_payment' && order.needs_payment_proof && (
+                    <div className="mt-10 border-2 border-volt-500 p-6">
                         <h2 className="font-display text-lg uppercase tracking-wide text-white light:text-ink-900">
-                            {order.payment_method === 'gcash_deposit' ? 'Pay your 50% deposit' : 'Pay with GCash'}
+                            {order.requires_deposit
+                                ? 'Send your 50% deposit'
+                                : `Send ${formatCentavos(order.amount_due_now_centavos)}`}
                         </h2>
+
                         <p className="mt-2 text-sm leading-relaxed text-white/50 light:text-ink-900/65">
-                            {order.payment_method === 'gcash_deposit' ? (
+                            {order.requires_deposit ? (
                                 <>
                                     A deposit of{' '}
                                     <span className="text-volt-500 light:text-volt-800">
                                         {formatCentavos(order.deposit_centavos)}
                                     </span>{' '}
-                                    secures your order for delivery. The
-                                    remaining {formatCentavos(order.balance_centavos)} is
-                                    paid in cash when it arrives.
+                                    secures your order for delivery. The remaining{' '}
+                                    {formatCentavos(order.balance_centavos)} is paid in
+                                    cash when it arrives.
                                 </>
                             ) : (
-                                "Stock is deducted the moment payment is confirmed, not before — so nothing is held for you until you pay."
+                                'Send the full amount, then upload your receipt below. Nothing is held for you until we confirm the payment.'
                             )}
                         </p>
-                        <button
-                            type="submit"
-                            disabled={processing}
-                            className="mt-6 inline-flex items-center gap-3 bg-volt-500 px-8 py-4 font-display text-base uppercase tracking-[0.2em] text-ink-900 transition-transform hover:-translate-y-0.5 hover:bg-white light:hover:bg-ink-900 light:hover:text-white disabled:pointer-events-none disabled:opacity-40"
-                        >
-                            {processing
-                                ? 'Redirecting'
-                                : order.payment_configured
-                                    ? 'Continue to GCash'
-                                    : 'Confirm payment'} →
-                        </button>
-                    </form>
+
+                        {/* Where to send it. */}
+                        <dl className="mt-5 border border-white/10 p-4 text-sm light:border-ink-900/10">
+                            {order.payment_method === 'gcash' ? (
+                                <>
+                                    <div className="flex justify-between gap-4">
+                                        <dt className="text-white/40 light:text-ink-900/55">GCash name</dt>
+                                        <dd className="text-white light:text-ink-900">{order.pay_to.gcash.name}</dd>
+                                    </div>
+                                    <div className="mt-2 flex justify-between gap-4">
+                                        <dt className="text-white/40 light:text-ink-900/55">GCash number</dt>
+                                        <dd className="font-display tracking-wide text-volt-500 light:text-volt-800">
+                                            {order.pay_to.gcash.number}
+                                        </dd>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="flex justify-between gap-4">
+                                        <dt className="text-white/40 light:text-ink-900/55">Bank</dt>
+                                        <dd className="text-white light:text-ink-900">{order.pay_to.bank.name}</dd>
+                                    </div>
+                                    <div className="mt-2 flex justify-between gap-4">
+                                        <dt className="text-white/40 light:text-ink-900/55">Account name</dt>
+                                        <dd className="text-white light:text-ink-900">
+                                            {order.pay_to.bank.account_name}
+                                        </dd>
+                                    </div>
+                                    <div className="mt-2 flex justify-between gap-4">
+                                        <dt className="text-white/40 light:text-ink-900/55">Account number</dt>
+                                        <dd className="font-display tracking-wide text-volt-500 light:text-volt-800">
+                                            {order.pay_to.bank.account_number}
+                                        </dd>
+                                    </div>
+                                </>
+                            )}
+                        </dl>
+
+                        {/* Never let a stand-in number be mistaken for the
+                            real one — see config/shop.php. */}
+                        {order.pay_to.is_placeholder && (
+                            <p className="mt-3 border border-red-500/40 bg-red-500/[0.06] p-3 text-xs leading-relaxed text-red-300 light:text-red-700">
+                                <strong>Demo details.</strong> These are placeholder
+                                account numbers, not the shop's real ones. Don't send
+                                money to them.
+                            </p>
+                        )}
+
+                        {order.has_payment_proof ? (
+                            <div className="mt-5 border border-amber-400/40 bg-amber-400/[0.06] p-4">
+                                <p className="font-display text-sm uppercase tracking-wide text-white light:text-ink-900">
+                                    Receipt received
+                                </p>
+                                <p className="mt-1 text-sm text-white/50 light:text-ink-900/65">
+                                    Sent {order.payment_proof_uploaded_at}. We'll confirm
+                                    it against our account shortly.
+                                    {order.payment_reference && (
+                                        <> Reference: {order.payment_reference}.</>
+                                    )}
+                                </p>
+                                <a
+                                    href={order.payment_proof_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-2 inline-block text-xs underline underline-offset-4 text-white/40 hover:text-volt-500 light:text-ink-900/55 light:hover:text-volt-800"
+                                >
+                                    View what you sent
+                                </a>
+                            </div>
+                        ) : null}
+
+                        <form onSubmit={uploadProof} className="mt-5 space-y-4">
+                            <div>
+                                <label
+                                    htmlFor="proof"
+                                    className="block font-display text-xs uppercase tracking-[0.2em] text-white/50 light:text-ink-900/65"
+                                >
+                                    {order.has_payment_proof
+                                        ? 'Replace your receipt'
+                                        : 'Upload your receipt'}
+                                </label>
+                                <input
+                                    id="proof"
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    onChange={pickProof}
+                                    className="mt-2 w-full border-2 border-white/15 bg-transparent px-4 py-3 text-sm text-white/70 file:mr-4 file:border-0 file:bg-volt-500 file:px-4 file:py-2 file:font-display file:text-xs file:uppercase file:tracking-[0.15em] file:text-ink-900 light:border-ink-900/15 light:text-ink-900/70"
+                                />
+                                {proofForm.errors.proof && (
+                                    <p className="mt-2 text-sm text-red-400">
+                                        {proofForm.errors.proof}
+                                    </p>
+                                )}
+                                {proofForm.errors.payment && (
+                                    <p className="mt-2 text-sm text-red-400">
+                                        {proofForm.errors.payment}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label
+                                    htmlFor="reference"
+                                    className="block font-display text-xs uppercase tracking-[0.2em] text-white/50 light:text-ink-900/65"
+                                >
+                                    Reference number <span className="normal-case tracking-normal">(optional)</span>
+                                </label>
+                                <input
+                                    id="reference"
+                                    type="text"
+                                    value={proofForm.data.reference}
+                                    onChange={(e) => proofForm.setData('reference', e.target.value)}
+                                    placeholder="Helps us find your payment faster"
+                                    className="mt-2 w-full border-2 border-white/15 bg-transparent px-4 py-3 text-white placeholder-white/25 focus:border-volt-500 focus:outline-none light:border-ink-900/15 light:text-ink-900 light:placeholder-ink-900/35"
+                                />
+                            </div>
+
+                            {proofPreview && (
+                                <img
+                                    src={proofPreview}
+                                    alt="The receipt you selected"
+                                    className="max-h-64 border border-white/10 object-contain light:border-ink-900/10"
+                                />
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={proofForm.processing || !proofForm.data.proof}
+                                className="inline-flex items-center gap-3 bg-volt-500 px-8 py-4 font-display text-base uppercase tracking-[0.2em] text-ink-900 transition-transform hover:-translate-y-0.5 hover:bg-white light:hover:bg-ink-900 light:hover:text-white disabled:pointer-events-none disabled:opacity-40"
+                            >
+                                {proofForm.processing ? 'Sending' : 'Submit receipt'} →
+                            </button>
+                        </form>
+                    </div>
                 )}
 
                 {order.status === 'deposit_paid' && (

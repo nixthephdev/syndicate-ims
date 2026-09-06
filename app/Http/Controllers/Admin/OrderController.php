@@ -82,6 +82,25 @@ class OrderController extends Controller
                 'stock_committed' => $order->stockIsCommitted(),
                 'fulfillment_method' => $order->fulfillment_method,
                 'payment_method' => $order->payment_method,
+                'payment_method_label' => $order->paymentMethodLabel(),
+                'requires_deposit' => $order->requiresDeposit(),
+                'needs_payment_proof' => $order->needsPaymentProof(),
+                'payment_reference' => $order->payment_reference,
+                'payment_proof_uploaded_at' => $order->payment_proof_uploaded_at?->format('d M Y, g:ia'),
+                'payment_proof_url' => $order->hasPaymentProof()
+                    ? route('payment.proof.show', $order->order_number)
+                    : null,
+                // The buyer's ID, shown next to the order so staff review
+                // both in one pass — it does NOT gate ordering.
+                'customer_id_verification' => $order->user ? [
+                    'user_id' => $order->user->id,
+                    'status' => $order->user->id_verification_status,
+                    'id_type_label' => $order->user->idTypeLabel(),
+                    'submitted_at' => $order->user->id_submitted_at?->format('d M Y, g:ia'),
+                    'photo_url' => $order->user->id_photo_path
+                        ? route('verify-id.photo', $order->user)
+                        : null,
+                ] : null,
                 // Where the order physically is — see Order::trackingPayload().
                 // Null until stock is committed; there's nothing to track yet.
                 'tracking' => $order->trackingPayload(),
@@ -108,11 +127,6 @@ class OrderController extends Controller
                 ] : null,
                 'placed_at' => $order->created_at->format('d M Y, g:ia'),
                 'paid_at' => $order->paid_at?->format('d M Y, g:ia'),
-                'paymongo' => array_filter([
-                    'payment_intent_id' => $order->paymongo_payment_intent_id,
-                    'source_id' => $order->paymongo_source_id,
-                    'payment_id' => $order->paymongo_payment_id,
-                ]),
                 'items' => $order->items->map(fn ($item) => [
                     // Snapshots, deliberately — never the live product record.
                     'name' => $item->name_snapshot,
@@ -127,8 +141,9 @@ class OrderController extends Controller
             'can' => [
                 'fulfil' => in_array($order->status, [Order::STATUS_PAID, Order::STATUS_DEPOSIT_PAID], true),
                 'cancel' => $order->status === Order::STATUS_AWAITING_PAYMENT,
-                'confirm_cash' => $order->status === Order::STATUS_AWAITING_PAYMENT
-                    && $order->payment_method === Order::PAYMENT_METHOD_CASH,
+                // Staff confirm EVERY method now — there is no gateway doing
+                // it for them. Only the status matters, not how they paid.
+                'confirm_payment' => $order->status === Order::STATUS_AWAITING_PAYMENT,
             ],
         ]);
     }

@@ -32,18 +32,6 @@ return [
     ],
 
     /*
-    | Test keys only — see CLAUDE.md/DECISIONS.md. GCash via Payment Intents
-    | (not the older Sources API). secret_key signs API requests, webhook_secret
-    | verifies inbound webhook signatures — two different secrets, don't mix
-    | them up.
-    */
-    'paymongo' => [
-        'secret_key' => env('PAYMONGO_SECRET_KEY'),
-        'public_key' => env('PAYMONGO_PUBLIC_KEY'),
-        'webhook_secret' => env('PAYMONGO_WEBHOOK_SECRET'),
-    ],
-
-    /*
     | Only meaningful on a host with no SSH access — see DeployController
     | and the Deployment section of CLAUDE.md. Empty by default, which
     | disables the endpoint entirely (see DeployController::migrate()).

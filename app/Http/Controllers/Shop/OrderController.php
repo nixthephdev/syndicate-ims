@@ -60,11 +60,22 @@ class OrderController extends Controller
                 'tracking' => $order->trackingPayload(),
                 'deposit_centavos' => $order->deposit_centavos,
                 'balance_centavos' => $order->balanceCentavos(),
-                // Real PayMongo integration is only usable once real test
-                // keys are configured — see PayMongoController. Until then
-                // the storefront falls back to the local/testing-only stub
-                // (Shop\PaymentController), same as before this existed.
-                'payment_configured' => filled(config('services.paymongo.secret_key')),
+                'payment_method_label' => $order->paymentMethodLabel(),
+                'amount_due_now_centavos' => $order->amountDueNowCentavos(),
+                'requires_deposit' => $order->requiresDeposit(),
+                // GCash and bank transfer need a receipt uploading; cash on
+                // pickup has nothing to prove until staff take the money.
+                'needs_payment_proof' => $order->needsPaymentProof(),
+                'has_payment_proof' => $order->hasPaymentProof(),
+                'payment_reference' => $order->payment_reference,
+                'payment_proof_uploaded_at' => $order->payment_proof_uploaded_at?->format('d M Y, g:ia'),
+                'payment_proof_url' => $order->hasPaymentProof()
+                    ? route('payment.proof.show', $order->order_number)
+                    : null,
+                // Where to actually send the money. Placeholders until the
+                // client supplies real accounts — see config/shop.php, which
+                // also drives the visible warning on the page.
+                'pay_to' => config('shop.payment'),
                 // Self-service cancel — see cancel() below. Owner-only,
                 // deliberately not offered to staff viewing someone else's
                 // order here; they have the admin panel's own transition for

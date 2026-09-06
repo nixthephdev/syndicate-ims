@@ -1,6 +1,7 @@
 import AdminLayout from '@/Layouts/AdminLayout';
 import Card from '@/Components/Admin/Card';
 import OrderStatusBadge from '@/Components/Admin/OrderStatusBadge';
+import IdStatusBadge from '@/Components/Admin/IdStatusBadge';
 import PrimaryButton from '@/Components/Admin/PrimaryButton';
 import SecondaryButton from '@/Components/Admin/SecondaryButton';
 import { ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, TruckIcon, XIcon } from '@/Components/Admin/icons';
@@ -33,9 +34,9 @@ export default function Show({ order, can }) {
         );
     };
 
-    const confirmCash = () => {
+    const confirmPayment = () => {
         router.patch(
-            route('admin.orders.cash.confirm', order.order_number),
+            route('admin.orders.payment.confirm', order.order_number),
             {},
             {
                 preserveScroll: true,
@@ -209,7 +210,8 @@ export default function Show({ order, can }) {
                         <p className="mt-2 text-sm capitalize text-white/60 admin-light:text-ink-900/70">
                             {order.fulfillment_method}
                             {' · '}
-                            {order.payment_method === 'gcash_deposit' ? '50% GCash deposit' : order.payment_method}
+                            {order.payment_method_label}
+                            {order.requires_deposit ? ' · 50% deposit' : ''}
                         </p>
                         {order.deposit_formatted && (
                             <p className="mt-1 text-xs text-white/40 admin-light:text-ink-900/50">
@@ -228,21 +230,91 @@ export default function Show({ order, can }) {
                                 : 'No stock has been deducted for this order.'}
                         </p>
 
-                        {Object.keys(order.paymongo).length > 0 && (
-                            <dl className="mt-4 space-y-1 border-t border-white/10 pt-4 text-xs admin-light:border-ink-900/10">
-                                {Object.entries(order.paymongo).map(([key, value]) => (
-                                    <div key={key} className="flex justify-between gap-2">
-                                        <dt className="text-white/25 admin-light:text-ink-900/35">
-                                            {key.replace(/_/g, ' ')}
-                                        </dt>
-                                        <dd className="truncate font-mono text-white/50 admin-light:text-ink-900/60">
-                                            {value}
-                                        </dd>
-                                    </div>
-                                ))}
-                            </dl>
+                        {/* The customer's receipt. Check it against the shop's
+                            OWN GCash/bank account before confirming — this
+                            image is a claim, not proof of anything. */}
+                        {order.needs_payment_proof && (
+                            <div className="mt-4 border-t border-white/10 pt-4 admin-light:border-ink-900/10">
+                                {order.payment_proof_url ? (
+                                    <>
+                                        <p className="text-xs uppercase tracking-widest text-white/40 admin-light:text-ink-900/55">
+                                            Customer's receipt · {order.payment_proof_uploaded_at}
+                                        </p>
+                                        {order.payment_reference && (
+                                            <p className="mt-1 text-xs text-white/50 admin-light:text-ink-900/65">
+                                                Ref: <span className="font-mono">{order.payment_reference}</span>
+                                            </p>
+                                        )}
+                                        <a href={order.payment_proof_url} target="_blank" rel="noreferrer">
+                                            <img
+                                                src={order.payment_proof_url}
+                                                alt="Payment receipt the customer uploaded"
+                                                className="mt-2 w-full rounded-md border border-white/10 bg-black/20 object-contain admin-light:border-ink-900/10 admin-light:bg-ink-900/[0.03]"
+                                            />
+                                        </a>
+                                        <p className="mt-2 text-xs text-white/25 admin-light:text-ink-900/40">
+                                            Verify this against the shop's own account
+                                            before confirming — a screenshot proves nothing
+                                            on its own.
+                                        </p>
+                                    </>
+                                ) : (
+                                    <p className="text-xs text-white/30 admin-light:text-ink-900/45">
+                                        No receipt uploaded yet.
+                                    </p>
+                                )}
+                            </div>
                         )}
                     </Card>
+
+                    {/* Buyer ID, reviewed alongside the order rather than as a
+                        gate before it — the customer is never blocked from
+                        ordering while this is pending. */}
+                    {order.customer_id_verification && (
+                        <Card className="p-6">
+                            <h2 className="text-sm font-semibold text-white admin-light:text-ink-900">
+                                Buyer ID
+                            </h2>
+                            <div className="mt-2">
+                                <IdStatusBadge status={order.customer_id_verification.status} />
+                            </div>
+
+                            {order.customer_id_verification.photo_url ? (
+                                <>
+                                    <p className="mt-3 text-xs text-white/40 admin-light:text-ink-900/55">
+                                        {order.customer_id_verification.id_type_label}
+                                        {order.customer_id_verification.submitted_at &&
+                                            ` · ${order.customer_id_verification.submitted_at}`}
+                                    </p>
+                                    <a
+                                        href={order.customer_id_verification.photo_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        <img
+                                            src={order.customer_id_verification.photo_url}
+                                            alt="Buyer's submitted ID"
+                                            className="mt-2 w-full rounded-md border border-white/10 bg-black/20 object-contain admin-light:border-ink-900/10 admin-light:bg-ink-900/[0.03]"
+                                        />
+                                    </a>
+                                </>
+                            ) : (
+                                <p className="mt-3 text-xs text-white/30 admin-light:text-ink-900/45">
+                                    This customer hasn't uploaded an ID.
+                                </p>
+                            )}
+
+                            <Link
+                                href={route(
+                                    'admin.id-verifications.show',
+                                    order.customer_id_verification.user_id
+                                )}
+                                className="mt-3 inline-block text-sm font-medium text-volt-500 hover:underline admin-light:text-volt-800"
+                            >
+                                Review this ID →
+                            </Link>
+                        </Card>
+                    )}
 
                     {/* Where the order physically is. Separate card from
                         Actions because it's a separate axis from payment —
@@ -300,18 +372,18 @@ export default function Show({ order, can }) {
                         </Card>
                     )}
 
-                    {(can.fulfil || can.cancel || can.confirm_cash) && (
+                    {(can.fulfil || can.cancel || can.confirm_payment) && (
                         <Card className="p-6">
                             <h2 className="text-sm font-semibold text-white admin-light:text-ink-900">Actions</h2>
 
-                            {can.confirm_cash && (
+                            {can.confirm_payment && (
                                 <PrimaryButton
                                     className="mt-3 w-full justify-center"
                                     disabled={processing}
-                                    onClick={confirmCash}
+                                    onClick={confirmPayment}
                                     icon={CheckCircleIcon}
                                 >
-                                    Confirm cash received
+                                    Confirm payment received
                                 </PrimaryButton>
                             )}
 

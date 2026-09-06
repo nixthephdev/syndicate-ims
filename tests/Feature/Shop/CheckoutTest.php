@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\CompletesCheckoutOtp;
+use Tests\Concerns\ConfirmsPayment;
 use Tests\TestCase;
 
 /**
@@ -24,6 +25,7 @@ use Tests\TestCase;
 class CheckoutTest extends TestCase
 {
     use CompletesCheckoutOtp;
+    use ConfirmsPayment;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -159,17 +161,17 @@ class CheckoutTest extends TestCase
         $this->fill($variant, 4);
         $order = $this->checkout();
 
-        $this->post(route('payment.confirm', $order->order_number))
-            ->assertSessionHasNoErrors();
+        $this->staffConfirmsPayment($order)->assertSessionHasNoErrors();
+        $this->actingAs($user);
 
         $order->refresh();
         $this->assertSame(Order::STATUS_PAID, $order->status);
         $this->assertNotNull($order->paid_at);
         $this->assertSame(6, $variant->fresh()->stock);
 
-        // Idempotency: PayMongo can deliver the same webhook twice. The second
-        // call must be a no-op, not a second decrement.
-        $this->post(route('payment.confirm', $order->order_number));
+        // Idempotency: two staff working the queue, or a double click.
+        // The second confirm must be a no-op, not a second decrement.
+        $this->staffConfirmsPayment($order);
 
         $this->assertSame(6, $variant->fresh()->stock);
     }
@@ -191,8 +193,8 @@ class CheckoutTest extends TestCase
         // Someone else buys the lot between placing the order and paying.
         $variant->update(['stock' => 1]);
 
-        $this->post(route('payment.confirm', $order->order_number))
-            ->assertSessionHasErrors('payment');
+        $this->staffConfirmsPayment($order)->assertSessionHasErrors("payment");
+        $this->actingAs($user);
 
         $order->refresh();
 
@@ -278,7 +280,31 @@ class CheckoutTest extends TestCase
     }
 
     /** Delivery is always the 50% deposit flow — a submitted payment_method must never override that. */
-    public function test_delivery_forces_gcash_deposit_regardless_of_submitted_payment_method(): void
+    /**
+     * Cash is pickup-only. A delivery order always takes 50% up front, so
+     * there is nothing for "cash" to pay at ordering time — the balance IS
+     * the cash part. Rejected outright rather than quietly coerced, so the
+     * customer is told rather than silently given a different deal.
+     */
+    public function test_a_delivery_order_cannot_be_paid_in_cash(): void
+    {
+        $variant = $this->variantWithStock(10);
+        $this->actingAs(User::factory()->create());
+        $this->fill($variant, 1);
+
+        $this->post(route('checkout.store'), $this->details([
+            'fulfillment_method' => 'delivery',
+            'payment_method' => 'cash',
+            'address_line' => '123 Rizal St.',
+            'barangay' => 'Tagas',
+            'city' => 'Daraga',
+            'province' => 'Albay',
+        ]))->assertSessionHasErrors('payment_method');
+
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_a_delivery_order_takes_a_fifty_percent_deposit(): void
     {
         $variant = $this->variantWithStock(10);
         $this->actingAs(User::factory()->create());
@@ -286,14 +312,18 @@ class CheckoutTest extends TestCase
 
         $order = $this->checkout($this->details([
             'fulfillment_method' => 'delivery',
-            'payment_method' => 'cash',
+            'payment_method' => 'bank_transfer',
             'address_line' => '123 Rizal St.',
             'barangay' => 'Tagas',
             'city' => 'Daraga',
             'province' => 'Albay',
         ]));
 
-        $this->assertSame('gcash_deposit', $order->payment_method);
+        $this->assertSame(Order::PAYMENT_METHOD_BANK_TRANSFER, $order->payment_method);
+        $this->assertTrue($order->requiresDeposit());
+        // ceil(), so deposit + balance always sums back to the total exactly.
+        $this->assertSame((int) ceil($order->total_centavos / 2), $order->deposit_centavos);
+        $this->assertSame($order->deposit_centavos, $order->amountDueNowCentavos());
     }
 
     public function test_the_otp_step_re_checks_stock_too(): void
@@ -399,44 +429,31 @@ class CheckoutTest extends TestCase
         $this->assertNull($item->customization);
     }
 
-    public function test_a_customer_cannot_confirm_payment_on_another_persons_order(): void
+    /**
+     * There is no customer-facing way to mark an order paid any more. The
+     * only route that does it is staff-gated, and a customer hitting it —
+     * their own order or anyone else's — gets nothing.
+     */
+    public function test_a_customer_cannot_confirm_their_own_payment(): void
     {
         $variant = $this->variantWithStock(10);
+        $owner = User::factory()->create();
 
-        $this->actingAs(User::factory()->create());
+        $this->actingAs($owner);
         $this->fill($variant, 2);
         $order = $this->checkout();
 
-        $this->actingAs(User::factory()->create())
-            ->post(route('payment.confirm', $order->order_number))
+        // The owner cannot self-confirm...
+        $this->actingAs($owner)
+            ->patch(route('admin.orders.payment.confirm', $order->order_number))
             ->assertForbidden();
 
-        $this->assertSame(10, $variant->fresh()->stock);
-    }
+        // ...and neither can any other customer.
+        $this->actingAs(User::factory()->create())
+            ->patch(route('admin.orders.payment.confirm', $order->order_number))
+            ->assertForbidden();
 
-    /**
-     * The simulated payment route marks orders paid for free. It must not be
-     * reachable on the deployed site — PayMongo's webhook replaces it there.
-     */
-    public function test_simulated_payment_is_unreachable_in_production(): void
-    {
-        $variant = $this->variantWithStock(10);
-
-        $this->actingAs(User::factory()->create());
-        $this->fill($variant, 1);
-        $order = $this->checkout();
-
-        $this->app['env'] = 'production';
-
-        // Leaving the "testing" environment also re-enables CSRF verification,
-        // which would reject this with a 419 before the controller is reached
-        // — proving nothing about the guard under test. Drop that one
-        // middleware so the request actually arrives at PaymentController.
-        $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
-
-        $this->post(route('payment.confirm', $order->order_number))
-            ->assertNotFound();
-
+        $this->assertSame(Order::STATUS_AWAITING_PAYMENT, $order->fresh()->status);
         $this->assertSame(10, $variant->fresh()->stock);
     }
 }

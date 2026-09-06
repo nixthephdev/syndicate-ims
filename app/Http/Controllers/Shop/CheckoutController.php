@@ -47,12 +47,6 @@ class CheckoutController extends Controller
 
         $user = request()->user();
 
-        // ID verification gates EVERY order — the scoped decision. Sent to
-        // the upload page rather than shown a dead end; the cart is session
-        // -backed and survives the detour, so nothing is lost.
-        if (! $user->canPlaceOrders()) {
-            return redirect()->route('verify-id.create');
-        }
 
         return Inertia::render('Storefront/Checkout', [
             'lines' => $this->cart->lines(),
@@ -67,12 +61,6 @@ class CheckoutController extends Controller
 
     public function store(CheckoutRequest $request): RedirectResponse
     {
-        // Defence in depth: create() already redirects an unverified customer
-        // away, but nothing stops a POST straight to this route.
-        if (! $request->user()->canPlaceOrders()) {
-            return redirect()->route('verify-id.create');
-        }
-
         $lines = $this->cart->lines();
 
         if ($lines === []) {
@@ -120,14 +108,6 @@ class CheckoutController extends Controller
 
         abort_unless($data, 403);
 
-        // This is the step that actually creates the Order, so it carries
-        // the verification check too — a stashed checkout from before an ID
-        // was revoked must not still be able to land an order.
-        if (! $request->user()->canPlaceOrders()) {
-            $request->session()->forget(self::SESSION_KEY);
-
-            return redirect()->route('verify-id.create');
-        }
 
         $request->validate(['code' => ['required', 'string']]);
 
@@ -169,13 +149,16 @@ class CheckoutController extends Controller
             $fulfillment = $data['fulfillment_method'] ?? Order::FULFILLMENT_PICKUP;
             $isDelivery = $fulfillment === Order::FULFILLMENT_DELIVERY;
 
-            // Delivery is always the 50% deposit flow — never trust the
-            // client to have sent (or not sent) a payment_method for this;
-            // pickup keeps whatever the customer actually chose (default
-            // gcash for the same backward-compatibility reason as above).
-            $paymentMethod = $isDelivery
-                ? Order::PAYMENT_METHOD_GCASH_DEPOSIT
-                : ($data['payment_method'] ?? Order::PAYMENT_METHOD_GCASH);
+            $paymentMethod = $data['payment_method'] ?? Order::PAYMENT_METHOD_GCASH;
+
+            // Cash is pickup-only, enforced again here and not just in
+            // CheckoutRequest: a delivery order always takes 50% up front,
+            // so "cash" has nothing to pay at ordering time. Coerced rather
+            // than rejected — the request rule already refuses the real
+            // combination, this only catches an unexpected route in.
+            if ($isDelivery && $paymentMethod === Order::PAYMENT_METHOD_CASH) {
+                $paymentMethod = Order::PAYMENT_METHOD_GCASH;
+            }
 
             // ceil(), not round() or intdiv(): deposit + balance must always
             // equal the total exactly, and rounding the deposit UP is what

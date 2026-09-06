@@ -127,19 +127,6 @@ class User extends Authenticatable
         return $this->id_verification_status === self::ID_STATUS_APPROVED;
     }
 
-    /**
-     * Can this account place an order? Verification gates EVERY order —
-     * the scoped decision, not just delivery or cash ones.
-     *
-     * Staff and admins are exempt: they are shop accounts, not buyers, and
-     * requiring the owner to photograph their own ID before they can test a
-     * checkout is friction with nothing behind it.
-     */
-    public function canPlaceOrders(): bool
-    {
-        return $this->isStaff() || $this->idIsApproved();
-    }
-
     public function idTypeLabel(): ?string
     {
         return self::ID_TYPES[$this->id_type] ?? $this->id_type;

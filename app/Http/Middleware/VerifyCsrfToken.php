@@ -11,10 +11,10 @@ class VerifyCsrfToken extends Middleware
      *
      * @var array<int, string>
      */
+    // Nothing is excluded. There is no payment gateway posting to this app
+    // any more — every payment is confirmed by a signed-in staff member in
+    // the admin panel, so every route can carry a CSRF token.
     protected $except = [
-        // PayMongo's servers, not a logged-in browser — no session, no
-        // CSRF token to carry. PayMongoWebhookVerifier's signature check
-        // is what authenticates this route instead.
-        'webhooks/paymongo',
+        //
     ];
 }

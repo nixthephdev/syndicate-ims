@@ -4,7 +4,7 @@ namespace App\Support;
 
 /**
  * The one place peso <-> centavos conversion happens. Forms accept pesos
- * (what a human types); the DB stores centavos (what PayMongo speaks). Doing
+ * (what a human types); the DB stores centavos. Doing
  * this conversion ad-hoc in multiple controllers is how rounding drift and
  * float bugs creep into money handling.
  */

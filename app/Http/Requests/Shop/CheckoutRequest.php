@@ -25,10 +25,10 @@ class CheckoutRequest extends FormRequest
             // every caller that predates the cash/delivery split working
             // unchanged.
             'fulfillment_method' => ['nullable', 'string', 'in:'.implode(',', Order::FULFILLMENT_METHODS)],
-            // gcash_deposit is never accepted from the client — delivery
-            // orders are forced onto it server-side regardless of what's
-            // sent here.
-            'payment_method' => ['nullable', 'string', 'in:'.Order::PAYMENT_METHOD_GCASH.','.Order::PAYMENT_METHOD_CASH],
+            // GCash / bank transfer / cash. Cash is pickup-only, enforced in
+            // withValidator() below rather than here — the rule depends on
+            // another field, and a bare `in:` cannot express that.
+            'payment_method' => ['nullable', 'string', 'in:'.implode(',', Order::PAYMENT_METHODS)],
             // Required once delivery is chosen — a delivery order with
             // nowhere to deliver to isn't a real order. Pickup orders have
             // nothing to fill in here, same as before.
@@ -39,6 +39,26 @@ class CheckoutRequest extends FormRequest
             'postal_code' => ['nullable', 'string', 'max:10'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
+    }
+
+    /**
+     * Cash is pickup-only. A delivery order always takes the 50% deposit up
+     * front, so there is nothing for cash to pay at the time of ordering —
+     * the balance is the cash part. The storefront never offers the
+     * combination, but nothing stops a forged POST.
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $isDelivery = $this->input('fulfillment_method') === Order::FULFILLMENT_DELIVERY;
+
+            if ($isDelivery && $this->input('payment_method') === Order::PAYMENT_METHOD_CASH) {
+                $validator->errors()->add(
+                    'payment_method',
+                    'Delivery orders need a 50% deposit by GCash or bank transfer. Cash is pickup only.'
+                );
+            }
+        });
     }
 
     public function messages(): array

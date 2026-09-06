@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Tests\Concerns\CompletesCheckoutOtp;
+use Tests\Concerns\ConfirmsPayment;
 use Tests\TestCase;
 
 /**
@@ -19,6 +20,7 @@ use Tests\TestCase;
 class OrderAddressTest extends TestCase
 {
     use CompletesCheckoutOtp;
+    use ConfirmsPayment;
     use RefreshDatabase;
 
     private function fillCartWithOneVariant(User $user): void
@@ -125,7 +127,7 @@ class OrderAddressTest extends TestCase
         $order = $this->checkout();
 
         $this->actingAs($user);
-        $this->post(route('payment.confirm', $order->order_number));
+        $this->markPaid($order);
         $this->assertSame(Order::STATUS_PAID, $order->fresh()->status);
 
         $this->patch(route('orders.address.update', $order->order_number), [
@@ -142,7 +144,7 @@ class OrderAddressTest extends TestCase
         $order = $this->checkout();
 
         $this->actingAs($user);
-        $this->post(route('payment.confirm', $order->order_number));
+        $this->markPaid($order);
         $order->update(['status' => Order::STATUS_FULFILLED]);
 
         $this->patch(route('orders.address.update', $order->order_number), [

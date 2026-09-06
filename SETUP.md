@@ -46,34 +46,33 @@ mysql -u root -e "CREATE DATABASE syndicate_ims CHARACTER SET utf8mb4 COLLATE ut
 
 XAMPP's MySQL has no root password by default. If yours does, add `-p`.
 
-## 5. Configure the app
+## 5. Build the database
 
-Copy `.env.example` to `.env`:
+The handover folder already contains a configured `.env` — mail and the
+encryption key are set up, so there is nothing to fill in. Just check that
+`DB_DATABASE` matches the database you created in step 4 (it should already
+say `syndicate_ims`), then:
 
 ```
 cd C:\xampp\htdocs\syndicate-ims
-copy .env.example .env
-```
-
-Open `.env` in Notepad and set:
-
-```
-APP_ENV=local
-APP_DEBUG=true
-APP_URL=http://localhost:8000
-APP_TIMEZONE=Asia/Manila
-
-DB_DATABASE=syndicate_ims
-DB_USERNAME=root
-DB_PASSWORD=
-```
-
-Then generate this installation's own encryption key and build the database:
-
-```
-php artisan key:generate
 php artisan migrate --seed
 ```
+
+<details>
+<summary>If there is no <code>.env</code> in the folder</summary>
+
+Then it was packaged with `-Clean` and you configure it yourself:
+
+```
+copy .env.example .env
+php artisan key:generate
+```
+
+Open `.env` and set `DB_DATABASE=syndicate_ims`, `DB_USERNAME=root`,
+`DB_PASSWORD=` (blank), `APP_URL=http://localhost:8000` and
+`APP_TIMEZONE=Asia/Manila`, then run the migrate command above. Mail needs
+setting up too — see step 6.
+</details>
 
 `--seed` loads the product catalogue and the three accounts in step 7. Run it
 **once**. Re-running the seeder duplicates the catalogue — it has no dedupe
@@ -89,18 +88,19 @@ That adds ~90 fake orders over the last 45 days. The customers in it are
 obviously fake (`@example.com` addresses) — say so if anyone asks to see
 "the real customer list".
 
-## 6. Email — read this before skipping it
+## 6. Email — already done, unless you're setting up from scratch
 
 The app emails a 6-digit code for **registration, password reset and
 checkout**. If mail doesn't work, nobody can sign up or place an order.
 
-> **If the handover package already contained a `.env`** (the developer ran
-> `package-for-handover.ps1 -IncludePrivateData`), mail is already set up and
-> you can skip this step — just check `DB_DATABASE` matches the database you
-> made in step 4. Steps 5's `key:generate` is also unnecessary; that `.env`
-> already has a key.
+**The shipped `.env` already has working mail credentials, so skip this
+step.** Send yourself a password reset from the login page if you want to
+confirm it.
 
-Otherwise, pick one:
+<details>
+<summary>Only if you need to point it at a different mailbox</summary>
+
+Two options:
 
 **Option A — the shop's own Gmail (best).** Sign in to the shop's account,
 turn on 2-Step Verification, create an *App Password* (Google account →
@@ -124,6 +124,8 @@ and 2-Step Verification has to be on before that option appears.
 sent; each code is written to `storage\logs\laravel.log` instead. Everything
 still works, you just read the code out of that file. Fine for a walkthrough,
 useless for real customers.
+
+</details>
 
 ## 7. Run it
 

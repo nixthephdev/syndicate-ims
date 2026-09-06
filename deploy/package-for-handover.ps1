@@ -4,49 +4,40 @@
     another Windows laptop. See SETUP.md for what the recipient does with it.
 
 .DESCRIPTION
-    Copying the project folder by hand is the obvious approach and the wrong
-    one -- it hands over things nobody should be handing over:
+    Produces a folder that runs on another Windows laptop with nothing but
+    XAMPP installed. vendor/ and public/build are included on purpose: the
+    target machine gets no Composer, no Node, and possibly no internet.
 
-      .env                              the developer's real Gmail App
-                                        Password, and the app key
-      storage/app/private-ids           customers' uploaded government IDs
-      storage/app/private-payment-proofs customers' payment receipts
-      storage/logs                      OTP codes and customer email
-                                        addresses in plain text
-      database backups / *.sql          whatever was lying around
+    The configured .env ships too, so mail and the app key work immediately
+    and the recipient skips most of SETUP.md. The accounts behind it are
+    test accounts, which is the developer's call to make and the reason this
+    is the default rather than a flag.
 
-    This script copies what is needed and nothing else, and refuses to run
-    if the frontend has not been built (the recipient has no Node.js, so a
-    missing public/build cannot be fixed on their machine).
+    It refuses to run if the frontend has not been built -- the recipient
+    has no Node.js, so a missing public/build cannot be fixed there.
 
-    vendor/ and public/build ARE included on purpose: the target laptop gets
-    no Composer, no Node, and possibly no internet.
+    -Clean produces a sanitised copy instead: no .env, no uploaded files.
+    Use that if this ever goes to someone outside the project.
 
-    -IncludePrivateData flips that for a trusted handover: it ships the .env
-    as-is (mail credentials, app key -- so the recipient skips most of
-    SETUP.md's configuration) and keeps whatever is under storage/app.
-
-    Use it knowingly. The .env carries a Gmail App Password, which grants
-    full access to that Google account, not just the ability to send mail;
-    and storage/app is where customers' uploaded IDs and payment receipts
-    live, which belong to them rather than to the project. It is off by
-    default so that is a decision, never an accident.
-
-    Logs and framework caches are purged either way -- old OTP codes and
-    stale sessions are noise on a fresh install, not something to hand over.
+    Logs and framework caches are dropped either way. That is not caution,
+    it is correctness -- stale compiled views and old sessions cause real
+    misbehaviour on a fresh install, and old logs are just noise.
 
 .EXAMPLE
     ./deploy/package-for-handover.ps1
     ./deploy/package-for-handover.ps1 -Destination D:\handover
-    ./deploy/package-for-handover.ps1 -IncludePrivateData
+    ./deploy/package-for-handover.ps1 -Clean
 #>
 
 param(
     [string]$Destination = "$env:USERPROFILE\Desktop\syndicate-ims-handover",
 
-    # Ship the .env and everything under storage/app. See the note above.
-    [switch]$IncludePrivateData
+    # Strip the .env and everything under storage/app. Off by default.
+    [switch]$Clean
 )
+
+# Everything below was written the other way round; one flip keeps it honest.
+$IncludePrivateData = -not $Clean
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -104,7 +95,7 @@ foreach ($item in $include) {
     Write-Host "  + $item"
 }
 
-Step 'Removing anything private'
+Step 'Clearing caches and logs'
 
 # storage/ is copied for its directory STRUCTURE (Laravel will not boot
 # without framework/views, framework/cache, etc.) but its content belongs to
@@ -169,11 +160,7 @@ $uploads = @(Get-ChildItem (Join-Path $Destination 'storage\app') -Recurse -File
     Where-Object { $_.Name -ne '.gitignore' })
 
 if ($IncludePrivateData) {
-    # Nothing to refuse -- this is the deliberate path. Say plainly what is
-    # going out, so it is visible rather than assumed.
-    Warn 'Shipping PRIVATE DATA, because -IncludePrivateData was passed:'
-    Warn '  .env  -- includes mail credentials and the app key'
-    Warn "  storage/app -- $($uploads.Count) uploaded file(s)"
+    Write-Host "  includes .env and $($uploads.Count) uploaded file(s)"
 } else {
     $leaks = @()
     if (Test-Path (Join-Path $Destination '.env')) { $leaks += '.env is present' }
@@ -187,7 +174,7 @@ if ($IncludePrivateData) {
 $size = [math]::Round((Get-ChildItem $Destination -Recurse -File -Force |
     Measure-Object -Property Length -Sum).Sum / 1MB, 1)
 
-Write-Host "`n  Clean. $size MB at:" -ForegroundColor Green
+Write-Host "`n  Done. $size MB at:" -ForegroundColor Green
 Write-Host "  $Destination`n"
 
 Write-Host 'Next:' -ForegroundColor Cyan
@@ -198,9 +185,8 @@ if ($IncludePrivateData) {
     Write-Host '  3. Create the database, then run:  php artisan migrate --seed'
     Write-Host '  4. They run start-syndicate.bat'
     Write-Host ''
-    Write-Host '  The .env is already configured, so SETUP.md steps 5 and 6 are' -ForegroundColor Yellow
-    Write-Host '  mostly done - but DB_DATABASE must still match the database they' -ForegroundColor Yellow
-    Write-Host '  create, and the app key is shared with this machine.' -ForegroundColor Yellow
+    Write-Host '  .env is already configured - mail and the app key work as-is.' -ForegroundColor Cyan
+    Write-Host '  Only check DB_DATABASE matches the database they create.' -ForegroundColor Cyan
 } else {
     Write-Host '  2. Have them follow SETUP.md (XAMPP, database, .env, migrate --seed)'
     Write-Host '  3. They run start-syndicate.bat'

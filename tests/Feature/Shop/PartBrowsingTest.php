@@ -145,4 +145,142 @@ class PartBrowsingTest extends TestCase
             ])
             ->assertSessionHasErrors('color');
     }
+
+    /**
+     * A build's trucks and standalone trucks are the same product but
+     * different cart entries, and the line key has to say so.
+     *
+     * Keyed on class+id alone they collided: adding trucks from /parts while
+     * a custom board (which always includes trucks) sat in the cart merged
+     * into the board's line. No new row appeared — the board's price just
+     * quietly went up — and the board's "every member shares one quantity"
+     * invariant broke, so its stepper would then overwrite the quantity the
+     * standalone add had paid for.
+     */
+    public function test_adding_a_part_standalone_does_not_merge_into_a_custom_build(): void
+    {
+        $user = User::factory()->create();
+        $deck = SkateboardComponent::factory()->deck()->create(['stock' => 10]);
+        $wheels = SkateboardComponent::factory()->wheels()->create(['stock' => 10]);
+        $trucks = SkateboardComponent::factory()->trucks()->create(['stock' => 10]);
+        $bolts = SkateboardComponent::factory()->bolts()->create(['stock' => 10]);
+
+        $this->actingAs($user);
+
+        // A custom board — deck + wheels + the trucks and bolts that always
+        // come with it, all sharing one build_key.
+        $this->post(route('customize.store'), [
+            'deck_id' => $deck->id,
+            'wheels_id' => $wheels->id,
+        ])->assertSessionHasNoErrors();
+
+        $beforeSubtotal = app(Cart::class)->subtotalCentavos();
+
+        // Now buy a set of trucks on their own from /parts.
+        $this->post(route('cart.store'), [
+            'type' => 'component',
+            'id' => $trucks->id,
+            'quantity' => 1,
+        ])->assertSessionHasNoErrors();
+
+        $lines = app(Cart::class)->lines();
+
+        // Five lines now: the build's four, plus a standalone trucks line.
+        $this->assertCount(5, $lines);
+
+        $standalone = array_values(array_filter(
+            $lines,
+            fn ($line) => $line['id'] === $trucks->id && $line['build_key'] === null
+        ));
+        $inBuild = array_values(array_filter(
+            $lines,
+            fn ($line) => $line['id'] === $trucks->id && $line['build_key'] !== null
+        ));
+
+        $this->assertCount(1, $standalone, 'the standalone trucks line is missing');
+        $this->assertCount(1, $inBuild, "the build's own trucks line is missing");
+
+        // Each keeps quantity 1 — neither absorbed the other.
+        $this->assertSame(1, $standalone[0]['quantity']);
+        $this->assertSame(1, $inBuild[0]['quantity']);
+
+        // And the shopper is charged for exactly one extra set of trucks.
+        $this->assertSame(
+            $beforeSubtotal + $trucks->price_centavos,
+            app(Cart::class)->subtotalCentavos()
+        );
+
+        // The build is still one board, not two.
+        $this->assertSame($bolts->id, $bolts->fresh()->id);
+        $this->assertCount(
+            4,
+            array_filter($lines, fn ($line) => $line['build_key'] !== null)
+        );
+    }
+
+    /**
+     * A cart already sitting in a session when this deployed holds build
+     * lines under the old `class#id` key. Those must be re-keyed on read, or
+     * the shopper keeps hitting the collision until they empty their cart.
+     */
+    public function test_a_cart_stored_under_the_old_key_format_is_migrated(): void
+    {
+        $user = User::factory()->create();
+        $trucks = SkateboardComponent::factory()->trucks()->create(['stock' => 10]);
+
+        $this->actingAs($user);
+
+        // Exactly what the old Cart::add() would have written.
+        session()->put('cart', [
+            SkateboardComponent::class.'#'.$trucks->id => [
+                'type' => SkateboardComponent::class,
+                'id' => $trucks->id,
+                'quantity' => 1,
+                'build_key' => 'legacy-build-key',
+                'color' => null,
+            ],
+        ]);
+
+        // Reading is enough to re-key it.
+        app(Cart::class)->lines();
+
+        $this->assertArrayHasKey(
+            SkateboardComponent::class.'#'.$trucks->id.'#legacy-build-key',
+            session()->get('cart')
+        );
+
+        // And a standalone add of the same part is now its own line.
+        $this->post(route('cart.store'), [
+            'type' => 'component',
+            'id' => $trucks->id,
+            'quantity' => 1,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertCount(2, app(Cart::class)->lines());
+    }
+
+    /** Two separate builds stay two entries, even sharing a deck. */
+    public function test_two_builds_of_the_same_parts_do_not_merge(): void
+    {
+        $user = User::factory()->create();
+        $deck = SkateboardComponent::factory()->deck()->create(['stock' => 10]);
+        $wheels = SkateboardComponent::factory()->wheels()->create(['stock' => 10]);
+        SkateboardComponent::factory()->trucks()->create(['stock' => 10]);
+        SkateboardComponent::factory()->bolts()->create(['stock' => 10]);
+
+        $this->actingAs($user);
+
+        foreach ([1, 2] as $ignored) {
+            $this->post(route('customize.store'), [
+                'deck_id' => $deck->id,
+                'wheels_id' => $wheels->id,
+            ]);
+        }
+
+        $buildKeys = array_unique(array_filter(
+            array_column(app(Cart::class)->lines(), 'build_key')
+        ));
+
+        $this->assertCount(2, $buildKeys, 'the second board merged into the first');
+    }
 }

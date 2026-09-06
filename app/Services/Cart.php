@@ -57,9 +57,26 @@ class Cart
         return $flipped[$class] ?? null;
     }
 
-    public static function key(string $class, int $id): string
+    /**
+     * The identity of a cart line.
+     *
+     * The build key is PART of it, and that is load-bearing. Trucks bought on
+     * their own and the trucks inside a custom board are the same product but
+     * genuinely different cart entries — bought for different reasons, shown
+     * differently, removed independently. Keyed on class+id alone they
+     * collided: adding standalone trucks while a board containing trucks was
+     * in the cart silently merged into the board's line, so no new row
+     * appeared, the board's price quietly went up instead, and the board's
+     * "every member shares one quantity" invariant broke (its stepper would
+     * then overwrite the quantity the standalone add had paid for).
+     *
+     * A null build key keeps the plain `class#id` form, so standalone lines —
+     * every apparel item, and carts already sitting in a session — are
+     * unaffected.
+     */
+    public static function key(string $class, int $id, ?string $buildKey = null): string
     {
-        return $class.'#'.$id;
+        return $class.'#'.$id.($buildKey === null ? '' : '#'.$buildKey);
     }
 
     /**
@@ -73,23 +90,25 @@ class Cart
      * build (see CustomizeController::store()) so the cart page can render
      * deck+wheels+trucks+bolts as a single entry. It is display metadata
      * only — checkout still creates one OrderItem per line either way, so
-     * each part's stock keeps decrementing independently. If this call
-     * merges into an existing line (same purchasable already in the cart),
-     * the line's build_key is left as whatever it already was — first-write
-     * wins, so a later custom build never silently reclassifies a part the
-     * shopper already added on its own.
+     * each part's stock keeps decrementing independently.
+     *
+     * It is also part of the line's KEY (see key()), so a build's trucks and
+     * standalone trucks never merge into each other. Two different builds
+     * containing the same deck likewise stay two entries, which is what the
+     * cart page draws.
      *
      * $color is the /parts hardware colour swatch (Trucks/Bolts only — see
      * PartController) — unlike /customize's own bolts/trucks recolour, which
      * stays purely decorative and never reaches here, a standalone hardware
      * purchase's colour is a real fulfilment instruction, so it rides the
-     * cart line through to OrderItem.customization at checkout. Same
-     * first-write-wins merge rule as build_key, for the same reason.
+     * cart line through to OrderItem.customization at checkout. First-write
+     * wins if the same line is added again: re-adding trucks you already have
+     * must not silently repaint the pair you asked for in red.
      */
     public function add(Purchasable $item, int $quantity = 1, ?string $buildKey = null, ?string $color = null): void
     {
         /** @var Model $item */
-        $key = self::key(get_class($item), (int) $item->getKey());
+        $key = self::key(get_class($item), (int) $item->getKey(), $buildKey);
         $raw = $this->raw();
 
         $raw[$key] = [
@@ -203,7 +222,10 @@ class Cart
         $pruned = false;
 
         foreach ($raw as $key => $row) {
-            $model = $models[$key] ?? null;
+            // Looked up by PRODUCT (class+id), not by line key — the line key
+            // also carries the build key, and two lines for the same product
+            // (one standalone, one inside a build) share the one model.
+            $model = $models[self::key($row['type'], (int) $row['id'])] ?? null;
 
             if (! $model) {
                 unset($raw[$key]);
@@ -286,7 +308,52 @@ class Cart
     {
         $raw = $this->session->get(self::SESSION_KEY, []);
 
-        return is_array($raw) ? $raw : [];
+        return is_array($raw) ? $this->migrateBuildKeys($raw) : [];
+    }
+
+    /**
+     * Re-key any line stored before the build key became part of key().
+     *
+     * Carts live in the session, so a shopper can be mid-visit when this
+     * deploys, holding build lines keyed the old `class#id` way. Left alone
+     * those keep colliding with a standalone add of the same part — the very
+     * bug the new key exists to stop — and the shopper would see it "still
+     * broken" until they emptied their cart. Rewriting them on the next read
+     * fixes it under them, once, silently.
+     *
+     * Deliberately narrow: only rows that HAVE a build key and are stored
+     * under the short key move. Anything already correct is left untouched,
+     * and the session is only rewritten if something actually changed.
+     *
+     * @param  array<string, array<string, mixed>>  $raw
+     * @return array<string, array<string, mixed>>
+     */
+    private function migrateBuildKeys(array $raw): array
+    {
+        $migrated = [];
+        $changed = false;
+
+        foreach ($raw as $key => $row) {
+            $buildKey = $row['build_key'] ?? null;
+            $correct = $buildKey === null
+                ? $key
+                : self::key((string) ($row['type'] ?? ''), (int) ($row['id'] ?? 0), $buildKey);
+
+            if ($correct !== $key && ! isset($raw[$correct])) {
+                $changed = true;
+                $migrated[$correct] = $row;
+
+                continue;
+            }
+
+            $migrated[$key] = $row;
+        }
+
+        if ($changed) {
+            $this->session->put(self::SESSION_KEY, $migrated);
+        }
+
+        return $migrated;
     }
 
     /** @param  array<string, array<string, mixed>>  $raw */

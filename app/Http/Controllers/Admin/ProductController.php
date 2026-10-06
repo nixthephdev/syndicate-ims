@@ -64,7 +64,7 @@ class ProductController extends Controller
         $data = $request->validated();
         $slug = $this->uniqueSlug($data['name']);
 
-        Product::create([
+        $product = Product::create([
             'name' => $data['name'],
             'slug' => $slug,
             'description' => $data['description'] ?? null,
@@ -77,8 +77,10 @@ class ProductController extends Controller
                 : null,
         ]);
 
-        return redirect()->route('admin.products.index')
-            ->with('success', 'Product created. Add variants to give it stock.');
+        // Straight to its edit page: the next job is adding sizes/colours,
+        // and that's where they live.
+        return redirect()->route('admin.products.edit', $product)
+            ->with('success', 'Product created. Now add its sizes and colours with stock.');
     }
 
     public function edit(Product $product): Response

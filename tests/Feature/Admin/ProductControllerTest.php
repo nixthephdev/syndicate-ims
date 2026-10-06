@@ -31,9 +31,10 @@ class ProductControllerTest extends TestCase
                 'is_active' => true,
             ]);
 
-        $response->assertRedirect(route('admin.products.index'));
-
         $product = Product::where('name', 'Syndicate Tee')->firstOrFail();
+
+        // Straight to its edit page, where sizes/colours (and so stock) go.
+        $response->assertRedirect(route('admin.products.edit', $product));
         $this->assertSame('syndicate-tee', $product->slug);
         // 899.00 pesos -> centavos, exactly. This is the money-conversion path.
         $this->assertSame(89900, $product->base_price_centavos);

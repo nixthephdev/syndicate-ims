@@ -40,8 +40,8 @@ class DashboardController extends Controller
                 // paid/deposit-paid ones to hand over (a delivery order's
                 // 50% deposit still leaves someone needing to deliver it and
                 // collect the cash balance).
-                'awaiting_payment' => Order::query()->status(Order::STATUS_AWAITING_PAYMENT)->count(),
-                'to_fulfil' => Order::query()->whereIn('status', [Order::STATUS_PAID, Order::STATUS_DEPOSIT_PAID])->count(),
+                'awaiting_payment' => Order::query()->asOfNow()->status(Order::STATUS_AWAITING_PAYMENT)->count(),
+                'to_fulfil' => Order::query()->asOfNow()->whereIn('status', [Order::STATUS_PAID, Order::STATUS_DEPOSIT_PAID])->count(),
                 // Revenue counts PAID/DEPOSIT_PAID orders only — scopePaid()
                 // keys off paid_at, so an order that was placed but never
                 // paid never reaches the sales figures. Money actually
@@ -51,20 +51,20 @@ class DashboardController extends Controller
                 // total_centavos, until it's marked fulfilled (balance
                 // collected in cash) and its own total_centavos becomes the
                 // true collected amount.
-                'revenue_today_centavos' => (int) Order::query()->paid()->where('paid_at', '>=', now()->startOfDay())->sum(DB::raw(self::COLLECTED_AMOUNT_SQL)),
+                'revenue_today_centavos' => (int) Order::query()->asOfNow()->paid()->where('paid_at', '>=', now()->startOfDay())->sum(DB::raw(self::COLLECTED_AMOUNT_SQL)),
                 // Same shape as revenue_today, one day back — powers a real
                 // vs-yesterday trend badge on the Dashboard. Nothing else
                 // needs a period-over-period comparison the way a running
                 // "today" figure does, so this stays the one extra query
                 // rather than a general trend framework nothing else uses.
-                'revenue_yesterday_centavos' => (int) Order::query()->paid()
+                'revenue_yesterday_centavos' => (int) Order::query()->asOfNow()->paid()
                     ->whereBetween('paid_at', [now()->subDay()->startOfDay(), now()->startOfDay()])
                     ->sum(DB::raw(self::COLLECTED_AMOUNT_SQL)),
                 'revenue_total' => Money::format(
-                    (int) Order::query()->paid()->sum(DB::raw(self::COLLECTED_AMOUNT_SQL))
+                    (int) Order::query()->asOfNow()->paid()->sum(DB::raw(self::COLLECTED_AMOUNT_SQL))
                 ),
             ],
-            'recentOrders' => Order::query()
+            'recentOrders' => Order::query()->asOfNow()
                 ->with('items:id,order_id')
                 ->latest()
                 ->take(5)
@@ -112,7 +112,8 @@ class DashboardController extends Controller
     {
         $rows = DB::table('orders')
             ->whereNotNull('paid_at')
-            ->where('paid_at', '>=', now()->subDays(29)->startOfDay())
+            ->whereBetween('paid_at', [now()->subDays(29)->startOfDay(), now()])
+            ->where('created_at', '<=', now())
             ->selectRaw('DATE(paid_at) as day, SUM('.self::COLLECTED_AMOUNT_SQL.') as revenue_centavos')
             ->groupBy('day')
             ->pluck('revenue_centavos', 'day');
@@ -145,6 +146,8 @@ class DashboardController extends Controller
         $rows = DB::table('order_items')
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->whereNotNull('orders.paid_at')
+            ->where('orders.paid_at', '<=', now())
+            ->where('orders.created_at', '<=', now())
             ->selectRaw('order_items.purchasable_type as type, SUM(order_items.line_total_centavos) as revenue_centavos')
             ->groupBy('order_items.purchasable_type')
             ->pluck('revenue_centavos', 'type');
@@ -166,6 +169,8 @@ class DashboardController extends Controller
             ->join('products', 'products.id', '=', 'product_variants.product_id')
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->whereNotNull('orders.paid_at')
+            ->where('orders.paid_at', '<=', now())
+            ->where('orders.created_at', '<=', now())
             ->selectRaw('products.name as name, SUM(order_items.quantity) as units')
             ->groupBy('products.id', 'products.name')
             ->orderByDesc('units')

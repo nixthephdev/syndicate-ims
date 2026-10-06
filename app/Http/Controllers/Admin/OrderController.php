@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\SkateboardComponent;
 use App\Support\Money;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -24,7 +25,7 @@ class OrderController extends Controller
         $status = $request->query('status');
         $status = in_array($status, Order::STATUSES, true) ? $status : null;
 
-        $orders = Order::query()
+        $orders = Order::query()->asOfNow()
             ->with('user:id,name,email')
             ->withCount('items')
             ->when($status, fn ($query) => $query->status($status))
@@ -60,9 +61,9 @@ class OrderController extends Controller
             ],
             'statuses' => Order::STATUSES,
             'counts' => [
-                'awaiting_payment' => Order::query()->status(Order::STATUS_AWAITING_PAYMENT)->count(),
-                'paid' => Order::query()->status(Order::STATUS_PAID)->count(),
-                'fulfilled' => Order::query()->status(Order::STATUS_FULFILLED)->count(),
+                'awaiting_payment' => Order::query()->asOfNow()->status(Order::STATUS_AWAITING_PAYMENT)->count(),
+                'paid' => Order::query()->asOfNow()->status(Order::STATUS_PAID)->count(),
+                'fulfilled' => Order::query()->asOfNow()->status(Order::STATUS_FULFILLED)->count(),
             ],
         ]);
     }
@@ -71,7 +72,7 @@ class OrderController extends Controller
     {
         $order = Order::query()
             ->where('order_number', $orderNumber)
-            ->with(['items', 'user:id,name,email,role'])
+            ->with(['items.purchasable', 'user:id,name,email,role'])
             ->firstOrFail();
 
         return Inertia::render('Admin/Orders/Show', [
@@ -84,12 +85,15 @@ class OrderController extends Controller
                 'payment_method' => $order->payment_method,
                 'payment_method_label' => $order->paymentMethodLabel(),
                 'requires_deposit' => $order->requiresDeposit(),
-                'needs_payment_proof' => $order->needsPaymentProof(),
-                'payment_reference' => $order->payment_reference,
-                'payment_proof_uploaded_at' => $order->payment_proof_uploaded_at?->format('d M Y, g:ia'),
-                'payment_proof_url' => $order->hasPaymentProof()
-                    ? route('payment.proof.show', $order->order_number)
-                    : null,
+                'pays_online' => $order->paysOnline(),
+                // PayMongo's own ids — what staff search for in the PayMongo
+                // dashboard if a customer disputes a payment.
+                'paymongo' => array_filter([
+                    'payment_intent_id' => $order->paymongo_payment_intent_id,
+                    'payment_id' => $order->paymongo_payment_id,
+                ]),
+                // Each custom board as one 3D model — see builds() below.
+                'builds' => $this->builds($order),
                 // The buyer's ID, shown next to the order so staff review
                 // both in one pass — it does NOT gate ordering.
                 'customer_id_verification' => $order->user ? [
@@ -141,10 +145,74 @@ class OrderController extends Controller
             'can' => [
                 'fulfil' => in_array($order->status, [Order::STATUS_PAID, Order::STATUS_DEPOSIT_PAID], true),
                 'cancel' => $order->status === Order::STATUS_AWAITING_PAYMENT,
-                // Staff confirm EVERY method now — there is no gateway doing
-                // it for them. Only the status matters, not how they paid.
-                'confirm_payment' => $order->status === Order::STATUS_AWAITING_PAYMENT,
+                // Cash only — PayMongo confirms GCash. See OrderPaymentController.
+                'confirm_payment' => $order->status === Order::STATUS_AWAITING_PAYMENT
+                    && $order->payment_method === Order::PAYMENT_METHOD_CASH,
             ],
         ]);
+    }
+
+    /**
+     * The order's skateboard parts, regrouped into the boards they make up,
+     * so the page can show each as one assembled 3D model rather than four
+     * rows of text.
+     *
+     * Grouped on the build_key checkout snapshots into `customization`. Parts
+     * bought on their own (no build_key, and every order placed before the
+     * key was snapshotted) fall into one "Separate parts" group, previewed
+     * together.
+     *
+     * mesh_name is read off the live component, not a snapshot: it is
+     * immutable (the admin edit form never writes it — it is what the .glb
+     * lookup keys on), so it cannot have drifted since the order was placed.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function builds(Order $order): array
+    {
+        $groups = [];
+
+        foreach ($order->items as $item) {
+            $part = $item->purchasable;
+
+            if (! $part instanceof SkateboardComponent) {
+                continue;
+            }
+
+            $key = $item->customization['build_key'] ?? 'loose';
+            $groups[$key] ??= [
+                'key' => $key,
+                'label' => $key === 'loose' ? 'Separate parts' : 'Custom board',
+                'deck_mesh' => null,
+                'wheels_mesh' => null,
+                'trucks_color' => null,
+                'bolts_color' => null,
+                'parts' => [],
+            ];
+
+            // ponytail: a "Separate parts" group with two decks previews the
+            // first one only; split into one model per deck if that matters.
+            $slot = [
+                SkateboardComponent::TYPE_DECK => 'deck_mesh',
+                SkateboardComponent::TYPE_WHEELS => 'wheels_mesh',
+            ][$part->type] ?? null;
+
+            if ($slot) {
+                $groups[$key][$slot] ??= $part->mesh_name;
+            }
+
+            $color = [
+                SkateboardComponent::TYPE_TRUCKS => 'trucks_color',
+                SkateboardComponent::TYPE_BOLTS => 'bolts_color',
+            ][$part->type] ?? null;
+
+            if ($color) {
+                $groups[$key][$color] ??= $item->customization['color'] ?? null;
+            }
+
+            $groups[$key]['parts'][] = $item->name_snapshot;
+        }
+
+        return array_values($groups);
     }
 }

@@ -36,6 +36,7 @@ class SkateboardComponentController extends Controller
                 'is_low_stock' => $c->isLowStock(),
                 'is_out_of_stock' => $c->isOutOfStock(),
                 'is_active' => $c->is_active,
+                'image_url' => $c->imageUrl(),
             ]);
 
         return Inertia::render('Admin/SkateboardComponents/Index', [
@@ -57,6 +58,9 @@ class SkateboardComponentController extends Controller
                 'stock' => $skateboardComponent->stock,
                 'low_stock_threshold' => $skateboardComponent->low_stock_threshold,
                 'is_active' => $skateboardComponent->is_active,
+                'image_url' => $skateboardComponent->imageUrl(),
+                'is_low_stock' => $skateboardComponent->isLowStock(),
+                'is_out_of_stock' => $skateboardComponent->isOutOfStock(),
             ],
         ]);
     }

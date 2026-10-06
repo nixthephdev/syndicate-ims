@@ -80,6 +80,28 @@ class SkateboardComponent extends Model implements Purchasable
         return $this->name;
     }
 
+    /**
+     * A real render of this part's baked mesh, or null if none exists — see
+     * public/images/parts/README.md. Derived from glb_file + mesh_name
+     * (immutable), never stored, so there is nothing to keep in sync.
+     *
+     * Trucks/Bolts were only rendered per hardware colour
+     * (board-Trucks-f8f8f8.png...), so $hardwareColor picks one; it defaults
+     * to off-white, the customizer's default.
+     */
+    public function imageUrl(string $hardwareColor = 'f8f8f8'): ?string
+    {
+        $prefix = $this->glb_file === self::GLB_WHEELS ? 'wheels' : 'board';
+
+        foreach (["{$prefix}-{$this->mesh_name}.png", "{$prefix}-{$this->mesh_name}-{$hardwareColor}.png"] as $file) {
+            if (file_exists(public_path("images/parts/{$file}"))) {
+                return "/images/parts/{$file}";
+            }
+        }
+
+        return null;
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);

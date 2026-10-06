@@ -19,7 +19,7 @@ use App\Http\Controllers\Shop\CustomizeController;
 use App\Http\Controllers\Shop\IdVerificationController;
 use App\Http\Controllers\Shop\OrderController as ShopOrderController;
 use App\Http\Controllers\Shop\PartController;
-use App\Http\Controllers\Shop\PaymentProofController;
+use App\Http\Controllers\Shop\PayMongoController;
 use App\Http\Controllers\Shop\ProductController as ShopProductController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -114,13 +114,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/orders/{order_number}/cancel', [ShopOrderController::class, 'cancel'])->name('orders.cancel');
     Route::patch('/orders/{order_number}/address', [ShopOrderController::class, 'updateAddress'])->name('orders.address.update');
 
-    // The customer uploads their GCash / bank transfer receipt here. It
-    // marks NOTHING paid — staff confirm it against the shop's own account
-    // in the admin panel, which is the only thing that moves stock.
-    Route::post('/orders/{order_number}/payment-proof', [PaymentProofController::class, 'store'])
-        ->name('payment.proof.store');
-    Route::get('/orders/{order_number}/payment-proof', [PaymentProofController::class, 'show'])
-        ->name('payment.proof.show');
+    // GCash via PayMongo. create() only sends the customer to PayMongo;
+    // returnFromCheckout() is where PayMongo sends them back, and it asks
+    // PayMongo's API whether the payment succeeded. No webhook — see the
+    // controller docblock.
+    Route::post('/orders/{order_number}/pay', [PayMongoController::class, 'create'])
+        ->name('payment.paymongo.create');
+    Route::get('/orders/{order_number}/payment/return', [PayMongoController::class, 'returnFromCheckout'])
+        ->name('payment.paymongo.return');
 });
 
 // No SSH on the target host = no way to run `php artisan migrate` there

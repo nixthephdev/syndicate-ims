@@ -27,7 +27,7 @@ class UserController extends Controller
         $role = in_array($role, User::ROLES, true) ? $role : null;
 
         $users = User::query()
-            ->withCount('orders')
+            ->withCount(['orders' => fn ($q) => $q->asOfNow()])
             ->when($role, fn ($query) => $query->role($role))
             ->when($request->query('q'), function ($query, $term) {
                 $query->where(function ($q) use ($term) {

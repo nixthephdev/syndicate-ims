@@ -45,6 +45,10 @@ class HandleInertiaRequests extends Middleware
             // never reach the page and would sit silently in the session.
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
+                // Cart add/remove confirmations. Separate key because they
+                // render as a small corner toast while shopping; everything
+                // else pops up in the centre of the screen.
+                'cart' => fn () => $request->session()->get('cart_notice'),
             ],
             // Drives the header cart badge. A closure so the count is only
             // computed for pages that actually read it, and so it reflects

@@ -5,6 +5,7 @@ import Card from '@/Components/Admin/Card';
 import PrimaryButton from '@/Components/Admin/PrimaryButton';
 import SecondaryButton from '@/Components/Admin/SecondaryButton';
 import IdStatusBadge from '@/Components/Admin/IdStatusBadge';
+import { useConfirm } from '@/Components/Admin/ConfirmDialog';
 import { ArrowLeftIcon, CheckCircleIcon, XIcon } from '@/Components/Admin/icons';
 
 /**
@@ -22,6 +23,7 @@ export default function Show({ customer, can_review }) {
     const [rejecting, setRejecting] = useState(false);
     const [reason, setReason] = useState('');
     const [processing, setProcessing] = useState(false);
+    const [confirmDialog, ask] = useConfirm();
 
     const decide = (decision) => {
         router.patch(
@@ -42,6 +44,7 @@ export default function Show({ customer, can_review }) {
     return (
         <AdminLayout header={`ID · ${customer.name}`}>
             <Head title={`Admin · ID · ${customer.name}`} />
+            {confirmDialog}
 
             <Link
                 href={route('admin.id-verifications.index')}
@@ -150,7 +153,16 @@ export default function Show({ customer, can_review }) {
                                     <PrimaryButton
                                         className="mt-3 w-full justify-center"
                                         disabled={processing}
-                                        onClick={() => decide('approve')}
+                                        onClick={() =>
+                                            ask(
+                                                {
+                                                    title: `Approve ${customer.name}'s ID?`,
+                                                    message: 'Only approve if the photo is clear and the name matches the account.',
+                                                    confirmLabel: 'Approve',
+                                                },
+                                                () => decide('approve')
+                                            )
+                                        }
                                         icon={CheckCircleIcon}
                                     >
                                         Approve

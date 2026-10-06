@@ -3,6 +3,7 @@ import IconButton from '@/Components/Admin/IconButton';
 import { PencilIcon, TrashIcon, CheckIcon, XIcon } from '@/Components/Admin/icons';
 import { router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { useConfirm } from '@/Components/Admin/ConfirmDialog';
 
 const inputClasses = 'rounded border-white/15 bg-ink-900 text-white text-sm focus:border-volt-500 focus:ring-volt-500 admin-light:border-ink-900/15 admin-light:bg-white admin-light:text-ink-900';
 
@@ -12,6 +13,7 @@ const inputClasses = 'rounded border-white/15 bg-ink-900 text-white text-sm focu
  */
 export default function VariantRow({ productId, variant }) {
     const [editing, setEditing] = useState(false);
+    const [confirmDialog, ask] = useConfirm();
 
     const { data, setData, patch, processing, errors, reset } = useForm({
         size: variant.size ?? '',
@@ -32,12 +34,18 @@ export default function VariantRow({ productId, variant }) {
     }
 
     function destroy() {
-        if (!confirm(`Delete variant "${variant.sku}"? This cannot be undone.`)) {
-            return;
-        }
-        router.delete(route('admin.products.variants.destroy', [productId, variant.id]), {
-            preserveScroll: true,
-        });
+        ask(
+            {
+                title: `Delete variant "${variant.sku}"?`,
+                message: 'This cannot be undone.',
+                confirmLabel: 'Delete',
+                danger: true,
+            },
+            () =>
+                router.delete(route('admin.products.variants.destroy', [productId, variant.id]), {
+                    preserveScroll: true,
+                })
+        );
     }
 
     if (!editing) {
@@ -67,6 +75,7 @@ export default function VariantRow({ productId, variant }) {
                     <IconButton onClick={destroy} label={`Delete ${variant.sku}`} tone="danger">
                         <TrashIcon />
                     </IconButton>
+                    {confirmDialog}
                 </td>
             </tr>
         );

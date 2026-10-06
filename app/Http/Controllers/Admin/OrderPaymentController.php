@@ -9,22 +9,16 @@ use App\Services\InventoryService;
 use Illuminate\Http\RedirectResponse;
 
 /**
- * A staff member confirming money actually arrived. With no payment gateway,
- * THIS is the only thing in the whole app that marks an order paid and moves
- * stock — every method funnels through here.
+ * A staff member confirming CASH was collected at the branch.
  *
- * The customer uploading a receipt (Shop\PaymentProofController) is a claim,
- * not a payment: anyone can attach any image. What makes it real is a human
- * checking the shop's own GCash or bank account and pressing this. Do not
- * collapse those two steps together.
+ * Cash only. A GCash order is confirmed by PayMongo
+ * (Shop\PayMongoController::returnFromCheckout()), never by a button here —
+ * letting staff mark one paid would mean a GCash order could be "paid" with
+ * no money ever having moved through PayMongo.
  *
  * Kept out of OrderStatusController on purpose — that controller's docblock
  * promises it never touches stock, and this does, through the same
- * InventoryService::commitForPaidOrder() every payment has always used.
- *
- * A delivery order lands on deposit_paid rather than paid: its online leg is
- * only the 50%, with the balance still due in cash on arrival. That decision
- * lives on the model (Order::paidStatusForPaymentMethod()).
+ * InventoryService::commitForPaidOrder() every payment uses.
  */
 class OrderPaymentController extends Controller
 {
@@ -38,25 +32,22 @@ class OrderPaymentController extends Controller
             ]);
         }
 
+        if ($order->payment_method !== Order::PAYMENT_METHOD_CASH) {
+            return back()->withErrors([
+                'payment' => 'GCash orders are confirmed by PayMongo, not by hand.',
+            ]);
+        }
+
         try {
             $inventory->commitForPaidOrder($order, $order->paidStatusForPaymentMethod());
         } catch (InsufficientStockException $e) {
-            // Money is in but the goods went while it sat in the queue — the
-            // race the cart deliberately never reserves against. Surfaced
-            // rather than swallowed: someone has paid for something the shop
-            // cannot supply, and that needs a human.
+            // The goods went while it sat in the queue — the race the cart
+            // deliberately never reserves against. Needs a human.
             return back()->withErrors([
                 'payment' => 'Could not confirm — '.$e->getMessage(),
             ]);
         }
 
-        $order->refresh();
-
-        return back()->with('success', sprintf(
-            '%s marked %s (%s).',
-            $order->order_number,
-            $order->status === Order::STATUS_DEPOSIT_PAID ? 'deposit paid' : 'paid',
-            $order->paymentMethodLabel()
-        ));
+        return back()->with('success', $order->order_number.' marked paid (cash).');
     }
 }

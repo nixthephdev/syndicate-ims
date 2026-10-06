@@ -4,6 +4,7 @@ import Card from '@/Components/Admin/Card';
 import FilterTab from '@/Components/Admin/FilterTabs';
 import Pagination from '@/Components/Admin/Pagination';
 import PrimaryButton from '@/Components/Admin/PrimaryButton';
+import { useConfirm } from '@/Components/Admin/ConfirmDialog';
 import { MagnifyingGlassIcon, PowerIcon } from '@/Components/Admin/icons';
 import { Head, router, usePage } from '@inertiajs/react';
 
@@ -30,20 +31,44 @@ export default function Index({ users, filters, roles }) {
         go({ ...filters, q: term || undefined });
     };
 
+    const [confirmDialog, ask] = useConfirm();
+
+    // The <select> is controlled by user.role, so backing out of the dialog
+    // leaves it showing the role the user still actually has.
     const changeRole = (user, role) => {
         if (role === user.role) return;
-        router.patch(route('admin.users.role.update', user.id), { role }, { preserveScroll: true });
+        ask(
+            {
+                title: `Make ${user.name} ${ROLE_LABELS[role]}?`,
+                message:
+                    role === 'customer'
+                        ? 'They will lose access to the admin panel.'
+                        : `They will get ${ROLE_LABELS[role].toLowerCase()} access to the admin panel.`,
+                confirmLabel: `Make ${ROLE_LABELS[role]}`,
+            },
+            () => router.patch(route('admin.users.role.update', user.id), { role }, { preserveScroll: true })
+        );
     };
 
     const toggleStatus = (user) => {
         const verb = user.is_active ? 'Deactivate' : 'Activate';
-        if (!confirm(`${verb} ${user.name}?`)) return;
-        router.patch(route('admin.users.status.update', user.id), {}, { preserveScroll: true });
+        ask(
+            {
+                title: `${verb} ${user.name}?`,
+                message: user.is_active
+                    ? 'They will not be able to sign in until reactivated.'
+                    : 'They will be able to sign in again.',
+                confirmLabel: verb,
+                danger: user.is_active,
+            },
+            () => router.patch(route('admin.users.status.update', user.id), {}, { preserveScroll: true })
+        );
     };
 
     return (
         <AdminLayout header="Users">
             <Head title="Admin · Users" />
+            {confirmDialog}
 
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-wrap gap-1">

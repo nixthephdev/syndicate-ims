@@ -121,12 +121,18 @@ module.exports = {
                     '0%': { opacity: '0', transform: 'translateX(1rem)' },
                     '100%': { opacity: '1', transform: 'translateX(0)' },
                 },
+                // Centred notification pop-up (ToastStack's 'center' placement).
+                popIn: {
+                    '0%': { opacity: '0', transform: 'scale(0.95)' },
+                    '100%': { opacity: '1', transform: 'scale(1)' },
+                },
             },
             animation: {
                 marquee: 'marquee 32s linear infinite',
                 'fade-up': 'fadeUp 0.4s ease-out both',
                 float: 'float 5s ease-in-out infinite',
                 'toast-in': 'toastIn 0.25s ease-out both',
+                'pop-in': 'popIn 0.2s ease-out both',
             },
         },
     },

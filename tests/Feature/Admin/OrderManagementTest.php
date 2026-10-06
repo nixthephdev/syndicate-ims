@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class OrderManagementTest extends TestCase
@@ -174,6 +175,36 @@ class OrderManagementTest extends TestCase
             ->assertSessionHasErrors('status');
     }
 
+    /**
+     * The demo history is pre-filled into the future (DemoOrdersSeeder).
+     * A future-dated order must not count anywhere until its date arrives —
+     * it once inflated "revenue today" by every future payment.
+     */
+    public function test_future_dated_orders_do_not_count_until_their_date(): void
+    {
+        $this->order(Order::STATUS_PAID, ['paid_at' => now(), 'total_centavos' => 120000]);
+        $future = $this->order(Order::STATUS_PAID, ['total_centavos' => 999999]);
+        DB::table('orders')->where('id', $future->id)->update([
+            'created_at' => now()->addMonths(2),
+            'paid_at' => now()->addMonths(2),
+        ]);
+
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertInertia(fn ($page) => $page
+                ->where('stats.revenue_today_centavos', 120000)
+                ->where('stats.revenue_total', '₱1,200.00')
+                ->where('stats.to_fulfil', 1)
+                ->has('recentOrders', 1)
+            );
+
+        $this->actingAs($admin)
+            ->get(route('admin.orders.index'))
+            ->assertInertia(fn ($page) => $page->has('orders.data', 1));
+    }
+
     public function test_dashboard_reports_revenue_from_paid_orders_only(): void
     {
         $this->order(Order::STATUS_PAID, ['paid_at' => now(), 'total_centavos' => 120000]);
@@ -277,11 +308,10 @@ class OrderManagementTest extends TestCase
     }
 
     /**
-     * With no gateway, staff confirm EVERY method — they check the shop's
-     * own GCash or bank account and press confirm. This used to be refused
-     * for anything but cash, back when a webhook confirmed the rest.
+     * GCash is confirmed by PayMongo, never by hand — otherwise a GCash
+     * order could be "paid" with no money ever moving through PayMongo.
      */
-    public function test_staff_can_confirm_a_gcash_order_too(): void
+    public function test_staff_cannot_hand_confirm_a_gcash_order(): void
     {
         $order = $this->order(Order::STATUS_AWAITING_PAYMENT, [
             'payment_method' => Order::PAYMENT_METHOD_GCASH,
@@ -290,26 +320,10 @@ class OrderManagementTest extends TestCase
 
         $this->actingAs(User::factory()->staff()->create())
             ->patch(route('admin.orders.payment.confirm', $order->order_number))
-            ->assertSessionHasNoErrors();
+            ->assertSessionHasErrors('payment');
 
-        $this->assertSame(Order::STATUS_PAID, $order->fresh()->status);
-        $this->assertSame(9, $variant->fresh()->stock);
-    }
-
-    /** A delivery order's confirmation is only its 50% deposit. */
-    public function test_confirming_a_delivery_order_lands_on_deposit_paid(): void
-    {
-        $order = $this->order(Order::STATUS_AWAITING_PAYMENT, [
-            'payment_method' => Order::PAYMENT_METHOD_GCASH,
-            'fulfillment_method' => Order::FULFILLMENT_DELIVERY,
-            'deposit_centavos' => 25000,
-        ]);
-
-        $this->actingAs(User::factory()->staff()->create())
-            ->patch(route('admin.orders.payment.confirm', $order->order_number))
-            ->assertSessionHasNoErrors();
-
-        $this->assertSame(Order::STATUS_DEPOSIT_PAID, $order->fresh()->status);
+        $this->assertSame(Order::STATUS_AWAITING_PAYMENT, $order->fresh()->status);
+        $this->assertSame(10, $variant->fresh()->stock);
     }
 
     public function test_confirming_payment_is_refused_once_already_paid(): void

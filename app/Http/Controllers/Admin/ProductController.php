@@ -18,7 +18,14 @@ class ProductController extends Controller
     public function index(): Response
     {
         $products = Product::query()
-            ->withCount('variants')
+            // Same rules as TracksStock::isOutOfStock()/isLowStock(), counted
+            // in SQL so the index's stock filter needs no variants loaded.
+            ->withCount([
+                'variants',
+                'variants as out_of_stock_count' => fn ($q) => $q->where('stock', '<=', 0),
+                'variants as low_stock_count' => fn ($q) => $q->where('stock', '>', 0)
+                    ->whereColumn('stock', '<=', 'low_stock_threshold'),
+            ])
             ->withSum('variants', 'stock')
             ->latest()
             ->get()
@@ -32,11 +39,14 @@ class ProductController extends Controller
                 'is_active' => $product->is_active,
                 'variants_count' => $product->variants_count,
                 'total_stock' => (int) ($product->variants_sum_stock ?? 0),
+                'out_of_stock_count' => $product->out_of_stock_count,
+                'low_stock_count' => $product->low_stock_count,
                 'image_path' => $product->image_path,
             ]);
 
         return Inertia::render('Admin/Products/Index', [
             'products' => $products,
+            'typeLabels' => Product::TYPE_LABELS,
         ]);
     }
 

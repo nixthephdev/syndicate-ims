@@ -1,65 +1,69 @@
 import { useFlashToasts } from '@/utils/useFlashToasts';
+import { useAdminTheme } from '@/utils/useAdminTheme';
 
 const TONE = {
     success: {
-        border: 'border-green-500/40',
         icon: 'bg-green-500/10 text-green-400',
-        text: 'text-green-300 admin-light:text-green-700',
+        title: 'Done',
         path: 'M4.5 12.75l6 6 9-13.5',
     },
     error: {
-        border: 'border-red-500/40',
         icon: 'bg-red-500/10 text-red-400',
-        text: 'text-red-300 admin-light:text-red-700',
+        title: "Couldn't do that",
         path: 'M6 18L18 6M6 6l12 12',
     },
 };
 
 /**
- * Floating success/error notifications for the admin panel — same
- * restrained language as the rest of /admin (dark card, one of the two
- * semantic colors StockBadge already owns, no volt here — a toast is
- * status, not an action). Self-contained: drop it into a layout with no
- * props, it reads flash/status/errors itself via useFlashToasts().
+ * Admin notifications, shown as a pop-up in the centre of the screen (client
+ * request, 2026-10-06) — one at a time, newest queued behind. Each still
+ * closes itself after a few seconds (useFlashToasts), or on OK / a click on
+ * the backdrop. The admin has no cart, so there is no corner placement here.
+ *
+ * Not a headlessui Dialog: that would trap focus and portal outside
+ * AdminLayout's data-admin-theme wrapper. This renders in place, so
+ * admin-light: classes apply — the theme attribute is still re-set on the
+ * root for safety.
  */
 export default function ToastStack() {
     const { toasts, dismiss } = useFlashToasts();
+    const { theme } = useAdminTheme();
+    const toast = toasts[0];
 
-    if (toasts.length === 0) return null;
+    if (!toast) return null;
+
+    const tone = TONE[toast.type] ?? TONE.success;
 
     return (
-        <div className="pointer-events-none fixed inset-x-4 top-4 z-50 flex flex-col items-end gap-2 sm:inset-x-auto sm:right-6 sm:top-6">
-            {toasts.map((toast) => {
-                const tone = TONE[toast.type] ?? TONE.success;
+        <div data-admin-theme={theme} className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-ink-950/60" onClick={() => dismiss(toast.id)} aria-hidden="true" />
 
-                return (
-                    <div
-                        key={toast.id}
-                        role={toast.type === 'error' ? 'alert' : 'status'}
-                        aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
-                        className={`pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-md border bg-ink-900 p-4 shadow-lg shadow-black/30 animate-toast-in motion-reduce:animate-none admin-light:bg-white admin-light:shadow-black/10 ${tone.border}`}
-                    >
-                        <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${tone.icon}`}>
-                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d={tone.path} />
-                            </svg>
-                        </span>
+            <div
+                key={toast.id}
+                role={toast.type === 'error' ? 'alert' : 'status'}
+                aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
+                className="relative w-full max-w-sm rounded-md border border-white/10 bg-ink-900 p-6 text-center shadow-2xl animate-pop-in motion-reduce:animate-none admin-light:border-ink-900/10 admin-light:bg-white"
+            >
+                <span className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${tone.icon}`}>
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d={tone.path} />
+                    </svg>
+                </span>
 
-                        <p className={`flex-1 text-sm ${tone.text}`}>{toast.message}</p>
+                <p className="font-oswald mt-4 text-lg font-semibold uppercase tracking-wide text-white admin-light:text-ink-900">
+                    {tone.title}
+                </p>
+                <p className="mt-1 text-sm text-white/60 admin-light:text-ink-900/70">{toast.message}</p>
 
-                        <button
-                            type="button"
-                            onClick={() => dismiss(toast.id)}
-                            aria-label="Dismiss"
-                            className="shrink-0 text-white/40 transition-colors hover:text-white admin-light:text-ink-900/40 admin-light:hover:text-ink-900"
-                        >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-                );
-            })}
+                <button
+                    type="button"
+                    onClick={() => dismiss(toast.id)}
+                    autoFocus
+                    className="font-oswald mt-5 inline-flex rounded-md bg-volt-500 px-6 py-2 text-xs font-bold uppercase tracking-widest text-ink-900 transition hover:bg-volt-400"
+                >
+                    OK
+                </button>
+            </div>
         </div>
     );
 }

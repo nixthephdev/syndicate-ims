@@ -77,7 +77,14 @@ export default function Customize({ decks, wheels, trucks, bolts }) {
 
         if (!canAdd) return;
 
-        transform(() => ({ deck_id: deckId, wheels_id: wheelsId }));
+        // Hardware colours ride along so the order (and the admin's 3D
+        // preview of it) shows the board the shopper actually built.
+        transform(() => ({
+            deck_id: deckId,
+            wheels_id: wheelsId,
+            trucks_color: trucksColor,
+            bolts_color: boltsColor,
+        }));
         post(route('customize.store'), { preserveScroll: true });
     };
 

@@ -159,7 +159,9 @@ class CheckoutTest extends TestCase
 
         $this->actingAs($user);
         $this->fill($variant, 4);
-        $order = $this->checkout();
+        // Cash, because staff confirm cash by hand; GCash is PayMongo's
+        // (PayMongoPaymentTest covers that path through the same service).
+        $order = $this->checkout($this->details(['payment_method' => 'cash']));
 
         $this->staffConfirmsPayment($order)->assertSessionHasNoErrors();
         $this->actingAs($user);
@@ -188,7 +190,9 @@ class CheckoutTest extends TestCase
 
         $this->actingAs($user);
         $this->fill($variant, 5);
-        $order = $this->checkout();
+        // Cash, because staff confirm cash by hand; GCash is PayMongo's
+        // (PayMongoPaymentTest covers that path through the same service).
+        $order = $this->checkout($this->details(['payment_method' => 'cash']));
 
         // Someone else buys the lot between placing the order and paying.
         $variant->update(['stock' => 1]);
@@ -312,14 +316,14 @@ class CheckoutTest extends TestCase
 
         $order = $this->checkout($this->details([
             'fulfillment_method' => 'delivery',
-            'payment_method' => 'bank_transfer',
+            'payment_method' => 'gcash',
             'address_line' => '123 Rizal St.',
             'barangay' => 'Tagas',
             'city' => 'Daraga',
             'province' => 'Albay',
         ]));
 
-        $this->assertSame(Order::PAYMENT_METHOD_BANK_TRANSFER, $order->payment_method);
+        $this->assertSame(Order::PAYMENT_METHOD_GCASH, $order->payment_method);
         $this->assertTrue($order->requiresDeposit());
         // ceil(), so deposit + balance always sums back to the total exactly.
         $this->assertSame((int) ceil($order->total_centavos / 2), $order->deposit_centavos);

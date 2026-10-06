@@ -74,7 +74,7 @@ class PartController extends Controller
             'is_out_of_stock' => $component->isOutOfStock(),
             // Trucks/Bolts don't have a plain image — only per-colour ones
             // (see below) — so `image` is only meaningful for Decks/Wheels.
-            'image' => $hasColorVariants ? null : $this->imageUrl($component),
+            'image' => $hasColorVariants ? null : $component->imageUrl(),
             // mesh_name is exposed here (never elsewhere in this payload)
             // purely so the frontend can build `board-{mesh_name}-{hex}.png`
             // paths itself, off the ONE real colour list already living in
@@ -83,22 +83,5 @@ class PartController extends Controller
             'mesh_name' => $hasColorVariants ? $component->mesh_name : null,
             'has_color_variants' => $hasColorVariants,
         ];
-    }
-
-    /**
-     * Real renders of the actual baked mesh graphic — see
-     * public/images/parts/README.md for how they were generated. Path is
-     * derived purely from glb_file + mesh_name (already immutable, load-
-     * bearing data — see SkateboardComponent's docblock), never a stored
-     * column, so there's nothing extra to keep in sync. A missing file
-     * (any part someone forgets to regenerate for) falls back to PartCard's
-     * existing placeholder block instead of a broken <img>.
-     */
-    private function imageUrl(SkateboardComponent $component): ?string
-    {
-        $prefix = $component->glb_file === SkateboardComponent::GLB_WHEELS ? 'wheels' : 'board';
-        $relative = "images/parts/{$prefix}-{$component->mesh_name}.png";
-
-        return file_exists(public_path($relative)) ? "/{$relative}" : null;
     }
 }

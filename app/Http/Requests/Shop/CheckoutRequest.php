@@ -25,7 +25,7 @@ class CheckoutRequest extends FormRequest
             // every caller that predates the cash/delivery split working
             // unchanged.
             'fulfillment_method' => ['nullable', 'string', 'in:'.implode(',', Order::FULFILLMENT_METHODS)],
-            // GCash / bank transfer / cash. Cash is pickup-only, enforced in
+            // GCash / cash. Cash is pickup-only, enforced in
             // withValidator() below rather than here — the rule depends on
             // another field, and a bare `in:` cannot express that.
             'payment_method' => ['nullable', 'string', 'in:'.implode(',', Order::PAYMENT_METHODS)],
@@ -55,7 +55,7 @@ class CheckoutRequest extends FormRequest
             if ($isDelivery && $this->input('payment_method') === Order::PAYMENT_METHOD_CASH) {
                 $validator->errors()->add(
                     'payment_method',
-                    'Delivery orders need a 50% deposit by GCash or bank transfer. Cash is pickup only.'
+                    'Delivery orders need a 50% deposit by GCash. Cash is pickup only.'
                 );
             }
         });

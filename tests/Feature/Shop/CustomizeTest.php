@@ -2,11 +2,14 @@
 
 namespace Tests\Feature\Shop;
 
+use App\Models\Order;
 use App\Models\SkateboardComponent;
 use App\Models\User;
 use App\Services\Cart;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
+use Tests\Concerns\CompletesCheckoutOtp;
 use Tests\TestCase;
 
 /**
@@ -17,6 +20,7 @@ use Tests\TestCase;
  */
 class CustomizeTest extends TestCase
 {
+    use CompletesCheckoutOtp;
     use RefreshDatabase;
 
     public function test_customize_route_is_named_customize(): void
@@ -294,6 +298,60 @@ class CustomizeTest extends TestCase
         ])->assertRedirect(route('login', ['reason' => 'cart']));
 
         $this->assertSame(0, $this->cartLineCount());
+    }
+
+    /**
+     * The admin order page renders each custom board as one 3D model. That
+     * only works if checkout keeps which parts were one board (build_key)
+     * and the hardware colours the shopper picked — pinned end to end here.
+     */
+    public function test_a_checked_out_build_reaches_the_admin_as_one_3d_model(): void
+    {
+        Mail::fake();
+        $this->loginAsCustomer();
+
+        $deck = SkateboardComponent::factory()->deck()->create();
+        $wheels = SkateboardComponent::factory()->wheels()->create();
+        SkateboardComponent::factory()->trucks()->create();
+        SkateboardComponent::factory()->bolts()->create();
+
+        $this->post(route('customize.store'), [
+            'deck_id' => $deck->id,
+            'wheels_id' => $wheels->id,
+            'trucks_color' => '#e7312f',
+            'bolts_color' => '#f8f8f8',
+        ])->assertSessionHasNoErrors();
+
+        $this->post(route('checkout.store'), [
+            'customer_name' => 'Juan Dela Cruz',
+            'customer_email' => 'juan@example.test',
+            'customer_phone' => '0917 123 4567',
+        ]);
+        $this->completeCheckoutOtp();
+
+        $order = Order::firstOrFail();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.orders.show', $order->order_number))
+            ->assertInertia(fn ($page) => $page
+                ->has('order.builds', 1)
+                ->where('order.builds.0.label', 'Custom board')
+                ->where('order.builds.0.deck_mesh', $deck->mesh_name)
+                ->where('order.builds.0.wheels_mesh', $wheels->mesh_name)
+                ->where('order.builds.0.trucks_color', '#e7312f')
+                ->where('order.builds.0.bolts_color', '#f8f8f8')
+                ->has('order.builds.0.parts', 4));
+    }
+
+    public function test_a_malformed_hardware_colour_is_rejected(): void
+    {
+        $this->loginAsCustomer();
+
+        $this->post(route('customize.store'), [
+            'deck_id' => SkateboardComponent::factory()->deck()->create()->id,
+            'wheels_id' => SkateboardComponent::factory()->wheels()->create()->id,
+            'trucks_color' => 'red; drop table',
+        ])->assertSessionHasErrors('trucks_color');
     }
 
     private function cartLineCount(): int

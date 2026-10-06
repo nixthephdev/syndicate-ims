@@ -32,6 +32,15 @@ return [
     ],
 
     /*
+    | TEST keys only (sk_test_...). GCash via Payment Intents. No webhook
+    | secret: this app runs locally, PayMongo cannot reach it, and
+    | Shop\PayMongoController::returnFromCheckout() confirms payments instead.
+    */
+    'paymongo' => [
+        'secret_key' => env('PAYMONGO_SECRET_KEY'),
+    ],
+
+    /*
     | Only meaningful on a host with no SSH access — see DeployController
     | and the Deployment section of CLAUDE.md. Empty by default, which
     | disables the endpoint entirely (see DeployController::migrate()).

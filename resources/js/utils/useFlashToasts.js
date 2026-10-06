@@ -40,8 +40,15 @@ const ACTION_ERROR_KEYS = ['cart', 'payment', 'user', 'variant', 'status', 'orde
 function extractSuccessToasts(props) {
     const status = props.status ? (STATUS_MESSAGES[props.status] ?? props.status) : null;
     const message = props.flash?.success ?? status;
+    const toasts = message ? [{ type: 'success', message, placement: 'center' }] : [];
 
-    return message ? [{ type: 'success', message }] : [];
+    // Cart add/remove: a small corner toast, so shopping isn't interrupted.
+    // Everything else pops up in the centre of the screen.
+    if (props.flash?.cart) {
+        toasts.push({ type: 'success', message: props.flash.cart, placement: 'corner' });
+    }
+
+    return toasts;
 }
 
 /**
@@ -56,6 +63,7 @@ function extractErrorToasts(errors) {
     return ACTION_ERROR_KEYS.filter((key) => errors[key]).map((key) => ({
         type: 'error',
         message: errors[key],
+        placement: key === 'cart' ? 'corner' : 'center',
     }));
 }
 
@@ -91,9 +99,9 @@ export function useFlashToasts() {
 
     useEffect(() => {
         const pushAll = (items) => {
-            items.forEach(({ type, message }) => {
+            items.forEach(({ type, message, placement }) => {
                 const id = ++nextId;
-                setToasts((current) => [...current, { id, type, message }]);
+                setToasts((current) => [...current, { id, type, message, placement }]);
                 timers.current[id] = setTimeout(() => dismiss(id), type === 'error' ? 6000 : 4000);
             });
         };

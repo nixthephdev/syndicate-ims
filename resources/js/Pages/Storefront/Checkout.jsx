@@ -227,15 +227,14 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
                         ) : null}
 
                         {/* Payment method. Shown for BOTH fulfillment options —
-                            a delivery order still has to choose HOW it sends
-                            its 50% deposit. Cash is the one that isn't
-                            universal: it means "hand it over at the branch",
-                            which a delivery order cannot do, so it disappears
-                            rather than being offered and then rejected.
+                            a delivery order pays its 50% deposit by GCash.
+                            Cash means "hand it over at the branch", which a
+                            delivery order cannot do, so it disappears rather
+                            than being offered and then rejected.
                             CheckoutRequest enforces the same rule server-side. */}
                         <div className="border-t border-white/10 pt-6 light:border-ink-900/10">
                             <h2 className="font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65">
-                                {isDelivery ? 'How will you send the deposit?' : 'Payment'}
+                                {isDelivery ? 'Deposit payment' : 'Payment'}
                             </h2>
 
                             <div className="mt-4 flex flex-col gap-3 sm:flex-row">
@@ -243,13 +242,7 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
                                     selected={data.payment_method === 'gcash'}
                                     onClick={() => setData('payment_method', 'gcash')}
                                     title="GCash"
-                                    description="Send it, then upload your receipt."
-                                />
-                                <ToggleOption
-                                    selected={data.payment_method === 'bank_transfer'}
-                                    onClick={() => setData('payment_method', 'bank_transfer')}
-                                    title="Bank transfer"
-                                    description="Send it, then upload your receipt."
+                                    description="Pay online through PayMongo."
                                 />
                                 {!isDelivery && (
                                     <ToggleOption
@@ -263,10 +256,10 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
 
                             {data.payment_method !== 'cash' && (
                                 <p className="mt-3 text-xs leading-relaxed text-white/40 light:text-ink-900/55">
-                                    We'll show you where to send{' '}
+                                    You'll pay{' '}
                                     {formatCentavos(isDelivery ? depositPreview : subtotal_centavos)}{' '}
-                                    on the next screen. Your order is confirmed once we've
-                                    checked the payment arrived.
+                                    by GCash on the next screen. Your order is confirmed the
+                                    moment PayMongo confirms the payment.
                                 </p>
                             )}
 

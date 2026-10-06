@@ -84,6 +84,23 @@ class PartBrowsingTest extends TestCase
         $this->assertNull($lines[0]['build_key']);
     }
 
+    /**
+     * The "added to cart" message is flashed under its own key so the page
+     * can show it as a corner toast. That key must NOT be 'cart' — the cart
+     * itself lives in the session under 'cart' (Cart::SESSION_KEY), and
+     * flashing over it would empty the cart on every add.
+     */
+    public function test_adding_to_the_cart_flashes_a_notice_without_touching_the_cart(): void
+    {
+        $wheels = SkateboardComponent::factory()->wheels()->create(['stock' => 10]);
+
+        $this->actingAs(User::factory()->create())
+            ->post(route('cart.store'), ['type' => 'component', 'id' => $wheels->id, 'quantity' => 1])
+            ->assertSessionHas('cart_notice');
+
+        $this->assertCount(1, app(Cart::class)->lines());
+    }
+
     public function test_a_guest_adding_a_part_is_redirected_to_login(): void
     {
         $wheels = SkateboardComponent::factory()->wheels()->create(['stock' => 10]);

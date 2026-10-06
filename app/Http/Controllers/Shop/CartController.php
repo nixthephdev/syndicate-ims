@@ -47,7 +47,7 @@ class CartController extends Controller
 
         $this->cart->add($item, (int) $request->validated('quantity'), null, $request->validated('color'));
 
-        return back()->with('success', $item->displayName().' added to your cart.');
+        return back()->with('cart_notice', $item->displayName().' added to your cart.');
     }
 
     /**
@@ -86,6 +86,6 @@ class CartController extends Controller
             $this->cart->remove($key);
         }
 
-        return back()->with('success', 'Removed from your cart.');
+        return back()->with('cart_notice', 'Removed from your cart.');
     }
 }

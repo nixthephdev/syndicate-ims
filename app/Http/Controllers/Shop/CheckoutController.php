@@ -199,11 +199,14 @@ class CheckoutController extends Controller
                     'unit_price_centavos' => $line['unit_price_centavos'],
                     'quantity' => $line['quantity'],
                     'line_total_centavos' => $line['line_total_centavos'],
-                    // /parts hardware colour swatch, if one was picked — see
-                    // Cart::add()'s docblock. This is the one real use of
-                    // this column today; /customize's own colour picker
-                    // stays decorative-only and never reaches a cart line.
-                    'customization' => $line['color'] ? ['color' => $line['color']] : null,
+                    // The hardware colour picked (/parts swatch or the
+                    // /customize picker), and which custom board this part
+                    // belongs to — the admin order page groups on build_key
+                    // to render each board as one 3D model.
+                    'customization' => array_filter([
+                        'color' => $line['color'],
+                        'build_key' => $line['build_key'],
+                    ]) ?: null,
                 ]);
             }
 

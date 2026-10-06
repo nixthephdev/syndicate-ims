@@ -6,8 +6,14 @@ import PrimaryButton from '@/Components/Admin/PrimaryButton';
 import SecondaryButton from '@/Components/Admin/SecondaryButton';
 import { ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, TruckIcon, XIcon } from '@/Components/Admin/icons';
 import { HARDWARE_COLORS } from '@/Components/Customizer/hardwareColors';
-import { useState } from 'react';
+import { useConfirm } from '@/Components/Admin/ConfirmDialog';
+import { lazy, Suspense, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
+
+// The customizer's own 3D viewer, lazy-loaded so Three.js only downloads
+// when an order actually has skateboard parts — same split as HeroBoard.
+// Not a storefront-styled component: it is the model viewer itself.
+const Scene = lazy(() => import('@/Components/Customizer/Scene'));
 
 /** hardwareColors.js is a plain data module, not a styled component — safe
  *  to share with the admin panel per CLAUDE.md's "shared hooks/utilities
@@ -18,6 +24,7 @@ function colorLabel(hex) {
 
 export default function Show({ order, can }) {
     const [processing, setProcessing] = useState(false);
+    const [confirmDialog, ask] = useConfirm();
 
     // router.patch, not useForm: there is no form state here, just a one-shot
     // transition. useForm's patch() sends its own `data` and ignores a `data`
@@ -63,6 +70,7 @@ export default function Show({ order, can }) {
     return (
         <AdminLayout header={`Order ${order.order_number}`}>
             <Head title={`Admin · ${order.order_number}`} />
+            {confirmDialog}
 
             <Link
                 href={route('admin.orders.index')}
@@ -153,6 +161,41 @@ export default function Show({ order, can }) {
                             is later renamed or repriced.
                         </p>
                     </Card>
+
+                    {/* The skateboard parts above, assembled — one model per
+                        custom board. See Admin\OrderController::builds(). */}
+                    {order.builds.map((build) => (
+                        <Card key={build.key} className="mt-6 overflow-hidden">
+                            <div className="border-b border-white/10 px-6 py-4 admin-light:border-ink-900/10">
+                                <h2 className="font-semibold text-white admin-light:text-ink-900">{build.label}</h2>
+                                <p className="mt-1 text-xs text-white/40 admin-light:text-ink-900/50">
+                                    {build.parts.join(' · ')}
+                                </p>
+                            </div>
+                            <div className="relative h-80 bg-white/[0.02] admin-light:bg-ink-900/[0.03] sm:h-96">
+                                <Suspense
+                                    fallback={
+                                        <p className="flex h-full items-center justify-center text-xs uppercase tracking-widest text-white/30 admin-light:text-ink-900/40">
+                                            Loading model…
+                                        </p>
+                                    }
+                                >
+                                    <Scene
+                                        deckMeshName={build.deck_mesh}
+                                        wheelsMeshName={build.wheels_mesh}
+                                        trucksColor={build.trucks_color}
+                                        boltsColor={build.bolts_color}
+                                        transparentBackground
+                                        enablePan={false}
+                                        enableZoom={false}
+                                    />
+                                </Suspense>
+                            </div>
+                            <p className="border-t border-white/10 px-6 py-3 text-xs text-white/30 admin-light:border-ink-900/10 admin-light:text-ink-900/45">
+                                Drag to rotate. Hardware colours are the ones the customer picked.
+                            </p>
+                        </Card>
+                    ))}
                 </div>
 
                 {/* Customer + actions */}
@@ -230,40 +273,31 @@ export default function Show({ order, can }) {
                                 : 'No stock has been deducted for this order.'}
                         </p>
 
-                        {/* The customer's receipt. Check it against the shop's
-                            OWN GCash/bank account before confirming — this
-                            image is a claim, not proof of anything. */}
-                        {order.needs_payment_proof && (
-                            <div className="mt-4 border-t border-white/10 pt-4 admin-light:border-ink-900/10">
-                                {order.payment_proof_url ? (
-                                    <>
-                                        <p className="text-xs uppercase tracking-widest text-white/40 admin-light:text-ink-900/55">
-                                            Customer's receipt · {order.payment_proof_uploaded_at}
-                                        </p>
-                                        {order.payment_reference && (
-                                            <p className="mt-1 text-xs text-white/50 admin-light:text-ink-900/65">
-                                                Ref: <span className="font-mono">{order.payment_reference}</span>
-                                            </p>
-                                        )}
-                                        <a href={order.payment_proof_url} target="_blank" rel="noreferrer">
-                                            <img
-                                                src={order.payment_proof_url}
-                                                alt="Payment receipt the customer uploaded"
-                                                className="mt-2 w-full rounded-md border border-white/10 bg-black/20 object-contain admin-light:border-ink-900/10 admin-light:bg-ink-900/[0.03]"
-                                            />
-                                        </a>
-                                        <p className="mt-2 text-xs text-white/25 admin-light:text-ink-900/40">
-                                            Verify this against the shop's own account
-                                            before confirming — a screenshot proves nothing
-                                            on its own.
-                                        </p>
-                                    </>
-                                ) : (
-                                    <p className="text-xs text-white/30 admin-light:text-ink-900/45">
-                                        No receipt uploaded yet.
-                                    </p>
+                        {/* PayMongo's ids — what to search for in the PayMongo
+                            dashboard if a customer disputes a payment. */}
+                        {order.paymongo.payment_intent_id && (
+                            <dl className="mt-4 space-y-1 border-t border-white/10 pt-4 text-xs admin-light:border-ink-900/10">
+                                <div>
+                                    <dt className="inline text-white/40 admin-light:text-ink-900/50">Intent </dt>
+                                    <dd className="inline font-mono text-white/60 admin-light:text-ink-900/70">
+                                        {order.paymongo.payment_intent_id}
+                                    </dd>
+                                </div>
+                                {order.paymongo.payment_id && (
+                                    <div>
+                                        <dt className="inline text-white/40 admin-light:text-ink-900/50">Payment </dt>
+                                        <dd className="inline font-mono text-white/60 admin-light:text-ink-900/70">
+                                            {order.paymongo.payment_id}
+                                        </dd>
+                                    </div>
                                 )}
-                            </div>
+                            </dl>
+                        )}
+                        {order.pays_online && !order.is_paid && (
+                            <p className="mt-3 text-xs text-white/30 admin-light:text-ink-900/45">
+                                Paid by GCash through PayMongo — this marks itself
+                                paid when the customer completes payment.
+                            </p>
                         )}
                     </Card>
 
@@ -359,7 +393,17 @@ export default function Show({ order, can }) {
                                 <PrimaryButton
                                     className="mt-4 w-full justify-center"
                                     disabled={processing}
-                                    onClick={() => advanceStage(order.tracking.next_stage)}
+                                    onClick={() =>
+                                        ask(
+                                            {
+                                                title: `Mark as ${order.tracking.next_stage_label}?`,
+                                                message:
+                                                    'The customer sees this on their order page. Stages only move forward, so this cannot be undone.',
+                                                confirmLabel: `Mark as ${order.tracking.next_stage_label}`,
+                                            },
+                                            () => advanceStage(order.tracking.next_stage)
+                                        )
+                                    }
                                     icon={
                                         order.tracking.next_stage === 'completed'
                                             ? CheckCircleIcon
@@ -380,10 +424,19 @@ export default function Show({ order, can }) {
                                 <PrimaryButton
                                     className="mt-3 w-full justify-center"
                                     disabled={processing}
-                                    onClick={confirmPayment}
+                                    onClick={() =>
+                                        ask(
+                                            {
+                                                title: 'Confirm cash received?',
+                                                message: `Only confirm once ${order.total_formatted} is in hand. This marks the order paid and deducts its stock.`,
+                                                confirmLabel: 'Yes, cash received',
+                                            },
+                                            confirmPayment
+                                        )
+                                    }
                                     icon={CheckCircleIcon}
                                 >
-                                    Confirm payment received
+                                    Confirm cash received
                                 </PrimaryButton>
                             )}
 
@@ -394,7 +447,19 @@ export default function Show({ order, can }) {
                                 <SecondaryButton
                                     className="mt-3 w-full"
                                     disabled={processing}
-                                    onClick={() => move('fulfilled')}
+                                    onClick={() =>
+                                        ask(
+                                            {
+                                                title: 'Mark this order fulfilled?',
+                                                message:
+                                                    order.status === 'deposit_paid'
+                                                        ? `This skips the remaining stages and confirms the ${order.balance_formatted} cash balance was collected.`
+                                                        : 'This skips the remaining stages and closes the order.',
+                                                confirmLabel: 'Mark fulfilled',
+                                            },
+                                            () => move('fulfilled')
+                                        )
+                                    }
                                     icon={ArrowRightIcon}
                                 >
                                     Skip to fulfilled
@@ -413,7 +478,17 @@ export default function Show({ order, can }) {
                                 <SecondaryButton
                                     className="mt-3 w-full"
                                     disabled={processing}
-                                    onClick={() => move('cancelled')}
+                                    onClick={() =>
+                                        ask(
+                                            {
+                                                title: `Cancel ${order.order_number}?`,
+                                                message: 'The customer will see this order as cancelled. This cannot be undone.',
+                                                confirmLabel: 'Cancel order',
+                                                danger: true,
+                                            },
+                                            () => move('cancelled')
+                                        )
+                                    }
                                     icon={XIcon}
                                 >
                                     Cancel order

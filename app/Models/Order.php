@@ -114,38 +114,27 @@ class Order extends Model
     ];
 
     /**
-     * How the customer pays. There is no payment gateway — the shop takes
-     * money the way it really does, and staff confirm it against their own
-     * GCash or bank account before any stock moves.
+     * How the customer pays.
      *
-     * gcash / bank_transfer: customer sends it, uploads a screenshot of the
-     * receipt, staff verify. cash: pickup only, collected at the branch, so
-     * there is nothing to upload.
+     * gcash: through PayMongo (test mode) — PayMongo confirms it, nobody
+     * uploads a receipt. See Shop\PayMongoController. cash: pickup only,
+     * collected at the branch and confirmed by staff in the admin panel.
      *
-     * Note there is no 'gcash_deposit' method any more. "Is this a 50%
-     * deposit?" was never a payment method — it follows from choosing
-     * delivery, and requiresDeposit() derives it from fulfillment_method.
+     * Note there is no 'gcash_deposit' method. "Is this a 50% deposit?" was
+     * never a payment method — it follows from choosing delivery, and
+     * requiresDeposit() derives it from fulfillment_method.
      */
     public const PAYMENT_METHOD_GCASH = 'gcash';
-    public const PAYMENT_METHOD_BANK_TRANSFER = 'bank_transfer';
     public const PAYMENT_METHOD_CASH = 'cash';
 
     public const PAYMENT_METHODS = [
         self::PAYMENT_METHOD_GCASH,
-        self::PAYMENT_METHOD_BANK_TRANSFER,
         self::PAYMENT_METHOD_CASH,
     ];
 
     public const PAYMENT_METHOD_LABELS = [
-        self::PAYMENT_METHOD_GCASH => 'GCash',
-        self::PAYMENT_METHOD_BANK_TRANSFER => 'Bank transfer',
+        self::PAYMENT_METHOD_GCASH => 'GCash (PayMongo)',
         self::PAYMENT_METHOD_CASH => 'Cash on pickup',
-    ];
-
-    /** The two that require the customer to send money and prove it. */
-    public const PAYMENT_METHODS_NEEDING_PROOF = [
-        self::PAYMENT_METHOD_GCASH,
-        self::PAYMENT_METHOD_BANK_TRANSFER,
     ];
 
     protected $fillable = [
@@ -159,9 +148,8 @@ class Order extends Model
         'total_centavos',
         'deposit_centavos',
         'paid_at',
-        'payment_proof_path',
-        'payment_proof_uploaded_at',
-        'payment_reference',
+        'paymongo_payment_intent_id',
+        'paymongo_payment_id',
         'customer_name',
         'customer_email',
         'customer_phone',
@@ -188,7 +176,6 @@ class Order extends Model
         'total_centavos' => 'integer',
         'deposit_centavos' => 'integer',
         'paid_at' => 'datetime',
-        'payment_proof_uploaded_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -249,14 +236,10 @@ class Order extends Model
             : (int) $this->total_centavos;
     }
 
-    public function needsPaymentProof(): bool
+    /** Paid online through PayMongo, rather than in cash at the branch. */
+    public function paysOnline(): bool
     {
-        return in_array($this->payment_method, self::PAYMENT_METHODS_NEEDING_PROOF, true);
-    }
-
-    public function hasPaymentProof(): bool
-    {
-        return $this->payment_proof_path !== null;
+        return $this->payment_method === self::PAYMENT_METHOD_GCASH;
     }
 
     public function paymentMethodLabel(): string
@@ -392,6 +375,21 @@ class Order extends Model
     public function scopeStatus(Builder $query, string $status): Builder
     {
         return $query->where('status', $status);
+    }
+
+    /**
+     * Orders that have actually happened by now: placed, and if paid, paid,
+     * no later than this moment. A no-op for real orders, which can't be
+     * dated in the future. It matters for the demo history, which is
+     * pre-filled through April 2027 (see DemoOrdersSeeder): without it,
+     * "revenue today" summed every future payment and the newest-first lists
+     * opened on April. With it, each day's demo orders appear when that day
+     * arrives.
+     */
+    public function scopeAsOfNow(Builder $query): Builder
+    {
+        return $query->where('orders.created_at', '<=', now())
+            ->where(fn ($q) => $q->whereNull('orders.paid_at')->orWhere('orders.paid_at', '<=', now()));
     }
 
     /** Revenue-bearing orders only — the basis for sales reports. */

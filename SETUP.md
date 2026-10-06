@@ -168,24 +168,21 @@ say yes, or it won't reach you.
 
 ## Things to fill in before real use
 
-**Where customers send money.** `config/shop.php` holds the GCash number and
-bank details shown at checkout. They are **placeholders**, and the site shows
-a red "these are demo details, don't send money to them" warning until they
-are replaced. Set the real ones in `.env`:
+**GCash payments (PayMongo, test mode).** Put the PayMongo **test** secret key
+in `.env`:
 
 ```
-SHOP_PAYMENT_DETAILS_REAL=true
-SHOP_GCASH_NAME="Syndicate Supply Co."
-SHOP_GCASH_NUMBER="0917 123 4567"
-SHOP_BANK_NAME="BDO"
-SHOP_BANK_ACCOUNT_NAME="Syndicate Supply Co."
-SHOP_BANK_ACCOUNT_NUMBER="1234-5678-9012"
+PAYMONGO_SECRET_KEY=sk_test_...
 ```
 
-There is no payment gateway. A customer sends the money and uploads a
-screenshot; **staff confirm it in the admin panel after checking the shop's
-own account.** Uploading a receipt marks nothing paid — that is deliberate,
-since anyone can attach any image.
+It is in the PayMongo dashboard under Developers > API keys. A test key moves
+no real money: PayMongo's GCash page shows "Authorize" / "Fail" buttons
+instead of a real GCash login. The laptop needs internet to reach PayMongo.
+Without the key, orders still work but the order page says GCash payment is
+not set up.
+
+Cash on pickup needs nothing: staff press **Confirm cash received** on the
+order in the admin panel when the customer pays at the branch.
 
 ---
 

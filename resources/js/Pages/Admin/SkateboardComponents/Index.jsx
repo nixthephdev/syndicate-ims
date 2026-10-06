@@ -1,91 +1,136 @@
 import AdminLayout from '@/Layouts/AdminLayout';
 import Card from '@/Components/Admin/Card';
+import StatTile from '@/Components/Admin/StatTile';
 import StockBadge from '@/Components/Admin/StockBadge';
-import { ArrowRightIcon } from '@/Components/Admin/icons';
+import StockFilters from '@/Components/Admin/StockFilters';
+import { ArrowRightIcon, CubeIcon, ExclamationTriangleIcon, PhotoIcon, TagIcon, XCircleIcon } from '@/Components/Admin/icons';
 import { Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
+
+function PartCard({ part }) {
+    return (
+        <Link
+            href={route('admin.skateboard-components.edit', part.id)}
+            className="group flex flex-col overflow-hidden rounded-md border border-white/10 bg-ink-900 transition hover:-translate-y-0.5 hover:border-volt-500/60 admin-light:border-ink-900/10 admin-light:bg-white admin-light:hover:border-volt-800/60"
+        >
+            {/* Real renders of the 3D mesh (public/images/parts), on a soft
+                spotlight so the transparent PNGs don't float on flat black. */}
+            <div className="relative flex aspect-[4/3] items-center justify-center bg-[radial-gradient(circle_at_center,rgba(204,255,0,0.08),transparent_70%)] p-4">
+                {part.image_url ? (
+                    <img src={part.image_url} alt="" className="max-h-full max-w-full object-contain transition group-hover:scale-105" />
+                ) : (
+                    <PhotoIcon className="h-8 w-8 text-white/20 admin-light:text-ink-900/25" />
+                )}
+                {!part.is_active && (
+                    <span className="absolute left-2 top-2 rounded-full bg-white/[0.08] px-2 py-0.5 text-[11px] text-white/50 admin-light:bg-ink-900/[0.06] admin-light:text-ink-900/50">
+                        Hidden
+                    </span>
+                )}
+            </div>
+            <div className="flex flex-1 flex-col gap-2 border-t border-white/10 p-4 admin-light:border-ink-900/10">
+                <p className="font-semibold leading-snug text-white admin-light:text-ink-900">{part.name}</p>
+                <p className="font-oswald text-lg font-bold text-volt-500 admin-light:text-volt-800">{part.price_formatted}</p>
+                <div className="mt-auto flex items-end justify-between gap-2">
+                    <StockBadge
+                        stock={part.stock}
+                        isLowStock={part.is_low_stock}
+                        isOutOfStock={part.is_out_of_stock}
+                        threshold={part.low_stock_threshold}
+                    />
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-volt-500 opacity-70 transition group-hover:opacity-100 admin-light:text-volt-800">
+                        Manage <ArrowRightIcon className="h-3 w-3" />
+                    </span>
+                </div>
+            </div>
+        </Link>
+    );
+}
 
 /**
- * Grouped by type rather than one flat table — Deck/Wheels/Trucks/Bolts read
- * as genuinely different inventories (14 decks vs. a single active Trucks
- * row), and a flat sort-by-name list would bury that.
+ * Grouped by type — 14 decks and a single Trucks row are genuinely different
+ * inventories, and one flat list would bury that. Edit-only: parts are tied
+ * to meshes inside the 3D model files, so there is no "add" here.
  */
 export default function Index({ components, typeLabels }) {
-    const groups = Object.keys(typeLabels).map((type) => ({
-        type,
-        label: typeLabels[type],
-        items: components.filter((c) => c.type === type),
-    }));
+    const [term, setTerm] = useState('');
+    const [stock, setStock] = useState('all');
+    const needle = term.trim().toLowerCase();
+
+    const matches = (c) =>
+        (stock === 'all' || (stock === 'out' && c.is_out_of_stock) || (stock === 'low' && c.is_low_stock && !c.is_out_of_stock)) &&
+        (!needle || c.name.toLowerCase().includes(needle));
+
+    const filtering = stock !== 'all' || needle !== '';
+
+    const groups = Object.keys(typeLabels)
+        .map((type) => ({
+            type,
+            label: typeLabels[type],
+            items: components.filter((c) => c.type === type && matches(c)).sort((a, b) => a.name.localeCompare(b.name)),
+        }))
+        // While filtering, an empty group is noise, not a finding.
+        .filter((group) => !filtering || group.items.length > 0);
+
+    const totals = {
+        units: components.reduce((sum, c) => sum + c.stock, 0),
+        low: components.filter((c) => c.is_low_stock && !c.is_out_of_stock).length,
+        out: components.filter((c) => c.is_out_of_stock).length,
+    };
 
     return (
         <AdminLayout header="Skate Components">
             <Head title="Admin · Skate Components" />
 
             <p className="mb-6 text-sm text-white/40 admin-light:text-ink-900/50">
-                Edit-only — stock, price and threshold. Name and asset fields are locked because each row is tied to a
-                real mesh inside the 3D customizer's model files.
+                The parts behind the 3D board builder. Edit price, stock and alerts here; names of the 3D models are locked.
             </p>
 
+            <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+                <StatTile label="Parts" value={components.length} hint={`${Object.keys(typeLabels).length} types`} icon={TagIcon} />
+                <StatTile label="Units in stock" value={totals.units.toLocaleString()} hint="all parts" icon={CubeIcon} />
+                <StatTile
+                    label="Running low"
+                    value={totals.low}
+                    hint="at or under threshold"
+                    tone={totals.low ? 'warning' : 'default'}
+                    icon={ExclamationTriangleIcon}
+                    onClick={() => setStock(stock === 'low' ? 'all' : 'low')}
+                    active={stock === 'low'}
+                />
+                <StatTile
+                    label="Sold out"
+                    value={totals.out}
+                    hint="can't be ordered"
+                    tone={totals.out ? 'danger' : 'default'}
+                    icon={XCircleIcon}
+                    onClick={() => setStock(stock === 'out' ? 'all' : 'out')}
+                    active={stock === 'out'}
+                />
+            </div>
+
+            <StockFilters term={term} onTermChange={setTerm} stock={stock} onStockChange={setStock} placeholder="Search parts" />
+
+            {groups.length === 0 && (
+                <Card className="px-6 py-12 text-center text-sm text-white/40 admin-light:text-ink-900/50">No parts match these filters.</Card>
+            )}
+
             {groups.map((group) => (
-                <Card key={group.type} className="mb-8 overflow-x-auto">
-                    <div className="px-6 py-3 border-b border-white/10 admin-light:border-ink-900/10">
-                        <h2 className="font-semibold text-white admin-light:text-ink-900">
-                            {group.label} <span className="font-normal text-white/25 admin-light:text-ink-900/35">({group.items.length})</span>
-                        </h2>
+                <section key={group.type} className="mb-10">
+                    <div className="mb-3 flex items-baseline gap-2">
+                        <h2 className="font-oswald text-lg font-bold uppercase tracking-wide text-white admin-light:text-ink-900">{group.label}</h2>
+                        <span className="text-sm text-white/30 admin-light:text-ink-900/40">{group.items.length}</span>
                     </div>
 
                     {group.items.length === 0 ? (
-                        <p className="px-6 py-6 text-sm text-white/40 admin-light:text-ink-900/50">No {group.label.toLowerCase()} rows seeded.</p>
+                        <Card className="px-6 py-6 text-sm text-white/40 admin-light:text-ink-900/50">No {group.label.toLowerCase()} yet.</Card>
                     ) : (
-                        <table className="min-w-full divide-y divide-white/10 admin-light:divide-ink-900/10">
-                            <thead className="bg-white/[0.04] admin-light:bg-ink-900/[0.04]">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-white/40 uppercase tracking-wider admin-light:text-ink-900/50">Name</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-white/40 uppercase tracking-wider admin-light:text-ink-900/50">Price</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-white/40 uppercase tracking-wider admin-light:text-ink-900/50">Stock</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-white/40 uppercase tracking-wider admin-light:text-ink-900/50">Status</th>
-                                    <th className="px-6 py-3" />
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/10 admin-light:divide-ink-900/10">
-                                {group.items.map((c) => (
-                                    <tr key={c.id} className="hover:bg-white/[0.03] admin-light:hover:bg-ink-900/[0.03]">
-                                        <td className="px-6 py-4 text-sm font-medium text-white admin-light:text-ink-900">{c.name}</td>
-                                        <td className="px-6 py-4 text-sm text-white/50 admin-light:text-ink-900/60">{c.price_formatted}</td>
-                                        <td className="px-6 py-4">
-                                            <StockBadge
-                                                stock={c.stock}
-                                                isLowStock={c.is_low_stock}
-                                                isOutOfStock={c.is_out_of_stock}
-                                                threshold={c.low_stock_threshold}
-                                            />
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span
-                                                className={
-                                                    'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ' +
-                                                    (c.is_active
-                                                        ? 'bg-green-500/10 text-green-400 ring-green-500/20'
-                                                        : 'bg-white/[0.06] text-white/40 ring-white/10 admin-light:bg-ink-900/[0.06] admin-light:text-ink-900/50 admin-light:ring-ink-900/10')
-                                                }
-                                            >
-                                                {c.is_active ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-right text-sm">
-                                            <Link
-                                                href={route('admin.skateboard-components.edit', c.id)}
-                                                className="inline-flex items-center gap-1 text-volt-500 hover:text-volt-400"
-                                            >
-                                                Manage
-                                                <ArrowRightIcon className="h-3.5 w-3.5" />
-                                            </Link>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+                            {group.items.map((part) => (
+                                <PartCard key={part.id} part={part} />
+                            ))}
+                        </div>
                     )}
-                </Card>
+                </section>
             ))}
         </AdminLayout>
     );

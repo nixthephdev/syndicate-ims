@@ -115,14 +115,14 @@ class CustomizeController extends Controller
         $this->cart->add($wheels, 1, $buildKey);
 
         if ($trucks) {
-            $this->cart->add($trucks, 1, $buildKey);
+            $this->cart->add($trucks, 1, $buildKey, $request->validated('trucks_color'));
         }
 
         if ($bolts) {
-            $this->cart->add($bolts, 1, $buildKey);
+            $this->cart->add($bolts, 1, $buildKey, $request->validated('bolts_color'));
         }
 
-        return back()->with('success', 'Your custom build was added to the cart.');
+        return back()->with('cart_notice', 'Your custom build was added to the cart.');
     }
 
     /**

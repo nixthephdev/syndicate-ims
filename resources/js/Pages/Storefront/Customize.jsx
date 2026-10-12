@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { useEffect, useMemo, useState } from 'react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Loader } from '@react-three/drei';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
 import Scene from '@/Components/Customizer/Scene';
@@ -72,6 +72,37 @@ export default function Customize({ decks, wheels, trucks, bolts }) {
 
     const canAdd = !isIncomplete && !soldOut;
 
+    // Warn before leaving with a build that never reached the cart (client
+    // request). Once added, the same selection is "saved" until it changes.
+    const buildSignature = `${deckId}|${wheelsId}|${trucksColor}|${boltsColor}`;
+    const [savedSignature, setSavedSignature] = useState(null);
+    const unsaved = buildStarted && buildSignature !== savedSignature;
+
+    useEffect(() => {
+        if (!unsaved) return undefined;
+
+        const message = 'Your custom board is not in your cart yet. Are you sure you want to leave this page?';
+
+        // Tab close / reload / typed URL — browsers show their own wording.
+        const onBeforeUnload = (e) => {
+            e.preventDefault();
+            e.returnValue = '';
+        };
+
+        // In-app Inertia links. Submitting the build itself is not "leaving".
+        const removeBefore = router.on('before', (event) => {
+            const { url, method } = event.detail.visit;
+            if (method === 'post' && url.pathname === new URL(route('customize.store'), window.location.origin).pathname) return;
+            if (!window.confirm(message)) event.preventDefault();
+        });
+
+        window.addEventListener('beforeunload', onBeforeUnload);
+        return () => {
+            window.removeEventListener('beforeunload', onBeforeUnload);
+            removeBefore();
+        };
+    }, [unsaved]);
+
     const submit = (e) => {
         e.preventDefault();
 
@@ -85,7 +116,14 @@ export default function Customize({ decks, wheels, trucks, bolts }) {
             trucks_color: trucksColor,
             bolts_color: boltsColor,
         }));
-        post(route('customize.store'), { preserveScroll: true });
+        const signature = buildSignature;
+        post(route('customize.store'), {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                // A redirect back with a cart error is still a "success" visit.
+                if (!page.props.errors?.cart) setSavedSignature(signature);
+            },
+        });
     };
 
     return (

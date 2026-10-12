@@ -208,13 +208,26 @@ export default function Cart({ lines, subtotal_centavos }) {
                                 key={row.buildKey}
                                 className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between"
                             >
-                                <div className="min-w-0">
+                                <div className="min-w-0 sm:w-96">
                                     <p className="font-display text-lg uppercase tracking-wide text-white light:text-ink-900">
                                         Custom Board
                                     </p>
-                                    <p className="mt-1 text-xs uppercase tracking-[0.15em] text-white/35 light:text-ink-900/50">
-                                        {row.lines.map((l) => l.name).join(' · ')}
-                                    </p>
+                                    {/* One row per part so a shopper can drop just
+                                        the one they don't want (client request). */}
+                                    <ul className="mt-3 space-y-1">
+                                        {row.lines.map((l) => (
+                                            <li key={l.key} className="flex items-center gap-3 text-sm text-white/60 light:text-ink-900/70">
+                                                <span className="min-w-0 flex-1 truncate">{l.name}</span>
+                                                <span className="shrink-0 text-white/40 light:text-ink-900/55">
+                                                    {formatCentavos(l.unit_price_centavos)}
+                                                </span>
+                                                <RemoveButton
+                                                    onClick={() => remove(l.key)}
+                                                    label={`Remove ${l.name} from cart`}
+                                                />
+                                            </li>
+                                        ))}
+                                    </ul>
                                     {groupExceedsStock && (
                                         <p className="mt-2 text-xs font-medium text-red-400 light:text-red-700">
                                             One of these parts is short on stock — reduce
@@ -248,7 +261,7 @@ export default function Cart({ lines, subtotal_centavos }) {
 
                                     <RemoveButton
                                         onClick={() => remove(keys)}
-                                        label="Remove custom board from cart"
+                                        label="Remove whole custom board from cart"
                                     />
                                 </div>
                             </li>

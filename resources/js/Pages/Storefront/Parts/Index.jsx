@@ -102,8 +102,8 @@ function PartCard({ part, state, onAdd, selectedColor, onColorChange }) {
                 )}
             </div>
 
-            <div className="mt-4 flex items-start justify-between gap-4">
-                <h3 className="font-display text-lg uppercase leading-tight tracking-wide text-white light:text-ink-900">
+            <div className="mt-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+                <h3 className="min-w-0 break-words font-display text-lg uppercase leading-tight tracking-wide text-white light:text-ink-900">
                     {part.name}
                 </h3>
                 <p className="shrink-0 font-display text-lg text-volt-500 light:text-volt-800">

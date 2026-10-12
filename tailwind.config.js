@@ -14,11 +14,11 @@ module.exports = {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
-                // Storefront only. Heavy condensed poster face — the whole
-                // "skate shop" voice lives in this one font. Loaded in
-                // resources/views/app.blade.php. Never used in the admin.
-                display: ['Anton', 'Impact', ...defaultTheme.fontFamily.sans],
+                // Storefront: Arial everywhere (client, 2026-10-12: names must
+                // be readable from a distance, which the condensed Anton face
+                // wasn't). `display` is bolded in resources/css/app.css.
+                sans: ['Arial', 'Helvetica', ...defaultTheme.fontFamily.sans],
+                display: ['Arial', 'Helvetica', ...defaultTheme.fontFamily.sans],
                 // Admin only — condensed headline/stat-figure face, paired
                 // with jakarta for body/UI. Loaded in app.blade.php alongside
                 // anton/figtree (same bunny.net link, no new font host).

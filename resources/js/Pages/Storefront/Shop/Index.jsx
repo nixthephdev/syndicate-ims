@@ -103,8 +103,8 @@ function ProductCard({ product, onQuickAdd, quickAddState }) {
                 )}
             </div>
 
-            <Link href={href} className="mt-4 flex items-start justify-between gap-4">
-                <div>
+            <Link href={href} className="mt-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+                <div className="min-w-0 break-words">
                     <h2 className="font-display text-lg uppercase leading-tight tracking-wide text-white transition-colors group-hover:text-volt-500 light:text-ink-900 light:group-hover:text-volt-800">
                         {product.name}
                     </h2>

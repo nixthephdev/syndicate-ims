@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Loader } from '@react-three/drei';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
+import Modal from '@/Components/Storefront/Modal';
+import { DangerButton, GhostButton } from '@/Components/Storefront/FormControls';
 import Scene from '@/Components/Customizer/Scene';
 import PartPicker from '@/Components/Customizer/PartPicker';
 import ColorSwatchPicker from '@/Components/Customizer/ColorSwatchPicker';
@@ -78,22 +80,35 @@ export default function Customize({ decks, wheels, trucks, bolts }) {
     const [savedSignature, setSavedSignature] = useState(null);
     const unsaved = buildStarted && buildSignature !== savedSignature;
 
+    // The visit a leave-warning interrupted, replayed if the shopper confirms.
+    const [pendingVisit, setPendingVisit] = useState(null);
+    const leaving = useRef(false);
+
+    const confirmLeave = () => {
+        const { url, method, data } = pendingVisit;
+        leaving.current = true;
+        setPendingVisit(null);
+        router.visit(url.href, { method, data });
+    };
+
     useEffect(() => {
         if (!unsaved) return undefined;
 
-        const message = 'Your custom board is not in your cart yet. Are you sure you want to leave this page?';
-
-        // Tab close / reload / typed URL — browsers show their own wording.
+        // Tab close / reload / typed URL. Browsers only allow their own
+        // built-in prompt here; a custom modal is impossible for these.
         const onBeforeUnload = (e) => {
             e.preventDefault();
             e.returnValue = '';
         };
 
-        // In-app Inertia links. Submitting the build itself is not "leaving".
+        // In-app Inertia links get our own modal. Submitting the build itself
+        // is not "leaving".
         const removeBefore = router.on('before', (event) => {
             const { url, method } = event.detail.visit;
+            if (leaving.current) return;
             if (method === 'post' && url.pathname === new URL(route('customize.store'), window.location.origin).pathname) return;
-            if (!window.confirm(message)) event.preventDefault();
+            event.preventDefault();
+            setPendingVisit(event.detail.visit);
         });
 
         window.addEventListener('beforeunload', onBeforeUnload);
@@ -249,6 +264,35 @@ export default function Customize({ decks, wheels, trucks, bolts }) {
                 </div>
 
             </div>
+
+            <Modal show={pendingVisit !== null} onClose={() => setPendingVisit(null)}>
+                <div className="border-t-4 border-red-500 p-6 text-center sm:p-8">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-500/15 text-red-500">
+                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+                            />
+                        </svg>
+                    </div>
+                    <h2 className="mt-4 font-display text-xl uppercase tracking-wide text-red-500">
+                        Leave without your board?
+                    </h2>
+                    <p className="mt-2 text-sm leading-relaxed text-white/60 light:text-ink-900/70">
+                        Your custom board is not in your cart yet. If you leave this page,
+                        your build will be lost.
+                    </p>
+                    <div className="mt-8 flex flex-col-reverse justify-center gap-3 sm:flex-row">
+                        <GhostButton type="button" onClick={() => setPendingVisit(null)}>
+                            Stay and finish
+                        </GhostButton>
+                        <DangerButton type="button" onClick={confirmLeave}>
+                            Leave page
+                        </DangerButton>
+                    </div>
+                </div>
+            </Modal>
         </StorefrontLayout>
     );
 }

@@ -1,6 +1,3 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Arial regular is too light for headings that used to be Anton. */
-.font-display { font-weight: 700; }

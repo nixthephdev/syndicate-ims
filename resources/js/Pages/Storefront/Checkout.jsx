@@ -79,6 +79,9 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
                             label="Full name"
                             value={data.customer_name}
                             autoComplete="name"
+                            // Client, 2026-10-12: the customer's name in Arial
+                            // so it reads from a distance. Only this field.
+                            style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
                             required
                             error={errors.customer_name}
                             onChange={onChange}

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Shop;
 
+use App\Exceptions\InsufficientStockException;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -27,6 +28,15 @@ class CheckoutTest extends TestCase
     use CompletesCheckoutOtp;
     use ConfirmsPayment;
     use RefreshDatabase;
+
+    /** A real PSGC address — the main branch's own barangay. */
+    private const ADDRESS = [
+        'address_line' => 'Purok 1',
+        'barangay' => 'Tagas',
+        'city' => 'Daraga',
+        'province' => 'Albay',
+        'postal_code' => '4501',
+    ];
 
     protected function setUp(): void
     {
@@ -159,21 +169,19 @@ class CheckoutTest extends TestCase
 
         $this->actingAs($user);
         $this->fill($variant, 4);
-        // Cash, because staff confirm cash by hand; GCash is PayMongo's
-        // (PayMongoPaymentTest covers that path through the same service).
-        $order = $this->checkout($this->details(['payment_method' => 'cash']));
+        $order = $this->checkout();
 
-        $this->staffConfirmsPayment($order)->assertSessionHasNoErrors();
-        $this->actingAs($user);
+        $this->markPaid($order);
 
         $order->refresh();
         $this->assertSame(Order::STATUS_PAID, $order->status);
         $this->assertNotNull($order->paid_at);
         $this->assertSame(6, $variant->fresh()->stock);
 
-        // Idempotency: two staff working the queue, or a double click.
-        // The second confirm must be a no-op, not a second decrement.
-        $this->staffConfirmsPayment($order);
+        // Idempotency: a reload of PayMongo's return page, or a double
+        // click on Pay. The second confirm must be a no-op, not a second
+        // decrement.
+        $this->markPaid($order);
 
         $this->assertSame(6, $variant->fresh()->stock);
     }
@@ -190,15 +198,18 @@ class CheckoutTest extends TestCase
 
         $this->actingAs($user);
         $this->fill($variant, 5);
-        // Cash, because staff confirm cash by hand; GCash is PayMongo's
-        // (PayMongoPaymentTest covers that path through the same service).
-        $order = $this->checkout($this->details(['payment_method' => 'cash']));
+        $order = $this->checkout();
 
         // Someone else buys the lot between placing the order and paying.
         $variant->update(['stock' => 1]);
 
-        $this->staffConfirmsPayment($order)->assertSessionHasErrors("payment");
-        $this->actingAs($user);
+        try {
+            $this->markPaid($order);
+            $this->fail('Confirming should have thrown InsufficientStockException.');
+        } catch (InsufficientStockException) {
+            // Expected — PayMongoController::settle() turns this into a
+            // message for the customer.
+        }
 
         $order->refresh();
 
@@ -237,16 +248,66 @@ class CheckoutTest extends TestCase
         $this->assertNull($order->deposit_centavos);
     }
 
-    public function test_pickup_can_be_paid_by_cash_instead_of_gcash(): void
+    /** Cash on pickup was removed (client, 2026-10-31) — refused, not coerced. */
+    public function test_cash_is_no_longer_accepted(): void
     {
         $variant = $this->variantWithStock(10);
         $this->actingAs(User::factory()->create());
         $this->fill($variant, 1);
 
-        $order = $this->checkout($this->details(['payment_method' => 'cash']));
+        $this->post(route('checkout.store'), $this->details(['payment_method' => 'cash']))
+            ->assertSessionHasErrors('payment_method');
 
-        $this->assertSame('cash', $order->payment_method);
-        $this->assertSame(Order::STATUS_AWAITING_PAYMENT, $order->status);
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    /** The 50% deposit is a choice now, and pickup orders can take it too. */
+    public function test_a_pickup_order_can_choose_the_fifty_percent_deposit(): void
+    {
+        $variant = $this->variantWithStock(10, 80000);
+        $this->actingAs(User::factory()->create());
+        $this->fill($variant, 1);
+
+        $order = $this->checkout($this->details(['payment_option' => 'deposit']));
+
+        $this->assertSame('pickup', $order->fulfillment_method);
+        $this->assertTrue($order->requiresDeposit());
+        $this->assertSame(40000, $order->deposit_centavos);
+        $this->assertSame(40000, $order->amountDueNowCentavos());
+        $this->assertSame(Order::STATUS_DEPOSIT_PAID, $order->paidStatusForPaymentMethod());
+    }
+
+    public function test_a_delivery_order_can_be_paid_in_full(): void
+    {
+        $variant = $this->variantWithStock(10, 80000);
+        $this->actingAs(User::factory()->create());
+        $this->fill($variant, 1);
+
+        $order = $this->checkout($this->details([
+            'fulfillment_method' => 'delivery',
+            'payment_option' => 'full',
+        ] + self::ADDRESS));
+
+        $this->assertFalse($order->requiresDeposit());
+        $this->assertNull($order->deposit_centavos);
+        $this->assertSame(80000, $order->amountDueNowCentavos());
+    }
+
+    /** The dropdowns only offer real places; a forged POST is checked too. */
+    public function test_delivery_rejects_a_barangay_that_is_not_in_that_city(): void
+    {
+        $variant = $this->variantWithStock(10);
+        $this->actingAs(User::factory()->create());
+        $this->fill($variant, 1);
+
+        $this->post(route('checkout.store'), $this->details([
+            'fulfillment_method' => 'delivery',
+            'barangay' => 'Tagas',
+            // Tagas is in Daraga, not Legazpi.
+            'city' => 'City of Legazpi',
+        ] + self::ADDRESS))->assertSessionHasErrors('barangay');
+
+        $this->assertDatabaseCount('orders', 0);
     }
 
     public function test_delivery_requires_an_address(): void
@@ -271,11 +332,8 @@ class CheckoutTest extends TestCase
 
         $order = $this->checkout($this->details([
             'fulfillment_method' => 'delivery',
-            'address_line' => '123 Rizal St.',
-            'barangay' => 'Tagas',
-            'city' => 'Daraga',
-            'province' => 'Albay',
-        ]));
+            'payment_option' => 'deposit',
+        ] + self::ADDRESS));
 
         $this->assertSame(50001, $order->total_centavos);
         $this->assertSame(25001, $order->deposit_centavos);
@@ -283,32 +341,7 @@ class CheckoutTest extends TestCase
         $this->assertSame($order->deposit_centavos + $order->balanceCentavos(), $order->total_centavos);
     }
 
-    /** Delivery is always the 50% deposit flow — a submitted payment_method must never override that. */
-    /**
-     * Cash is pickup-only. A delivery order always takes 50% up front, so
-     * there is nothing for "cash" to pay at ordering time — the balance IS
-     * the cash part. Rejected outright rather than quietly coerced, so the
-     * customer is told rather than silently given a different deal.
-     */
-    public function test_a_delivery_order_cannot_be_paid_in_cash(): void
-    {
-        $variant = $this->variantWithStock(10);
-        $this->actingAs(User::factory()->create());
-        $this->fill($variant, 1);
-
-        $this->post(route('checkout.store'), $this->details([
-            'fulfillment_method' => 'delivery',
-            'payment_method' => 'cash',
-            'address_line' => '123 Rizal St.',
-            'barangay' => 'Tagas',
-            'city' => 'Daraga',
-            'province' => 'Albay',
-        ]))->assertSessionHasErrors('payment_method');
-
-        $this->assertDatabaseCount('orders', 0);
-    }
-
-    public function test_a_delivery_order_takes_a_fifty_percent_deposit(): void
+    public function test_a_delivery_order_can_take_a_fifty_percent_deposit(): void
     {
         $variant = $this->variantWithStock(10);
         $this->actingAs(User::factory()->create());
@@ -317,11 +350,8 @@ class CheckoutTest extends TestCase
         $order = $this->checkout($this->details([
             'fulfillment_method' => 'delivery',
             'payment_method' => 'gcash',
-            'address_line' => '123 Rizal St.',
-            'barangay' => 'Tagas',
-            'city' => 'Daraga',
-            'province' => 'Albay',
-        ]));
+            'payment_option' => 'deposit',
+        ] + self::ADDRESS));
 
         $this->assertSame(Order::PAYMENT_METHOD_GCASH, $order->payment_method);
         $this->assertTrue($order->requiresDeposit());
@@ -433,31 +463,86 @@ class CheckoutTest extends TestCase
         $this->assertNull($item->customization);
     }
 
-    /**
-     * There is no customer-facing way to mark an order paid any more. The
-     * only route that does it is staff-gated, and a customer hitting it —
-     * their own order or anyone else's — gets nothing.
-     */
-    public function test_a_customer_cannot_confirm_their_own_payment(): void
+    /** A town with one ZIP gets it from the list, whatever was typed. */
+    public function test_a_single_zip_town_gets_its_zip_filled_in(): void
     {
         $variant = $this->variantWithStock(10);
-        $owner = User::factory()->create();
+        $this->actingAs(User::factory()->create());
+        $this->fill($variant, 1);
 
-        $this->actingAs($owner);
-        $this->fill($variant, 2);
+        $order = $this->checkout($this->details([
+            'fulfillment_method' => 'delivery',
+            'postal_code' => '9999',
+        ] + self::ADDRESS));
+
+        $this->assertSame('4501', $order->postal_code);
+    }
+
+    /** A city split into postal areas: the ZIP must be one of its own. */
+    public function test_a_multi_zip_city_needs_one_of_its_own_zips(): void
+    {
+        $variant = $this->variantWithStock(10);
+        $this->actingAs(User::factory()->create());
+        $this->fill($variant, 1);
+
+        $manila = [
+            'fulfillment_method' => 'delivery',
+            'address_line' => '1 Taft Ave.',
+            'province' => 'Metro Manila',
+            'city' => 'City of Manila',
+            'barangay' => 'Barangay 1',
+        ];
+
+        $this->post(route('checkout.store'), $this->details($manila + ['postal_code' => '4501']))
+            ->assertSessionHasErrors('postal_code');
+
+        $order = $this->checkout($this->details($manila + ['postal_code' => '1001']));
+        $this->assertSame('1001', $order->postal_code);
+    }
+
+    /** Placing an order puts it in the shop team's bell — and only theirs. */
+    public function test_placing_an_order_notifies_the_shop_team(): void
+    {
+        $staff = User::factory()->staff()->create();
+        $variant = $this->variantWithStock(10);
+        $customer = User::factory()->create();
+
+        $this->actingAs($customer);
+        $this->fill($variant, 1);
         $order = $this->checkout();
 
-        // The owner cannot self-confirm...
-        $this->actingAs($owner)
-            ->patch(route('admin.orders.payment.confirm', $order->order_number))
-            ->assertForbidden();
+        $this->assertSame(1, $staff->notifications()->count());
+        $this->assertSame('order', $staff->notifications()->first()->data['kind']);
+        $this->assertStringContainsString($order->order_number, $staff->notifications()->first()->data['title']);
+        $this->assertSame(0, $customer->notifications()->count());
+    }
 
-        // ...and neither can any other customer.
-        $this->actingAs(User::factory()->create())
-            ->patch(route('admin.orders.payment.confirm', $order->order_number))
-            ->assertForbidden();
+    /**
+     * Payment tells the customer and the team; a sale that takes an item to
+     * its low-stock threshold raises a stock alert, once — the next sale of
+     * an already-low item doesn't repeat it.
+     */
+    public function test_a_payment_that_takes_stock_low_alerts_the_team_once(): void
+    {
+        $staff = User::factory()->staff()->create();
+        $variant = $this->variantWithStock(7);
+        $variant->update(['low_stock_threshold' => 5]);
+        $customer = User::factory()->create();
 
-        $this->assertSame(Order::STATUS_AWAITING_PAYMENT, $order->fresh()->status);
-        $this->assertSame(10, $variant->fresh()->stock);
+        $this->actingAs($customer);
+        $this->fill($variant, 2);
+        $this->markPaid($this->checkout());
+
+        $kinds = $staff->notifications()->pluck('data')->pluck('kind')->sort()->values()->all();
+        $this->assertSame(['order', 'order', 'stock'], $kinds);
+        $this->assertSame(1, $customer->notifications()->count());
+
+        // Already low: another sale alerts the order, not the stock again.
+        $this->fill($variant, 1);
+        $this->post(route('checkout.store'), $this->details());
+        $this->completeCheckoutOtp();
+        $this->markPaid(Order::query()->latest('id')->firstOrFail());
+
+        $this->assertSame(1, $staff->notifications()->get()->where('data.kind', 'stock')->count());
     }
 }

@@ -20,6 +20,7 @@ import { useAdminTheme } from '@/utils/useAdminTheme';
 import { Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useLiveReload } from '@/utils/useLiveReload';
 
 const LINK_CLASSES =
     'inline-flex items-center gap-1 text-sm text-volt-500 hover:text-volt-400 admin-light:text-volt-800 admin-light:hover:underline';
@@ -356,6 +357,9 @@ function CompactRestockList({ items }) {
 }
 
 export default function Dashboard({ stats, lowStockItems, recentOrders, revenueTrend, categorySplit, topProducts }) {
+    // Revenue, queues and stock alerts stay current while it sits open.
+    useLiveReload(['stats', 'lowStockItems', 'recentOrders', 'revenueTrend', 'categorySplit', 'topProducts'], 10000);
+
     const { theme } = useAdminTheme();
     const [showTrendTable, setShowTrendTable] = useState(false);
     const yesterday = stats.revenue_yesterday_centavos;

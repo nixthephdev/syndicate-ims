@@ -2,19 +2,31 @@ import { useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
 import Modal from '@/Components/Storefront/Modal';
-import { DangerButton, Field, GhostButton, SubmitButton } from '@/Components/Storefront/FormControls';
+import { DangerButton, GhostButton, SubmitButton } from '@/Components/Storefront/FormControls';
+import AddressFields from '@/Components/Storefront/AddressFields';
 import { HARDWARE_COLORS } from '@/Components/Customizer/hardwareColors';
 import { formatCentavos } from '@/utils/money';
 import { statusChipClasses, formatStatusLabel } from '@/utils/orderStatus';
+import { useLiveReload } from '@/utils/useLiveReload';
 import OrderTracker from '@/Components/Storefront/OrderTracker';
 
 function colorLabel(hex) {
     return HARDWARE_COLORS.find((c) => c.hex.toLowerCase() === hex.toLowerCase())?.label ?? hex;
 }
 
-export default function OrderShow({ order }) {
+export default function OrderShow({ order, provinces }) {
     const { post: postCancel, processing: cancelling } = useForm({});
     const [changingAddress, setChangingAddress] = useState(false);
+
+    // When the shop moves the order along ("Out for delivery"), the tracker
+    // updates on its own — no reload.
+    useLiveReload(['order']);
+
+    // No cash at pickup (2026-10-31): a pickup order's balance is GCash only;
+    // delivery may still pay the rider.
+    const balanceTerms = order.fulfillment_method === 'delivery'
+        ? 'by GCash, or in cash when it’s delivered'
+        : 'by GCash before you pick it up';
 
     const addressForm = useForm({
         address_line: order.address.address_line ?? '',
@@ -28,6 +40,13 @@ export default function OrderShow({ order }) {
     // Inertia::location). Nothing is marked paid until PayMongo confirms it
     // on the way back — see Shop\PayMongoController.
     const { post: postPay, processing: paying } = useForm({});
+
+    // The other half of a 50% deposit order — see BalancePaymentController.
+    const { post: postBalance, processing: payingBalance } = useForm({});
+    const payBalance = (e) => {
+        e.preventDefault();
+        postBalance(route('payment.balance.create', order.order_number), { preserveScroll: true });
+    };
 
     const payWithGcash = (e) => {
         e.preventDefault();
@@ -92,23 +111,9 @@ export default function OrderShow({ order }) {
                     </div>
                 )}
 
-                {/* Payment. GCash goes through PayMongo; cash (pickup only)
-                    is paid at the branch and confirmed by staff. Delivery
-                    only ever charges the 50% deposit online, never the full
-                    total (amount_due_now_centavos handles which). */}
-                {order.status === 'awaiting_payment' && order.payment_method === 'cash' && (
-                    <div className="mt-10 border-2 border-amber-400/60 p-6">
-                        <h2 className="font-display text-lg uppercase tracking-wide text-white light:text-ink-900">
-                            Pay cash at pickup
-                        </h2>
-                        <p className="mt-2 text-sm leading-relaxed text-white/50 light:text-ink-900/65">
-                            Nothing to pay online — bring{' '}
-                            {formatCentavos(order.total_centavos)} to the shop
-                            when you collect your order.
-                        </p>
-                    </div>
-                )}
-
+                {/* Payment — GCash through PayMongo. A deposit order only
+                    ever charges the 50% online, never the full total
+                    (amount_due_now_centavos handles which). */}
                 {order.status === 'awaiting_payment' && order.pays_online && (
                     <div className="mt-10 border-2 border-volt-500 p-6">
                         <h2 className="font-display text-lg uppercase tracking-wide text-white light:text-ink-900">
@@ -124,9 +129,9 @@ export default function OrderShow({ order }) {
                                     <span className="text-volt-500 light:text-volt-800">
                                         {formatCentavos(order.deposit_centavos)}
                                     </span>{' '}
-                                    secures your order for delivery. The remaining{' '}
-                                    {formatCentavos(order.balance_centavos)} is paid in
-                                    cash when it arrives.
+                                    secures your order. The remaining{' '}
+                                    {formatCentavos(order.balance_centavos)} is paid{' '}
+                                    {balanceTerms}.
                                 </>
                             ) : (
                                 'Pay by GCash through PayMongo. Nothing is held for you until the payment goes through.'
@@ -164,10 +169,42 @@ export default function OrderShow({ order }) {
                         <p className="mt-2 text-sm leading-relaxed text-white/50 light:text-ink-900/65">
                             Your {formatCentavos(order.deposit_centavos)} deposit
                             is confirmed. The remaining{' '}
-                            {formatCentavos(order.balance_centavos)} is paid in
-                            cash when your order is delivered.
+                            <span className="text-volt-500 light:text-volt-800">
+                                {formatCentavos(order.balance_centavos)}
+                            </span>{' '}
+                            {order.fulfillment_method === 'delivery'
+                                ? 'can be paid by GCash now, or in cash when it’s delivered.'
+                                : 'is paid by GCash before you pick it up — we hand it over once it’s in.'}
                         </p>
+
+                        {order.can_pay_balance && !order.payment_configured && (
+                            <p className="mt-5 border border-amber-400/40 bg-amber-400/[0.06] p-3 text-xs leading-relaxed text-amber-300 light:text-amber-700">
+                                GCash payment isn't set up on this copy of the site yet
+                                (no PayMongo key). Please contact the shop.
+                            </p>
+                        )}
+
+                        {order.can_pay_balance && order.payment_configured && (
+                            <form onSubmit={payBalance} className="mt-5">
+                                <button
+                                    type="submit"
+                                    disabled={payingBalance}
+                                    className="inline-flex items-center gap-3 bg-volt-500 px-8 py-4 font-display text-base uppercase tracking-[0.2em] text-ink-900 transition-transform hover:-translate-y-0.5 hover:bg-white light:hover:bg-ink-900 light:hover:text-white disabled:pointer-events-none disabled:opacity-40"
+                                >
+                                    {payingBalance
+                                        ? 'Opening GCash'
+                                        : `Pay ${formatCentavos(order.balance_centavos)} with GCash`}{' '}
+                                    →
+                                </button>
+                            </form>
+                        )}
                     </div>
+                )}
+
+                {order.balance_paid_at && (
+                    <p className="mt-4 text-xs uppercase tracking-[0.15em] text-white/40 light:text-ink-900/55">
+                        Balance paid by GCash · {order.balance_paid_at}
+                    </p>
                 )}
 
                 {/* Cancel — owner-only, and only before payment. Nothing has
@@ -289,55 +326,17 @@ export default function OrderShow({ order }) {
                         Delivery address
                     </h2>
                     <p className="mt-2 text-sm leading-relaxed text-white/50 light:text-ink-900/65">
-                        Leave everything blank if you're picking this up at the shop instead.
+                        Pick your province, city and barangay from the lists.
                     </p>
 
-                    <div className="mt-6 space-y-4">
-                        <Field
-                            id="modal_address_line"
-                            name="address_line"
-                            label="House / unit / street"
-                            placeholder="123 Rizal St."
-                            value={addressForm.data.address_line}
-                            error={addressForm.errors.address_line}
-                            onChange={(e) => addressForm.setData('address_line', e.target.value)}
+                    <div className="mt-6">
+                        <AddressFields
+                            idPrefix="modal_"
+                            data={addressForm.data}
+                            setData={addressForm.setData}
+                            errors={addressForm.errors}
+                            provinces={provinces}
                         />
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <Field
-                                id="modal_barangay"
-                                name="barangay"
-                                label="Barangay"
-                                value={addressForm.data.barangay}
-                                error={addressForm.errors.barangay}
-                                onChange={(e) => addressForm.setData('barangay', e.target.value)}
-                            />
-                            <Field
-                                id="modal_city"
-                                name="city"
-                                label="City / municipality"
-                                value={addressForm.data.city}
-                                error={addressForm.errors.city}
-                                onChange={(e) => addressForm.setData('city', e.target.value)}
-                            />
-                        </div>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <Field
-                                id="modal_province"
-                                name="province"
-                                label="Province"
-                                value={addressForm.data.province}
-                                error={addressForm.errors.province}
-                                onChange={(e) => addressForm.setData('province', e.target.value)}
-                            />
-                            <Field
-                                id="modal_postal_code"
-                                name="postal_code"
-                                label="ZIP code"
-                                value={addressForm.data.postal_code}
-                                error={addressForm.errors.postal_code}
-                                onChange={(e) => addressForm.setData('postal_code', e.target.value)}
-                            />
-                        </div>
                     </div>
 
                     <div className="mt-8 flex justify-end gap-3">

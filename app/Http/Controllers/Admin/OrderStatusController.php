@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Notifications\OrderUpdated;
+use App\Models\AuditLog;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use Illuminate\Http\RedirectResponse;
@@ -51,6 +53,12 @@ class OrderStatusController extends Controller
             ]);
         }
 
+        // Same rule as the stage tracker: no handing over a pickup order
+        // with the balance unpaid, since there's no cash at pickup.
+        if ($target === Order::STATUS_FULFILLED && $order->balanceBlocksHandover()) {
+            return back()->withErrors(['status' => OrderFulfillmentController::BALANCE_DUE_MESSAGE]);
+        }
+
         $order->status = $target;
 
         // "Mark fulfilled" is a shortcut straight to the end of the
@@ -63,6 +71,17 @@ class OrderStatusController extends Controller
         }
 
         $order->save();
+
+        AuditLog::record(
+            $target === Order::STATUS_FULFILLED ? AuditLog::ACTION_ORDER_FULFILLED : AuditLog::ACTION_ORDER_CANCELLED,
+            ($target === Order::STATUS_FULFILLED ? 'Marked fulfilled: ' : 'Cancelled: ').$order->order_number.'.',
+            $order,
+            $order->order_number
+        );
+
+        $order->user?->notify(new OrderUpdated($order, $target === Order::STATUS_FULFILLED
+            ? 'Your order is complete. Thanks for shopping with us!'
+            : 'Your order was cancelled by the shop.'));
 
         return back()->with(
             'success',

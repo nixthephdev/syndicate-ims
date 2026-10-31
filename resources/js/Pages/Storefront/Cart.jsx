@@ -141,6 +141,7 @@ export default function Cart({ lines, subtotal_centavos }) {
                                         </p>
                                         <p className="mt-1 text-xs uppercase tracking-[0.15em] text-white/35 light:text-ink-900/50">
                                             {formatCentavos(line.unit_price_centavos)} each
+                                            {!line.exceeds_stock && ` · ${line.available_stock} left in stock`}
                                         </p>
                                         {line.color && <ColorNote hex={line.color} />}
                                         {line.exceeds_stock && (

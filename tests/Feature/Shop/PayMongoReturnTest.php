@@ -107,11 +107,12 @@ class PayMongoReturnTest extends TestCase
      * The whole reason deposits exist as a separate status: a delivery
      * order's GCash leg is only the 50%, so it must not land on `paid`.
      */
-    public function test_a_delivery_deposit_lands_on_deposit_paid_not_paid(): void
+    public function test_a_deposit_lands_on_deposit_paid_not_paid(): void
     {
         $user = User::factory()->create();
         $order = $this->orderAwaitingPayment($user, [
             'fulfillment_method' => Order::FULFILLMENT_DELIVERY,
+            'payment_option' => Order::PAYMENT_OPTION_DEPOSIT,
             'address_line' => '123 Rizal St.',
             'barangay' => 'Tagas',
             'city' => 'Daraga',

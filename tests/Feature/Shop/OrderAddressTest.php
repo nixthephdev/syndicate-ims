@@ -23,6 +23,15 @@ class OrderAddressTest extends TestCase
     use ConfirmsPayment;
     use RefreshDatabase;
 
+    /** A real PSGC address — the Rawis branch's barangay, as PSGC names it. */
+    private const LEGAZPI = [
+        'address_line' => '456 Bonifacio Ave.',
+        'barangay' => 'Bgy. 42 - Rawis',
+        'city' => 'City of Legazpi',
+        'province' => 'Albay',
+        'postal_code' => '4500',
+    ];
+
     private function fillCartWithOneVariant(User $user): void
     {
         $product = Product::factory()->create([
@@ -106,18 +115,29 @@ class OrderAddressTest extends TestCase
         $order = $this->checkout();
 
         $this->actingAs($user)
-            ->patch(route('orders.address.update', $order->order_number), [
-                'address_line' => '456 Bonifacio Ave.',
-                'barangay' => 'Rawis',
-                'city' => 'Legazpi City',
-                'province' => 'Albay',
-                'postal_code' => '4500',
-            ])
+            ->patch(route('orders.address.update', $order->order_number), self::LEGAZPI)
             ->assertSessionHasNoErrors();
 
         $order->refresh();
         $this->assertSame('456 Bonifacio Ave.', $order->address_line);
-        $this->assertSame('Legazpi City', $order->city);
+        $this->assertSame('City of Legazpi', $order->city);
+        $this->assertSame('Bgy. 42 - Rawis', $order->barangay);
+    }
+
+    /** Same real-place check as checkout — the modal uses the same dropdowns. */
+    public function test_an_address_change_must_be_a_real_place(): void
+    {
+        $user = User::factory()->create();
+        $this->fillCartWithOneVariant($user);
+        $order = $this->checkout();
+
+        $this->actingAs($user)
+            ->patch(route('orders.address.update', $order->order_number), [
+                'barangay' => 'Somewhere Made Up',
+            ] + self::LEGAZPI)
+            ->assertSessionHasErrors('barangay');
+
+        $this->assertNull($order->fresh()->barangay);
     }
 
     public function test_a_customer_can_change_the_address_after_paying(): void
@@ -130,11 +150,10 @@ class OrderAddressTest extends TestCase
         $this->markPaid($order);
         $this->assertSame(Order::STATUS_PAID, $order->fresh()->status);
 
-        $this->patch(route('orders.address.update', $order->order_number), [
-            'city' => 'Legazpi City',
-        ])->assertSessionHasNoErrors();
+        $this->patch(route('orders.address.update', $order->order_number), self::LEGAZPI)
+            ->assertSessionHasNoErrors();
 
-        $this->assertSame('Legazpi City', $order->fresh()->city);
+        $this->assertSame('City of Legazpi', $order->fresh()->city);
     }
 
     public function test_the_address_cannot_be_changed_once_fulfilled(): void

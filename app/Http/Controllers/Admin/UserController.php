@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\AuditLog;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -73,7 +74,16 @@ class UserController extends Controller
         // that guard for this one hardcoded, validated key — the mass
         // assignment protection this sidesteps exists to stop arbitrary
         // request input reaching the column, and nothing here is arbitrary.
+        $before = $user->role;
         $user->forceFill(['role' => $validated['role']])->save();
+
+        AuditLog::record(
+            AuditLog::ACTION_USER_ROLE,
+            "Changed {$user->name}'s role from {$before} to {$user->role}.",
+            $user,
+            $user->email,
+            ['role' => [$before, $user->role]]
+        );
 
         return back()->with('success', "{$user->name}'s role is now {$validated['role']}.");
     }
@@ -87,6 +97,8 @@ class UserController extends Controller
         $user->forceFill(['is_active' => ! $user->is_active])->save();
 
         $state = $user->is_active ? 'activated' : 'deactivated';
+
+        AuditLog::record(AuditLog::ACTION_USER_STATUS, ucfirst($state)." {$user->name}'s account.", $user, $user->email);
 
         return back()->with('success', "{$user->name} is now {$state}.");
     }

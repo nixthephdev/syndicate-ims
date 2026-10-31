@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Notifications\OrderUpdated;
+use App\Models\AuditLog;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use Illuminate\Http\RedirectResponse;
@@ -28,6 +30,8 @@ use Illuminate\Http\Request;
  */
 class OrderFulfillmentController extends Controller
 {
+    public const BALANCE_DUE_MESSAGE = 'The customer still owes the remaining balance. It is paid by GCash from their order page — the order can be handed over once it comes in.';
+
     public function update(Request $request, string $orderNumber): RedirectResponse
     {
         $validated = $request->validate([
@@ -46,6 +50,12 @@ class OrderFulfillmentController extends Controller
             ]);
         }
 
+        // No cash at pickup (client, 2026-10-31): the balance has to come in
+        // by GCash before the goods go out.
+        if ($next === Order::STAGE_COMPLETED && $order->balanceBlocksHandover()) {
+            return back()->withErrors(['status' => self::BALANCE_DUE_MESSAGE]);
+        }
+
         $order->fulfillment_stage = $next;
 
         // Finishing the journey IS being fulfilled — one action, not two, so
@@ -56,6 +66,15 @@ class OrderFulfillmentController extends Controller
         }
 
         $order->save();
+
+        AuditLog::record(
+            AuditLog::ACTION_ORDER_STAGE,
+            "Moved {$order->order_number} to \"{$order->stageLabel($next)}\".",
+            $order,
+            $order->order_number
+        );
+
+        $order->user?->notify(new OrderUpdated($order, $order->stageLabel($next).'.'));
 
         return back()->with(
             'success',

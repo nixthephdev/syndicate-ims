@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\AuditLog;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreProductVariantRequest;
 use App\Http\Requests\Admin\UpdateProductVariantRequest;
@@ -23,7 +24,7 @@ class ProductVariantController extends Controller
     {
         $data = $request->validated();
 
-        $product->variants()->create([
+        $variant = $product->variants()->create([
             'size' => $data['size'] ?? null,
             'color' => $data['color'] ?? null,
             'sku' => $data['sku'],
@@ -32,6 +33,13 @@ class ProductVariantController extends Controller
             'low_stock_threshold' => $data['low_stock_threshold'],
             'is_active' => $request->boolean('is_active', true),
         ]);
+
+        AuditLog::record(
+            AuditLog::ACTION_VARIANT_CREATED,
+            "Added variant {$variant->sku} with {$variant->stock} in stock.",
+            $variant,
+            $variant->setRelation('product', $product)->displayName()
+        );
 
         return back()->with('success', 'Variant added.');
     }
@@ -40,7 +48,7 @@ class ProductVariantController extends Controller
     {
         $data = $request->validated();
 
-        $variant->update([
+        $variant->fill([
             'size' => $data['size'] ?? null,
             'color' => $data['color'] ?? null,
             'sku' => $data['sku'],
@@ -49,6 +57,19 @@ class ProductVariantController extends Controller
             'low_stock_threshold' => $data['low_stock_threshold'],
             'is_active' => $request->boolean('is_active', true),
         ]);
+        $changes = AuditLog::changesOf($variant);
+        $variant->save();
+
+        // A hand-edited stock count is exactly what this log is for — the
+        // description spells it out so it reads without opening the details.
+        if ($changes) {
+            $label = $variant->setRelation('product', $product)->displayName();
+            $summary = isset($changes['stock'])
+                ? "Changed stock of {$label} from {$changes['stock'][0]} to {$changes['stock'][1]}."
+                : "Edited {$label}: ".implode(', ', array_keys($changes)).'.';
+
+            AuditLog::record(AuditLog::ACTION_VARIANT_UPDATED, $summary, $variant, $label, $changes);
+        }
 
         return back()->with('success', 'Variant updated.');
     }
@@ -67,7 +88,10 @@ class ProductVariantController extends Controller
             ]);
         }
 
+        $label = $variant->setRelation('product', $product)->displayName();
         $variant->delete();
+
+        AuditLog::record(AuditLog::ACTION_VARIANT_DELETED, "Deleted variant {$label} ({$variant->stock} in stock).", $variant, $label);
 
         return back()->with('success', 'Variant removed.');
     }

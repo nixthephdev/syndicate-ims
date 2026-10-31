@@ -3,11 +3,15 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
 import SizeChart from '@/Components/Storefront/SizeChart';
 import { formatCentavos } from '@/utils/money';
+import { useLiveReload } from '@/utils/useLiveReload';
 
 /** Unique, order-preserving. Variants arrive sorted by colour then id. */
 const distinct = (values) => [...new Set(values.filter(Boolean))];
 
 export default function ProductShow({ product }) {
+    // The stock count follows other shoppers' purchases while the page is open.
+    useLiveReload(['product'], 10000);
+
     const colors = useMemo(
         () => distinct(product.variants.map((v) => v.color)),
         [product.variants]
@@ -188,16 +192,20 @@ export default function ProductShow({ product }) {
                                 </fieldset>
                             )}
 
-                            {/* Stock line. Deliberately vague above a few units
-                                — an exact count is stale the moment it renders,
-                                because the cart does not reserve stock. */}
+                            {/* Stock line — the exact count, always (client,
+                                2026-10-31: customers want to know how many are
+                                left). Kept current by useLiveReload; it is
+                                still advisory, because the cart reserves
+                                nothing — checkout re-checks. */}
                             {selected && (
                                 <p className="text-xs uppercase tracking-[0.15em] text-white/40 light:text-ink-900/55">
-                                    {selected.stock <= 0
-                                        ? 'Sold out'
-                                        : selected.stock <= 5
-                                        ? `Only ${selected.stock} left`
-                                        : 'In stock'}
+                                    {selected.stock <= 0 ? (
+                                        'Sold out'
+                                    ) : (
+                                        <span className={selected.stock <= 5 ? 'text-amber-400 light:text-amber-700' : ''}>
+                                            {selected.stock} left in stock
+                                        </span>
+                                    )}
                                     {selected.sku && (
                                         <span className="ml-3 text-white/20 light:text-ink-900/35">
                                             {selected.sku}

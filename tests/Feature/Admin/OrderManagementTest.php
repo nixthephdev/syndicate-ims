@@ -9,6 +9,7 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class OrderManagementTest extends TestCase
@@ -290,51 +291,23 @@ class OrderManagementTest extends TestCase
         $this->assertSame(Order::STATUS_DEPOSIT_PAID, $order->fresh()->status);
     }
 
-    public function test_staff_can_confirm_a_cash_pickup_order_and_stock_is_committed(): void
-    {
-        $order = $this->order(Order::STATUS_AWAITING_PAYMENT, [
-            'payment_method' => Order::PAYMENT_METHOD_CASH,
-        ]);
-        $variant = $order->items()->firstOrFail()->purchasable;
-
-        $this->actingAs(User::factory()->staff()->create())
-            ->patch(route('admin.orders.payment.confirm', $order->order_number))
-            ->assertSessionHasNoErrors();
-
-        $order->refresh();
-        $this->assertSame(Order::STATUS_PAID, $order->status);
-        $this->assertNotNull($order->paid_at);
-        $this->assertSame(9, $variant->fresh()->stock);
-    }
-
     /**
-     * GCash is confirmed by PayMongo, never by hand — otherwise a GCash
-     * order could be "paid" with no money ever moving through PayMongo.
+     * Cash on pickup is gone (2026-10-31) and GCash is confirmed by PayMongo
+     * alone, so there is no longer ANY way for staff to mark an order paid
+     * by hand — a "paid" order with no money behind it is what this pins out.
      */
-    public function test_staff_cannot_hand_confirm_a_gcash_order(): void
+    public function test_staff_have_no_way_to_mark_an_order_paid_by_hand(): void
     {
-        $order = $this->order(Order::STATUS_AWAITING_PAYMENT, [
-            'payment_method' => Order::PAYMENT_METHOD_GCASH,
-        ]);
+        $this->assertFalse(Route::has('admin.orders.payment.confirm'));
+
+        $order = $this->order(Order::STATUS_AWAITING_PAYMENT);
         $variant = $order->items()->firstOrFail()->purchasable;
 
         $this->actingAs(User::factory()->staff()->create())
-            ->patch(route('admin.orders.payment.confirm', $order->order_number))
-            ->assertSessionHasErrors('payment');
+            ->patch('/admin/orders/'.$order->order_number.'/confirm-payment')
+            ->assertNotFound();
 
         $this->assertSame(Order::STATUS_AWAITING_PAYMENT, $order->fresh()->status);
         $this->assertSame(10, $variant->fresh()->stock);
-    }
-
-    public function test_confirming_payment_is_refused_once_already_paid(): void
-    {
-        $order = $this->order(Order::STATUS_PAID, [
-            'paid_at' => now(),
-            'payment_method' => Order::PAYMENT_METHOD_CASH,
-        ]);
-
-        $this->actingAs(User::factory()->staff()->create())
-            ->patch(route('admin.orders.payment.confirm', $order->order_number))
-            ->assertSessionHasErrors('payment');
     }
 }

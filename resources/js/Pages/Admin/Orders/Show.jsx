@@ -1,13 +1,21 @@
 import AdminLayout from '@/Layouts/AdminLayout';
 import Card from '@/Components/Admin/Card';
 import OrderStatusBadge from '@/Components/Admin/OrderStatusBadge';
-import IdStatusBadge from '@/Components/Admin/IdStatusBadge';
 import PrimaryButton from '@/Components/Admin/PrimaryButton';
 import SecondaryButton from '@/Components/Admin/SecondaryButton';
-import { ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, TruckIcon, XIcon } from '@/Components/Admin/icons';
+import {
+    ArrowDownTrayIcon,
+    ArrowLeftIcon,
+    ArrowRightIcon,
+    CheckCircleIcon,
+    PhotoIcon,
+    TruckIcon,
+    XIcon,
+} from '@/Components/Admin/icons';
 import { HARDWARE_COLORS } from '@/Components/Customizer/hardwareColors';
 import { useConfirm } from '@/Components/Admin/ConfirmDialog';
-import { lazy, Suspense, useState } from 'react';
+import { useLiveReload } from '@/utils/useLiveReload';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 
 // The customizer's own 3D viewer, lazy-loaded so Three.js only downloads
@@ -22,9 +30,148 @@ function colorLabel(hex) {
     return HARDWARE_COLORS.find((c) => c.hex.toLowerCase() === hex.toLowerCase())?.label ?? hex;
 }
 
+const fileSafe = (text) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+/**
+ * Saves whatever angle the board is at right now as a PNG (client,
+ * 2026-10-31: "3d model picture can be exported"). The model's canvas is
+ * transparent, so it's drawn onto a solid ground with the order number
+ * underneath — a reference picture that still says which order it's for
+ * once it's been saved somewhere else.
+ */
+function downloadBoardImage(container, orderNumber, build) {
+    const source = container?.querySelector('canvas');
+    if (!source) return;
+
+    const out = document.createElement('canvas');
+    out.width = source.width;
+    out.height = source.height;
+    const ctx = out.getContext('2d');
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(0, 0, out.width, out.height);
+    ctx.drawImage(source, 0, 0);
+
+    const pad = Math.round(out.width * 0.025);
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.font = `600 ${Math.max(14, Math.round(out.width * 0.022))}px sans-serif`;
+    ctx.fillText(`${orderNumber} · ${build.label}`, pad, out.height - pad);
+
+    const link = document.createElement('a');
+    link.download = `${orderNumber}-${fileSafe(build.label)}.png`;
+    link.href = out.toDataURL('image/png');
+    link.click();
+}
+
+/** One custom board, assembled in 3D, with its own download button. */
+function BuildCard({ build, orderNumber }) {
+    const viewer = useRef(null);
+
+    return (
+        <Card className="mt-6 overflow-hidden">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 px-6 py-4 admin-light:border-ink-900/10">
+                <div className="min-w-0">
+                    <h2 className="font-semibold text-white admin-light:text-ink-900">{build.label}</h2>
+                    <p className="mt-1 text-xs text-white/40 admin-light:text-ink-900/50">
+                        {build.parts.join(' · ')}
+                    </p>
+                </div>
+                <SecondaryButton
+                    icon={ArrowDownTrayIcon}
+                    onClick={() => downloadBoardImage(viewer.current, orderNumber, build)}
+                >
+                    Download image
+                </SecondaryButton>
+            </div>
+            <div ref={viewer} className="relative h-80 bg-white/[0.02] admin-light:bg-ink-900/[0.03] sm:h-96">
+                <Suspense
+                    fallback={
+                        <p className="flex h-full items-center justify-center text-xs uppercase tracking-widest text-white/30 admin-light:text-ink-900/40">
+                            Loading model…
+                        </p>
+                    }
+                >
+                    <Scene
+                        deckMeshName={build.deck_mesh}
+                        wheelsMeshName={build.wheels_mesh}
+                        trucksColor={build.trucks_color}
+                        boltsColor={build.bolts_color}
+                        transparentBackground
+                        preserveDrawingBuffer
+                        enablePan={false}
+                        enableZoom={false}
+                    />
+                </Suspense>
+            </div>
+            <p className="border-t border-white/10 px-6 py-3 text-xs text-white/30 admin-light:border-ink-900/10 admin-light:text-ink-900/45">
+                Drag to rotate — the download saves the angle you're looking at. Hardware colours are the ones the customer picked.
+            </p>
+        </Card>
+    );
+}
+
+/**
+ * The apparel in this order as photos — the 2D counterpart of the 3D
+ * boards (client, 2026-10-31), so whoever packs it pulls the right design,
+ * size and colour off the rack. Each photo downloads on its own.
+ */
+function ApparelCard({ apparel, orderNumber }) {
+    return (
+        <Card className="mt-6 overflow-hidden">
+            <div className="border-b border-white/10 px-6 py-4 admin-light:border-ink-900/10">
+                <h2 className="font-semibold text-white admin-light:text-ink-900">Apparel to pack</h2>
+                <p className="mt-1 text-xs text-white/40 admin-light:text-ink-900/50">
+                    Product photos for reference — pull the size and colour shown under each.
+                </p>
+            </div>
+            <ul className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-3">
+                {apparel.map((item, i) => (
+                    <li
+                        key={i}
+                        className="overflow-hidden rounded-md border border-white/10 admin-light:border-ink-900/10"
+                    >
+                        <div className="aspect-square bg-white/[0.03] admin-light:bg-ink-900/[0.03]">
+                            {item.image_url ? (
+                                <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
+                            ) : (
+                                <div className="flex h-full flex-col items-center justify-center gap-2 text-white/25 admin-light:text-ink-900/30">
+                                    <PhotoIcon className="h-8 w-8" />
+                                    <span className="text-xs">No photo uploaded</span>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex items-start justify-between gap-2 p-3">
+                            <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-white admin-light:text-ink-900">{item.name}</p>
+                                <p className="mt-0.5 text-xs text-white/50 admin-light:text-ink-900/60">
+                                    {[item.size, item.color].filter(Boolean).join(' · ')} · ×{item.quantity}
+                                </p>
+                            </div>
+                            {item.image_url && (
+                                <a
+                                    href={item.image_url}
+                                    download={`${orderNumber}-${fileSafe(item.name)}`}
+                                    title="Download photo"
+                                    aria-label={`Download photo of ${item.name}`}
+                                    className="shrink-0 rounded-md border border-white/10 p-1.5 text-white/50 transition hover:border-white/25 hover:text-white admin-light:border-ink-900/10 admin-light:text-ink-900/50 admin-light:hover:text-ink-900"
+                                >
+                                    <ArrowDownTrayIcon className="h-4 w-4" />
+                                </a>
+                            )}
+                        </div>
+                    </li>
+                ))}
+            </ul>
+        </Card>
+    );
+}
+
 export default function Show({ order, can }) {
     const [processing, setProcessing] = useState(false);
     const [confirmDialog, ask] = useConfirm();
+
+    // A customer paying, or another staff member moving it along, shows up
+    // here without a reload.
+    useLiveReload(['order', 'can']);
 
     // router.patch, not useForm: there is no form state here, just a one-shot
     // transition. useForm's patch() sends its own `data` and ignores a `data`
@@ -33,18 +180,6 @@ export default function Show({ order, can }) {
         router.patch(
             route('admin.orders.status.update', order.order_number),
             { status },
-            {
-                preserveScroll: true,
-                onStart: () => setProcessing(true),
-                onFinish: () => setProcessing(false),
-            }
-        );
-    };
-
-    const confirmPayment = () => {
-        router.patch(
-            route('admin.orders.payment.confirm', order.order_number),
-            {},
             {
                 preserveScroll: true,
                 onStart: () => setProcessing(true),
@@ -117,6 +252,17 @@ export default function Show({ order, can }) {
                                 {order.items.map((item, i) => (
                                     <tr key={i}>
                                         <td className="px-6 py-4 text-sm font-medium text-white admin-light:text-ink-900">
+                                            <span className="flex items-center gap-3">
+                                                {item.image_url ? (
+                                                    <img
+                                                        src={item.image_url}
+                                                        alt=""
+                                                        className="h-10 w-10 shrink-0 rounded border border-white/10 bg-white/[0.03] object-cover admin-light:border-ink-900/10"
+                                                    />
+                                                ) : (
+                                                    <span className="h-10 w-10 shrink-0 rounded border border-white/10 bg-white/[0.03] admin-light:border-ink-900/10 admin-light:bg-ink-900/[0.03]" />
+                                                )}
+                                                <span>
                                             {item.name}
                                             {item.color && (
                                                 <span className="ml-2 inline-flex items-center gap-1.5 text-xs font-normal text-white/40 admin-light:text-ink-900/50">
@@ -127,6 +273,8 @@ export default function Show({ order, can }) {
                                                     {colorLabel(item.color)} requested
                                                 </span>
                                             )}
+                                                </span>
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-white/40 admin-light:text-ink-900/50">
                                             {item.unit_price_formatted}
@@ -165,37 +313,12 @@ export default function Show({ order, can }) {
                     {/* The skateboard parts above, assembled — one model per
                         custom board. See Admin\OrderController::builds(). */}
                     {order.builds.map((build) => (
-                        <Card key={build.key} className="mt-6 overflow-hidden">
-                            <div className="border-b border-white/10 px-6 py-4 admin-light:border-ink-900/10">
-                                <h2 className="font-semibold text-white admin-light:text-ink-900">{build.label}</h2>
-                                <p className="mt-1 text-xs text-white/40 admin-light:text-ink-900/50">
-                                    {build.parts.join(' · ')}
-                                </p>
-                            </div>
-                            <div className="relative h-80 bg-white/[0.02] admin-light:bg-ink-900/[0.03] sm:h-96">
-                                <Suspense
-                                    fallback={
-                                        <p className="flex h-full items-center justify-center text-xs uppercase tracking-widest text-white/30 admin-light:text-ink-900/40">
-                                            Loading model…
-                                        </p>
-                                    }
-                                >
-                                    <Scene
-                                        deckMeshName={build.deck_mesh}
-                                        wheelsMeshName={build.wheels_mesh}
-                                        trucksColor={build.trucks_color}
-                                        boltsColor={build.bolts_color}
-                                        transparentBackground
-                                        enablePan={false}
-                                        enableZoom={false}
-                                    />
-                                </Suspense>
-                            </div>
-                            <p className="border-t border-white/10 px-6 py-3 text-xs text-white/30 admin-light:border-ink-900/10 admin-light:text-ink-900/45">
-                                Drag to rotate. Hardware colours are the ones the customer picked.
-                            </p>
-                        </Card>
+                        <BuildCard key={build.key} build={build} orderNumber={order.order_number} />
                     ))}
+
+                    {order.apparel.length > 0 && (
+                        <ApparelCard apparel={order.apparel} orderNumber={order.order_number} />
+                    )}
                 </div>
 
                 {/* Customer + actions */}
@@ -259,7 +382,13 @@ export default function Show({ order, can }) {
                         {order.deposit_formatted && (
                             <p className="mt-1 text-xs text-white/40 admin-light:text-ink-900/50">
                                 Deposit {order.deposit_formatted} · Balance {order.balance_formatted}
-                                {order.status === 'deposit_paid' ? ' (due in cash on delivery)' : ''}
+                                {order.balance_paid_at
+                                    ? ` (paid by GCash ${order.balance_paid_at})`
+                                    : order.status === 'deposit_paid'
+                                      ? order.fulfillment_method === 'delivery'
+                                          ? ' (due — GCash, or cash on delivery)'
+                                          : ' (due by GCash before pickup)'
+                                      : ''}
                             </p>
                         )}
                         <p className="mt-2 text-sm text-white/50 admin-light:text-ink-900/60">
@@ -283,6 +412,14 @@ export default function Show({ order, can }) {
                                         {order.paymongo.payment_intent_id}
                                     </dd>
                                 </div>
+                                {order.paymongo.balance_payment_id && (
+                                    <div>
+                                        <dt className="inline text-white/40 admin-light:text-ink-900/50">Balance payment </dt>
+                                        <dd className="inline font-mono text-white/60 admin-light:text-ink-900/70">
+                                            {order.paymongo.balance_payment_id}
+                                        </dd>
+                                    </div>
+                                )}
                                 {order.paymongo.payment_id && (
                                     <div>
                                         <dt className="inline text-white/40 admin-light:text-ink-900/50">Payment </dt>
@@ -300,55 +437,6 @@ export default function Show({ order, can }) {
                             </p>
                         )}
                     </Card>
-
-                    {/* Buyer ID, reviewed alongside the order rather than as a
-                        gate before it — the customer is never blocked from
-                        ordering while this is pending. */}
-                    {order.customer_id_verification && (
-                        <Card className="p-6">
-                            <h2 className="text-sm font-semibold text-white admin-light:text-ink-900">
-                                Buyer ID
-                            </h2>
-                            <div className="mt-2">
-                                <IdStatusBadge status={order.customer_id_verification.status} />
-                            </div>
-
-                            {order.customer_id_verification.photo_url ? (
-                                <>
-                                    <p className="mt-3 text-xs text-white/40 admin-light:text-ink-900/55">
-                                        {order.customer_id_verification.id_type_label}
-                                        {order.customer_id_verification.submitted_at &&
-                                            ` · ${order.customer_id_verification.submitted_at}`}
-                                    </p>
-                                    <a
-                                        href={order.customer_id_verification.photo_url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        <img
-                                            src={order.customer_id_verification.photo_url}
-                                            alt="Buyer's submitted ID"
-                                            className="mt-2 w-full rounded-md border border-white/10 bg-black/20 object-contain admin-light:border-ink-900/10 admin-light:bg-ink-900/[0.03]"
-                                        />
-                                    </a>
-                                </>
-                            ) : (
-                                <p className="mt-3 text-xs text-white/30 admin-light:text-ink-900/45">
-                                    This customer hasn't uploaded an ID.
-                                </p>
-                            )}
-
-                            <Link
-                                href={route(
-                                    'admin.id-verifications.show',
-                                    order.customer_id_verification.user_id
-                                )}
-                                className="mt-3 inline-block text-sm font-medium text-volt-500 hover:underline admin-light:text-volt-800"
-                            >
-                                Review this ID →
-                            </Link>
-                        </Card>
-                    )}
 
                     {/* Where the order physically is. Separate card from
                         Actions because it's a separate axis from payment —
@@ -389,7 +477,15 @@ export default function Show({ order, can }) {
                                 ))}
                             </ol>
 
-                            {order.tracking.next_stage && (
+                            {/* No cash at pickup: the last step waits for the
+                                customer's GCash balance payment. Live reload
+                                brings the button back the moment it lands. */}
+                            {order.tracking.next_stage === 'completed' && order.balance_blocks_handover ? (
+                                <p className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-300 admin-light:text-amber-800">
+                                    Waiting for the {order.balance_formatted} balance. The customer pays it by
+                                    GCash from their order page — hand the order over once it comes in.
+                                </p>
+                            ) : order.tracking.next_stage && (
                                 <PrimaryButton
                                     className="mt-4 w-full justify-center"
                                     disabled={processing}
@@ -416,29 +512,9 @@ export default function Show({ order, can }) {
                         </Card>
                     )}
 
-                    {(can.fulfil || can.cancel || can.confirm_payment) && (
+                    {(can.fulfil || can.cancel) && (
                         <Card className="p-6">
                             <h2 className="text-sm font-semibold text-white admin-light:text-ink-900">Actions</h2>
-
-                            {can.confirm_payment && (
-                                <PrimaryButton
-                                    className="mt-3 w-full justify-center"
-                                    disabled={processing}
-                                    onClick={() =>
-                                        ask(
-                                            {
-                                                title: 'Confirm cash received?',
-                                                message: `Only confirm once ${order.total_formatted} is in hand. This marks the order paid and deducts its stock.`,
-                                                confirmLabel: 'Yes, cash received',
-                                            },
-                                            confirmPayment
-                                        )
-                                    }
-                                    icon={CheckCircleIcon}
-                                >
-                                    Confirm cash received
-                                </PrimaryButton>
-                            )}
 
                             {/* Skip-to-done. Hidden when the tracker's own
                                 next step already IS "completed", or the two
@@ -468,9 +544,9 @@ export default function Show({ order, can }) {
 
                             {can.fulfil && order.status === 'deposit_paid' && (
                                 <p className="mt-2 text-xs text-white/25 admin-light:text-ink-900/35">
-                                    Marking this delivered confirms the{' '}
-                                    {order.balance_formatted} cash balance was
-                                    collected.
+                                    Marking this {order.fulfillment_method === 'delivery' ? 'delivered' : 'picked up'}{' '}
+                                    confirms the {order.balance_formatted} cash
+                                    balance was collected.
                                 </p>
                             )}
 

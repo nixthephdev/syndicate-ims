@@ -114,28 +114,51 @@ class Order extends Model
     ];
 
     /**
-     * How the customer pays.
+     * How the customer pays: GCash through PayMongo (test mode), always.
+     * PayMongo confirms it, nobody uploads a receipt — see
+     * Shop\PayMongoController.
      *
-     * gcash: through PayMongo (test mode) — PayMongo confirms it, nobody
-     * uploads a receipt. See Shop\PayMongoController. cash: pickup only,
-     * collected at the branch and confirmed by staff in the admin panel.
-     *
-     * Note there is no 'gcash_deposit' method. "Is this a 50% deposit?" was
-     * never a payment method — it follows from choosing delivery, and
-     * requiresDeposit() derives it from fulfillment_method.
+     * Cash on pickup was REMOVED at the client's request (2026-10-31). The
+     * constant stays because orders placed before that still carry it and
+     * their history has to keep rendering with the right label. Nothing can
+     * create a new one: PAYMENT_METHODS, which checkout validates against,
+     * no longer lists it.
      */
     public const PAYMENT_METHOD_GCASH = 'gcash';
     public const PAYMENT_METHOD_CASH = 'cash';
 
     public const PAYMENT_METHODS = [
         self::PAYMENT_METHOD_GCASH,
-        self::PAYMENT_METHOD_CASH,
+    ];
+
+    /**
+     * How much goes through GCash now — the customer's choice, for pickup
+     * and delivery alike (client, 2026-10-31): the whole total, or a 50%
+     * deposit with the balance settled in cash when the order is handed
+     * over. Not a column of its own: a deposit order is exactly the one with
+     * deposit_centavos set, and requiresDeposit() reads that, so the amount
+     * charged and "is this a deposit?" can never disagree.
+     */
+    public const PAYMENT_OPTION_FULL = 'full';
+    public const PAYMENT_OPTION_DEPOSIT = 'deposit';
+
+    public const PAYMENT_OPTIONS = [
+        self::PAYMENT_OPTION_FULL,
+        self::PAYMENT_OPTION_DEPOSIT,
     ];
 
     public const PAYMENT_METHOD_LABELS = [
         self::PAYMENT_METHOD_GCASH => 'GCash (PayMongo)',
         self::PAYMENT_METHOD_CASH => 'Cash on pickup',
     ];
+
+    /**
+     * Money actually collected on an order, as SQL — total_centavos, except
+     * a still-deposit_paid order, which has only had its deposit collected
+     * so far (the balance is due on handover). Every revenue figure in the
+     * admin (dashboard and sales report) sums this, so they always agree.
+     */
+    public const COLLECTED_AMOUNT_SQL = "CASE WHEN orders.status = 'deposit_paid' THEN orders.deposit_centavos ELSE orders.total_centavos END";
 
     protected $fillable = [
         'order_number',
@@ -176,6 +199,7 @@ class Order extends Model
         'total_centavos' => 'integer',
         'deposit_centavos' => 'integer',
         'paid_at' => 'datetime',
+        'balance_paid_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -206,7 +230,7 @@ class Order extends Model
     /**
      * Which status a successful GCash payment lands this order on.
      *
-     * A delivery order's online leg is only ever the 50% deposit, so it lands
+     * A deposit order's online leg is only ever the 50% deposit, so it lands
      * on deposit_paid with the cash balance still due; everything else is a
      * full payment.
      */
@@ -218,14 +242,13 @@ class Order extends Model
     }
 
     /**
-     * Delivery orders pay 50% up front and the balance in cash on arrival.
-     * Derived from the fulfillment method rather than stored as a payment
-     * method of its own — a customer can never talk their way out of the
-     * deposit by picking a different option, because there is no option.
+     * Did the customer choose to pay 50% now and the rest on handover?
+     * Checkout only ever sets deposit_centavos for that choice — see
+     * PAYMENT_OPTIONS.
      */
     public function requiresDeposit(): bool
     {
-        return $this->fulfillment_method === self::FULFILLMENT_DELIVERY;
+        return $this->deposit_centavos !== null;
     }
 
     /** What the customer has to send NOW — the deposit, or the whole thing. */
@@ -234,6 +257,29 @@ class Order extends Model
         return $this->requiresDeposit()
             ? (int) ($this->deposit_centavos ?? 0)
             : (int) $this->total_centavos;
+    }
+
+    /**
+     * Deposit in, balance still owed — the customer can pay it by GCash from
+     * their order page (client, 2026-10-31: no cash at pickup).
+     */
+    public function canPayBalanceOnline(): bool
+    {
+        return $this->status === self::STATUS_DEPOSIT_PAID
+            && $this->paysOnline()
+            && (int) $this->balanceCentavos() > 0;
+    }
+
+    /**
+     * A pickup order can't be handed over with money still owed: cash at
+     * pickup was removed, so the balance has to arrive by GCash first. A
+     * delivery order may still settle it in cash at the door — that was the
+     * client's own original rule for delivery, and nothing reversed it.
+     */
+    public function balanceBlocksHandover(): bool
+    {
+        return $this->status === self::STATUS_DEPOSIT_PAID
+            && $this->fulfillment_method === self::FULFILLMENT_PICKUP;
     }
 
     /** Paid online through PayMongo, rather than in cash at the branch. */

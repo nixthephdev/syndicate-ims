@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Notifications\ShopAlert;
+use App\Support\PhAddress;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -63,6 +65,9 @@ class OrderController extends Controller
                 'payment_method_label' => $order->paymentMethodLabel(),
                 'amount_due_now_centavos' => $order->amountDueNowCentavos(),
                 'requires_deposit' => $order->requiresDeposit(),
+                // The other 50%, by GCash — see BalancePaymentController.
+                'can_pay_balance' => $order->canPayBalanceOnline() && $order->user_id === $request->user()->id,
+                'balance_paid_at' => $order->balance_paid_at?->toDayDateTimeString(),
                 // GCash goes through PayMongo; cash is paid at the branch.
                 'pays_online' => $order->paysOnline(),
                 // Without a key the button can only error — say so instead.
@@ -104,6 +109,9 @@ class OrderController extends Controller
                     'color' => $item->customization['color'] ?? null,
                 ]),
             ],
+            // For the change-address dropdowns. A closure so the page's
+            // live refresh (which only asks for `order`) never re-sends it.
+            'provinces' => fn () => array_column(PhAddress::provinces(), 'name'),
         ]);
     }
 
@@ -136,6 +144,8 @@ class OrderController extends Controller
         $order->status = Order::STATUS_CANCELLED;
         $order->save();
 
+        ShopAlert::toTeam(ShopAlert::orderCancelledByCustomer($order));
+
         return back()->with('success', $order->order_number.' has been cancelled.');
     }
 
@@ -159,14 +169,27 @@ class OrderController extends Controller
         }
 
         $validated = $request->validate([
-            'address_line' => ['nullable', 'string', 'max:255'],
-            'barangay' => ['nullable', 'string', 'max:255'],
-            'city' => ['nullable', 'string', 'max:255'],
-            'province' => ['nullable', 'string', 'max:255'],
-            'postal_code' => ['nullable', 'string', 'max:10'],
+            'address_line' => ['required', 'string', 'max:255'],
+            'province' => ['required', 'string', 'max:255'],
+            'city' => ['required', 'string', 'max:255'],
+            // Same dropdowns as checkout, so the same real-place check.
+            'barangay' => ['required', 'string', 'max:255', function ($attribute, $value, $fail) use ($request) {
+                if (! PhAddress::isValid($request->input('province'), $request->input('city'), $value)) {
+                    $fail(PhAddress::INVALID_MESSAGE);
+                }
+            }],
+            'postal_code' => ['nullable', 'digits:4'],
         ]);
 
-        $order->fill($validated);
+        // A town with one ZIP gets it filled in; a city with several must be
+        // given one of them — same rule as checkout.
+        $settled = PhAddress::settleZip($validated);
+
+        if ($settled === null) {
+            return back()->withErrors(['postal_code' => PhAddress::ZIP_MESSAGE]);
+        }
+
+        $order->fill($settled);
         $order->save();
 
         return back()->with('success', 'Address updated.');

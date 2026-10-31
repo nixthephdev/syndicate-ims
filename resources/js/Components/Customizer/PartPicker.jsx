@@ -41,11 +41,16 @@ export default function PartPicker({ label, options, selectedId, onSelect }) {
                             <span className="font-display text-sm text-volt-500 light:text-volt-800">
                                 {formatCentavos(option.price_centavos)}
                             </span>
-                            {(disabled || option.is_low_stock) && (
-                                <span className="text-[10px] uppercase tracking-[0.15em] text-white/40 light:text-ink-900/55">
-                                    {disabled ? 'Sold out' : 'Low stock'}
-                                </span>
-                            )}
+                            <span
+                                className={
+                                    'text-[10px] uppercase tracking-[0.15em] ' +
+                                    (option.is_low_stock && !disabled
+                                        ? 'text-amber-400 light:text-amber-700'
+                                        : 'text-white/40 light:text-ink-900/55')
+                                }
+                            >
+                                {disabled ? 'Sold out' : `${option.stock} left`}
+                            </span>
                         </button>
                     );
                 })}

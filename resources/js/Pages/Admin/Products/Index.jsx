@@ -16,6 +16,7 @@ import {
 } from '@/Components/Admin/icons';
 import { Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
+import { useLiveReload } from '@/utils/useLiveReload';
 
 const VIEW_KEY = 'syndicate-admin-products-view';
 
@@ -166,6 +167,9 @@ function ProductTable({ products, typeLabels }) {
 }
 
 export default function Index({ products, typeLabels }) {
+    // Stock moves as orders are paid — keep the counts current.
+    useLiveReload(['products'], 10000);
+
     const [term, setTerm] = useState('');
     const [stock, setStock] = useState('all');
     const [type, setType] = useState('');

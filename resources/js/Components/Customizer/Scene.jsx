@@ -65,6 +65,10 @@ export default function Scene({
     accentColor = null,
     autoFit = false,
     autoFitFocusName = null,
+    // Keep the last frame readable so canvas.toDataURL() returns the board
+    // instead of a blank image — the admin order page's "Download image".
+    // Off by default: it costs a little GPU memory nothing else needs.
+    preserveDrawingBuffer = false,
 }) {
     // <color> sets a raw Three.js scene background — outside Tailwind's
     // reach entirely, so the theme has to be read directly here rather than
@@ -81,7 +85,7 @@ export default function Scene({
         <Canvas
             camera={{ position: [-260, -420, 480], fov: 45, near: 1, far: 4000 }}
             dpr={[1, 2]}
-            gl={{ alpha: transparentBackground }}
+            gl={{ alpha: transparentBackground, preserveDrawingBuffer }}
         >
             {!transparentBackground && (
                 <color attach="background" args={[theme === 'light' ? '#f7f6f2' : '#0b0b0b']} />

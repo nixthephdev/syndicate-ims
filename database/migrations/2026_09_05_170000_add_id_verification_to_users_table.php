@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -21,9 +20,10 @@ return new class extends Migration
     public function up()
     {
         Schema::table('users', function (Blueprint $table) {
-            // User::ID_STATUS_* — none / pending / approved / rejected.
+            // none / pending / approved / rejected. Literals, not User::ID_STATUS_*:
+            // those constants were deleted with the feature (2026-10-31).
             $table->string('id_verification_status', 20)
-                ->default(User::ID_STATUS_NONE)
+                ->default('none')
                 ->after('is_active');
 
             $table->string('id_type', 40)->nullable()->after('id_verification_status');
@@ -55,7 +55,7 @@ return new class extends Migration
         // at 'none' would retroactively lock every current customer — and
         // every seeded demo account the dashboard depends on — out of
         // checkout, for an ID nobody was ever asked for.
-        DB::table('users')->update(['id_verification_status' => User::ID_STATUS_APPROVED]);
+        DB::table('users')->update(['id_verification_status' => 'approved']);
     }
 
     public function down()

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import AccountMenu from './AccountMenu';
+import NotificationBell from './NotificationBell';
 
 /**
  * Storefront nav. Nothing here is shared with AdminLayout on purpose — the
@@ -150,6 +151,10 @@ export default function StoreHeader() {
                             </Link>
                         </div>
                     )}
+
+                    {/* Order updates — signed-in customers only. Staff have
+                        their own bell, for the whole shop, in /admin. */}
+                    {user && user.role === 'customer' && <NotificationBell />}
 
                     {cartHref ? (
                         <Link

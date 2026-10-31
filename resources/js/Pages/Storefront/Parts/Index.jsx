@@ -111,6 +111,19 @@ function PartCard({ part, state, onAdd, selectedColor, onColorChange }) {
                 </p>
             </div>
 
+            {!part.is_out_of_stock && (
+                <p
+                    className={
+                        'mt-1 text-xs uppercase tracking-[0.15em] ' +
+                        (part.is_low_stock
+                            ? 'text-amber-400 light:text-amber-700'
+                            : 'text-white/40 light:text-ink-900/55')
+                    }
+                >
+                    {part.stock} left in stock
+                </p>
+            )}
+
             {part.has_color_variants && (
                 <div className="mt-4">
                     <ColorSwatchPicker

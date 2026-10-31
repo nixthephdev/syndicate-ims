@@ -7,8 +7,12 @@ import Pagination from '@/Components/Admin/Pagination';
 import PrimaryButton from '@/Components/Admin/PrimaryButton';
 import { MagnifyingGlassIcon, ArrowRightIcon } from '@/Components/Admin/icons';
 import { Head, Link, router } from '@inertiajs/react';
+import { useLiveReload } from '@/utils/useLiveReload';
 
 export default function Index({ orders, filters, statuses, counts }) {
+    // New orders and payments appear without a reload.
+    useLiveReload(['orders', 'counts']);
+
     const [term, setTerm] = useState(filters.q ?? '');
 
     const go = (params) => {

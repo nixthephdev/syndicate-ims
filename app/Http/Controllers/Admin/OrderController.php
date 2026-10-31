@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\ProductVariant;
 use App\Models\SkateboardComponent;
 use App\Support\Money;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -72,7 +75,14 @@ class OrderController extends Controller
     {
         $order = Order::query()
             ->where('order_number', $orderNumber)
-            ->with(['items.purchasable', 'user:id,name,email,role'])
+            ->with([
+                // withTrashed: an archived product's photo is still the
+                // right reference picture for an order placed before that.
+                'items.purchasable' => fn (MorphTo $morph) => $morph->morphWith([
+                    ProductVariant::class => ['product' => fn ($q) => $q->withTrashed()],
+                ]),
+                'user:id,name,email,role',
+            ])
             ->firstOrFail();
 
         return Inertia::render('Admin/Orders/Show', [
@@ -91,20 +101,18 @@ class OrderController extends Controller
                 'paymongo' => array_filter([
                     'payment_intent_id' => $order->paymongo_payment_intent_id,
                     'payment_id' => $order->paymongo_payment_id,
+                    // The second payment on a 50% deposit order.
+                    'balance_payment_id' => $order->balance_payment_id,
                 ]),
+                'balance_paid_at' => $order->balance_paid_at?->format('d M Y, g:ia'),
+                // A pickup order with the balance unpaid can't be handed over
+                // — the page says why instead of offering the button.
+                'balance_blocks_handover' => $order->balanceBlocksHandover(),
                 // Each custom board as one 3D model — see builds() below.
                 'builds' => $this->builds($order),
-                // The buyer's ID, shown next to the order so staff review
-                // both in one pass — it does NOT gate ordering.
-                'customer_id_verification' => $order->user ? [
-                    'user_id' => $order->user->id,
-                    'status' => $order->user->id_verification_status,
-                    'id_type_label' => $order->user->idTypeLabel(),
-                    'submitted_at' => $order->user->id_submitted_at?->format('d M Y, g:ia'),
-                    'photo_url' => $order->user->id_photo_path
-                        ? route('verify-id.photo', $order->user)
-                        : null,
-                ] : null,
+                // Each apparel line's product photo — the 2D counterpart of
+                // the 3D boards, so staff pick the right item off the rack.
+                'apparel' => $this->apparel($order),
                 // Where the order physically is — see Order::trackingPayload().
                 // Null until stock is committed; there's nothing to track yet.
                 'tracking' => $order->trackingPayload(),
@@ -140,16 +148,58 @@ class OrderController extends Controller
                     // /parts hardware colour swatch, if one was picked at
                     // checkout — see Cart::add()/CheckoutController::store().
                     'color' => $item->customization['color'] ?? null,
+                    'image_url' => $this->imageFor($item),
                 ]),
             ],
             'can' => [
-                'fulfil' => in_array($order->status, [Order::STATUS_PAID, Order::STATUS_DEPOSIT_PAID], true),
+                'fulfil' => in_array($order->status, [Order::STATUS_PAID, Order::STATUS_DEPOSIT_PAID], true)
+                    && ! $order->balanceBlocksHandover(),
                 'cancel' => $order->status === Order::STATUS_AWAITING_PAYMENT,
-                // Cash only — PayMongo confirms GCash. See OrderPaymentController.
-                'confirm_payment' => $order->status === Order::STATUS_AWAITING_PAYMENT
-                    && $order->payment_method === Order::PAYMENT_METHOD_CASH,
             ],
         ]);
+    }
+
+    /**
+     * The picture for one order line: the product photo for apparel, the
+     * part render for a skateboard part. Read off the live record — photos
+     * are reference, not a priced snapshot, and they are never deleted on
+     * replace (see Admin\ProductController), so an old path still resolves.
+     */
+    private function imageFor(OrderItem $item): ?string
+    {
+        $part = $item->purchasable;
+
+        if ($part instanceof ProductVariant) {
+            return $part->product?->image_path;
+        }
+
+        if ($part instanceof SkateboardComponent) {
+            return $part->imageUrl(strtolower(ltrim($item->customization['color'] ?? 'f8f8f8', '#')));
+        }
+
+        return null;
+    }
+
+    /**
+     * Apparel lines as reference cards: photo, the exact size and colour to
+     * pull, and how many. Skateboard parts are left to builds(), which
+     * shows them assembled instead.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function apparel(Order $order): array
+    {
+        return $order->items
+            ->filter(fn (OrderItem $item) => $item->purchasable instanceof ProductVariant)
+            ->map(fn (OrderItem $item) => [
+                'name' => $item->purchasable->product?->name ?? $item->name_snapshot,
+                'size' => $item->purchasable->size,
+                'color' => $item->purchasable->color,
+                'quantity' => $item->quantity,
+                'image_url' => $this->imageFor($item),
+            ])
+            ->values()
+            ->all();
     }
 
     /**

@@ -2,8 +2,11 @@ import { Head, Link } from '@inertiajs/react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
 import { formatCentavos } from '@/utils/money';
 import { statusChipClasses, formatStatusLabel } from '@/utils/orderStatus';
+import { useLiveReload } from '@/utils/useLiveReload';
 
 export default function OrdersIndex({ orders }) {
+    useLiveReload(['orders']);
+
     return (
         <StorefrontLayout>
             <Head title="Your orders" />

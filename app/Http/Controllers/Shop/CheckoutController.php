@@ -8,7 +8,9 @@ use App\Mail\OtpCodeMail;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OtpCode;
+use App\Notifications\ShopAlert;
 use App\Services\Cart;
+use App\Support\PhAddress;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -47,10 +49,12 @@ class CheckoutController extends Controller
 
         $user = request()->user();
 
-
         return Inertia::render('Storefront/Checkout', [
             'lines' => $this->cart->lines(),
             'subtotal_centavos' => $this->cart->subtotalCentavos(),
+            // Cities and barangays are fetched per province — see
+            // AddressController.
+            'provinces' => array_column(PhAddress::provinces(), 'name'),
             // Prefill from the account so a returning customer isn't retyping.
             'defaults' => [
                 'customer_name' => $user->name,
@@ -143,35 +147,26 @@ class CheckoutController extends Controller
         $order = DB::transaction(function () use ($data, $lines, $request) {
             $subtotal = array_sum(array_column($lines, 'line_total_centavos'));
 
-            // Both default rather than being required — see CheckoutRequest's
-            // docblock — so every caller that predates this split (existing
-            // tests included) still produces a plain pickup+gcash order.
+            // All default rather than being required — see CheckoutRequest —
+            // so every caller that predates them (existing tests included)
+            // still produces a plain pickup, paid-in-full order.
             $fulfillment = $data['fulfillment_method'] ?? Order::FULFILLMENT_PICKUP;
             $isDelivery = $fulfillment === Order::FULFILLMENT_DELIVERY;
-
-            $paymentMethod = $data['payment_method'] ?? Order::PAYMENT_METHOD_GCASH;
-
-            // Cash is pickup-only, enforced again here and not just in
-            // CheckoutRequest: a delivery order always takes 50% up front,
-            // so "cash" has nothing to pay at ordering time. Coerced rather
-            // than rejected — the request rule already refuses the real
-            // combination, this only catches an unexpected route in.
-            if ($isDelivery && $paymentMethod === Order::PAYMENT_METHOD_CASH) {
-                $paymentMethod = Order::PAYMENT_METHOD_GCASH;
-            }
+            $isDeposit = ($data['payment_option'] ?? Order::PAYMENT_OPTION_FULL) === Order::PAYMENT_OPTION_DEPOSIT;
 
             // ceil(), not round() or intdiv(): deposit + balance must always
             // equal the total exactly, and rounding the deposit UP is what
             // guarantees that (any leftover centavo lands in the deposit,
             // never silently dropped from either half).
-            $deposit = $isDelivery ? (int) ceil($subtotal / 2) : null;
+            $deposit = $isDeposit ? (int) ceil($subtotal / 2) : null;
 
             $order = Order::create([
                 'order_number' => Order::generateOrderNumber(),
                 'user_id' => $request->user()->id,
                 'status' => Order::STATUS_AWAITING_PAYMENT,
                 'fulfillment_method' => $fulfillment,
-                'payment_method' => $paymentMethod,
+                // GCash is the only method now — see Order::PAYMENT_METHODS.
+                'payment_method' => Order::PAYMENT_METHOD_GCASH,
                 'subtotal_centavos' => $subtotal,
                 // No shipping or tax yet — when either lands, total stops
                 // equalling subtotal and this is the line that changes.
@@ -215,6 +210,8 @@ class CheckoutController extends Controller
 
         $this->cart->clear();
         $request->session()->forget(self::SESSION_KEY);
+
+        ShopAlert::toTeam(ShopAlert::orderPlaced($order));
 
         return redirect()->route('orders.show', $order->order_number);
     }

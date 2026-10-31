@@ -105,10 +105,11 @@ class PayMongoPaymentTest extends TestCase
         $this->assertSame(50000, $this->createdIntentAmount());
     }
 
-    public function test_a_delivery_order_is_only_charged_its_deposit(): void
+    public function test_a_deposit_order_is_only_charged_its_deposit(): void
     {
         $order = $this->order(User::factory()->create(), [
             'fulfillment_method' => Order::FULFILLMENT_DELIVERY,
+            'payment_option' => Order::PAYMENT_OPTION_DEPOSIT,
             'address_line' => '123 Rizal St.',
             'barangay' => 'Tagas',
             'city' => 'Daraga',
@@ -121,9 +122,11 @@ class PayMongoPaymentTest extends TestCase
         $this->assertSame(25000, $this->createdIntentAmount());
     }
 
+    /** Paid cash orders from before cash was removed must never be charged again. */
     public function test_a_cash_order_cannot_be_paid_online(): void
     {
-        $order = $this->order(User::factory()->create(), ['payment_method' => 'cash']);
+        $order = $this->order(User::factory()->create());
+        $order->forceFill(['payment_method' => Order::PAYMENT_METHOD_CASH])->save();
         Http::fake();
 
         $this->pay($order)->assertSessionHasErrors('payment');

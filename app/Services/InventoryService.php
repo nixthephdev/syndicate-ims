@@ -4,6 +4,9 @@ namespace App\Services;
 
 use App\Exceptions\InsufficientStockException;
 use App\Models\Order;
+use App\Notifications\OrderUpdated;
+use App\Notifications\ShopAlert;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -33,7 +36,10 @@ class InventoryService
      */
     public function commitForPaidOrder(Order $order, string $targetStatus = Order::STATUS_PAID): Order
     {
-        return DB::transaction(function () use ($order, $targetStatus) {
+        $crossed = [];
+        $committedNow = false;
+
+        $order = DB::transaction(function () use ($order, $targetStatus, &$crossed, &$committedNow) {
             // Re-read under a lock. Guards against two staff confirming the
             // same order's payment at the same moment.
             /** @var Order $order */
@@ -49,15 +55,32 @@ class InventoryService
             }
 
             foreach ($this->requiredQuantities($order) as $row) {
-                $this->decrementOne($row['type'], $row['id'], $row['quantity']);
+                if ($item = $this->decrementOne($row['type'], $row['id'], $row['quantity'])) {
+                    $crossed[] = $item;
+                }
             }
 
             $order->status = $targetStatus;
             $order->paid_at = now();
             $order->save();
+            $committedNow = true;
 
             return $order;
         });
+
+        // Told only AFTER the commit — a rolled-back payment must never have
+        // announced itself — and only by the call that actually committed.
+        if ($committedNow) {
+            ShopAlert::toTeam(ShopAlert::orderPaid($order));
+            foreach ($crossed as $item) {
+                ShopAlert::toTeam(ShopAlert::stock($item));
+            }
+            $order->user?->notify(new OrderUpdated($order, $order->status === Order::STATUS_DEPOSIT_PAID
+                ? 'Deposit received — your order is reserved.'
+                : 'Payment received — we\'re getting your order ready.'));
+        }
+
+        return $order;
     }
 
     /**
@@ -98,8 +121,13 @@ class InventoryService
      *
      * The check MUST happen inside the transaction and behind the lock. Stock
      * read before the transaction is already stale — the cart does not reserve.
+     *
+     * Returns the item when this sale is the one that took it to (or below)
+     * its low-stock threshold, or to zero — the restock alert. Null when
+     * nothing changed category, so an item already low doesn't re-alert on
+     * every sale.
      */
-    private function decrementOne(string $type, int $id, int $quantity): void
+    private function decrementOne(string $type, int $id, int $quantity): ?Model
     {
         /** @var \App\Contracts\Purchasable&\Illuminate\Database\Eloquent\Model $model */
         $model = $type::query()
@@ -111,7 +139,12 @@ class InventoryService
             throw InsufficientStockException::for($model, $quantity);
         }
 
+        $wasLow = $model->isLowStock();
+
         // Atomic SQL decrement rather than read-modify-write in PHP.
+        // decrement() also updates the model's in-memory stock.
         $model->decrement('stock', $quantity);
+
+        return (! $wasLow && $model->isLowStock()) || $model->isOutOfStock() ? $model : null;
     }
 }

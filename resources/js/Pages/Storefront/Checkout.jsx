@@ -1,11 +1,12 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import StorefrontLayout from '@/Layouts/StorefrontLayout';
 import { Field, SubmitButton } from '@/Components/Storefront/FormControls';
+import AddressFields from '@/Components/Storefront/AddressFields';
 import { formatCentavos } from '@/utils/money';
 
-/** Two-way toggle — pickup/delivery here, gcash/cash further down. Only used
- * in this one form, so it stays inline rather than becoming a third shared
- * button variant. */
+/** Two-way toggle — pickup/delivery here, full/deposit further down. Only
+ * used in this one form, so it stays inline rather than becoming a third
+ * shared button variant. */
 function ToggleOption({ selected, onClick, title, description }) {
     return (
         <button
@@ -28,13 +29,13 @@ function ToggleOption({ selected, onClick, title, description }) {
     );
 }
 
-export default function Checkout({ lines, subtotal_centavos, defaults }) {
-    const { data, setData, post, processing, errors } = useForm({
+export default function Checkout({ lines, subtotal_centavos, defaults, provinces }) {
+    const { data, setData, post, processing, errors, transform } = useForm({
         customer_name: defaults.customer_name ?? '',
         customer_email: defaults.customer_email ?? '',
         customer_phone: '',
         fulfillment_method: 'pickup',
-        payment_method: 'gcash',
+        payment_option: 'full',
         address_line: '',
         barangay: '',
         city: '',
@@ -45,12 +46,23 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
 
     const onChange = (e) => setData(e.target.name, e.target.value);
     const isDelivery = data.fulfillment_method === 'delivery';
+    const isDeposit = data.payment_option === 'deposit';
     // Mirrors CheckoutController::otpStore()'s (int) ceil($subtotal / 2) —
     // display only, the server always recomputes this itself.
     const depositPreview = Math.ceil(subtotal_centavos / 2);
+    // No cash at pickup (2026-10-31): a pickup order's balance is GCash only;
+    // delivery may still pay the rider.
+    const balanceTerms = isDelivery ? 'by GCash or in cash on delivery' : 'by GCash before pickup';
 
     const submit = (e) => {
         e.preventDefault();
+        // A pickup order sends no address, even if one was half-filled
+        // before switching back from delivery.
+        transform((form) =>
+            form.fulfillment_method === 'delivery'
+                ? form
+                : { ...form, address_line: '', barangay: '', city: '', province: '', postal_code: '' }
+        );
         post(route('checkout.store'));
     };
 
@@ -127,23 +139,9 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
                                 />
                                 <ToggleOption
                                     selected={isDelivery}
-                                    onClick={() =>
-                                        // Cash is pickup-only, so switching to
-                                        // delivery has to drop it — leaving it
-                                        // selected would submit a combination
-                                        // the server rejects, and the option
-                                        // isn't even rendered below any more.
-                                        setData((current) => ({
-                                            ...current,
-                                            fulfillment_method: 'delivery',
-                                            payment_method:
-                                                current.payment_method === 'cash'
-                                                    ? 'gcash'
-                                                    : current.payment_method,
-                                        }))
-                                    }
+                                    onClick={() => setData('fulfillment_method', 'delivery')}
                                     title="Delivery"
-                                    description="50% deposit now, rest in cash on delivery."
+                                    description="We bring it to your address."
                                 />
                             </div>
                         </div>
@@ -151,123 +149,62 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
                         {isDelivery ? (
                             /* Philippine delivery address — every branch and
                                every customer this shop has ever had is in
-                               the Philippines, so the form is shaped for
-                               that (barangay included) rather than a
-                               generic international one. Required once
-                               delivery is chosen — see CheckoutRequest. */
+                               the Philippines. Province, city and barangay
+                               are dropdowns of the official PSGC names, so a
+                               typo can't send a rider to the wrong place. */
                             <div className="border-t border-white/10 pt-6 light:border-ink-900/10">
-                                <h2 className="font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65">
+                                <h2 className="mb-4 font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65">
                                     Delivery address
                                 </h2>
-                                <p className="mt-2 text-xs text-white/40 light:text-ink-900/55">
-                                    A 50% deposit of{' '}
-                                    <span className="text-volt-500 light:text-volt-800">
-                                        {formatCentavos(depositPreview)}
-                                    </span>{' '}
-                                    is paid now via GCash to secure your order — the
-                                    remaining {formatCentavos(subtotal_centavos - depositPreview)} is
-                                    paid in cash when it's delivered.
-                                </p>
-
-                                <div className="mt-4 space-y-4">
-                                    <Field
-                                        id="address_line"
-                                        name="address_line"
-                                        label="House / unit / street"
-                                        placeholder="123 Rizal St."
-                                        value={data.address_line}
-                                        autoComplete="address-line1"
-                                        required
-                                        error={errors.address_line}
-                                        onChange={onChange}
-                                    />
-
-                                    <div className="grid gap-4 sm:grid-cols-2">
-                                        <Field
-                                            id="barangay"
-                                            name="barangay"
-                                            label="Barangay"
-                                            value={data.barangay}
-                                            required
-                                            error={errors.barangay}
-                                            onChange={onChange}
-                                        />
-                                        <Field
-                                            id="city"
-                                            name="city"
-                                            label="City / municipality"
-                                            value={data.city}
-                                            autoComplete="address-level2"
-                                            required
-                                            error={errors.city}
-                                            onChange={onChange}
-                                        />
-                                    </div>
-
-                                    <div className="grid gap-4 sm:grid-cols-2">
-                                        <Field
-                                            id="province"
-                                            name="province"
-                                            label="Province"
-                                            value={data.province}
-                                            autoComplete="address-level1"
-                                            required
-                                            error={errors.province}
-                                            onChange={onChange}
-                                        />
-                                        <Field
-                                            id="postal_code"
-                                            name="postal_code"
-                                            label="ZIP code"
-                                            value={data.postal_code}
-                                            autoComplete="postal-code"
-                                            error={errors.postal_code}
-                                            onChange={onChange}
-                                        />
-                                    </div>
-                                </div>
+                                <AddressFields
+                                    data={data}
+                                    setData={setData}
+                                    errors={errors}
+                                    provinces={provinces}
+                                />
                             </div>
                         ) : null}
 
-                        {/* Payment method. Shown for BOTH fulfillment options —
-                            a delivery order pays its 50% deposit by GCash.
-                            Cash means "hand it over at the branch", which a
-                            delivery order cannot do, so it disappears rather
-                            than being offered and then rejected.
-                            CheckoutRequest enforces the same rule server-side. */}
+                        {/* Payment — always GCash through PayMongo (cash on
+                            pickup was removed, 2026-10-31). The choice is how
+                            much now: everything, or a 50% deposit with the
+                            rest later (GCash; delivery may also pay the rider), for pickup and delivery
+                            alike. */}
                         <div className="border-t border-white/10 pt-6 light:border-ink-900/10">
                             <h2 className="font-display text-xs uppercase tracking-[0.25em] text-white/50 light:text-ink-900/65">
-                                {isDelivery ? 'Deposit payment' : 'Payment'}
+                                Payment · GCash
                             </h2>
 
                             <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                                 <ToggleOption
-                                    selected={data.payment_method === 'gcash'}
-                                    onClick={() => setData('payment_method', 'gcash')}
-                                    title="GCash"
-                                    description="Pay online through PayMongo."
+                                    selected={!isDeposit}
+                                    onClick={() => setData('payment_option', 'full')}
+                                    title={`Pay in full · ${formatCentavos(subtotal_centavos)}`}
+                                    description="Settle everything now by GCash."
                                 />
-                                {!isDelivery && (
-                                    <ToggleOption
-                                        selected={data.payment_method === 'cash'}
-                                        onClick={() => setData('payment_method', 'cash')}
-                                        title="Cash at pickup"
-                                        description="Pay when you collect it."
-                                    />
-                                )}
+                                <ToggleOption
+                                    selected={isDeposit}
+                                    onClick={() => setData('payment_option', 'deposit')}
+                                    title={`50% deposit · ${formatCentavos(depositPreview)}`}
+                                    description={`Pay half now, the rest ${balanceTerms}.`}
+                                />
                             </div>
 
-                            {data.payment_method !== 'cash' && (
-                                <p className="mt-3 text-xs leading-relaxed text-white/40 light:text-ink-900/55">
-                                    You'll pay{' '}
-                                    {formatCentavos(isDelivery ? depositPreview : subtotal_centavos)}{' '}
-                                    by GCash on the next screen. Your order is confirmed the
-                                    moment PayMongo confirms the payment.
-                                </p>
-                            )}
+                            <p className="mt-3 text-xs leading-relaxed text-white/40 light:text-ink-900/55">
+                                You'll pay{' '}
+                                <span className="text-volt-500 light:text-volt-800">
+                                    {formatCentavos(isDeposit ? depositPreview : subtotal_centavos)}
+                                </span>{' '}
+                                by GCash on the next screen
+                                {isDeposit &&
+                                    `, and the remaining ${formatCentavos(subtotal_centavos - depositPreview)} ${balanceTerms}`}
+                                . Your order is confirmed the moment PayMongo confirms the payment.
+                            </p>
 
-                            {errors.payment_method && (
-                                <p className="mt-2 text-sm text-red-400">{errors.payment_method}</p>
+                            {(errors.payment_option || errors.payment_method) && (
+                                <p className="mt-2 text-sm text-red-400">
+                                    {errors.payment_option || errors.payment_method}
+                                </p>
                             )}
                         </div>
 
@@ -300,8 +237,8 @@ export default function Checkout({ lines, subtotal_centavos, defaults }) {
 
                         <p className="text-xs leading-relaxed text-white/30 light:text-ink-900/45">
                             Placing the order does not take payment or reserve
-                            stock — stock is only deducted once payment (or
-                            the deposit, for delivery) actually goes through.
+                            stock — stock is only deducted once your GCash
+                            payment (or deposit) actually goes through.
                         </p>
                     </form>
 

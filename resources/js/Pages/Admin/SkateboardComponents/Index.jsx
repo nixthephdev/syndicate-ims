@@ -6,6 +6,7 @@ import StockFilters from '@/Components/Admin/StockFilters';
 import { ArrowRightIcon, CubeIcon, ExclamationTriangleIcon, PhotoIcon, TagIcon, XCircleIcon } from '@/Components/Admin/icons';
 import { Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
+import { useLiveReload } from '@/utils/useLiveReload';
 
 function PartCard({ part }) {
     return (
@@ -52,6 +53,8 @@ function PartCard({ part }) {
  * to meshes inside the 3D model files, so there is no "add" here.
  */
 export default function Index({ components, typeLabels }) {
+    useLiveReload(['components'], 10000);
+
     const [term, setTerm] = useState('');
     const [stock, setStock] = useState('all');
     const needle = term.trim().toLowerCase();

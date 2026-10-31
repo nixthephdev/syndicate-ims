@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\AuditLog;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreProductRequest;
 use App\Http\Requests\Admin\UpdateProductRequest;
@@ -77,6 +78,8 @@ class ProductController extends Controller
                 : null,
         ]);
 
+        AuditLog::record(AuditLog::ACTION_PRODUCT_CREATED, "Created product {$product->name}.", $product, $product->name);
+
         // Straight to its edit page: the next job is adding sizes/colours,
         // and that's where they live.
         return redirect()->route('admin.products.edit', $product)
@@ -139,7 +142,19 @@ class ProductController extends Controller
             $attributes['image_path'] = $this->storeImage($request->file('image'), $slug);
         }
 
-        $product->update($attributes);
+        $product->fill($attributes);
+        $changes = AuditLog::changesOf($product, ['slug']);
+        $product->save();
+
+        if ($changes) {
+            AuditLog::record(
+                AuditLog::ACTION_PRODUCT_UPDATED,
+                "Edited product {$product->name}: ".implode(', ', array_keys($changes)).'.',
+                $product,
+                $product->name,
+                $changes
+            );
+        }
 
         return back()->with('success', 'Product updated.');
     }
@@ -152,6 +167,8 @@ class ProductController extends Controller
     public function destroy(Product $product): RedirectResponse
     {
         $product->delete();
+
+        AuditLog::record(AuditLog::ACTION_PRODUCT_ARCHIVED, "Archived product {$product->name}.", $product, $product->name);
 
         return redirect()->route('admin.products.index')
             ->with('success', 'Product archived.');

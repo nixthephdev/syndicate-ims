@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\AuditLog;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateSkateboardComponentRequest;
 use App\Models\SkateboardComponent;
@@ -74,13 +75,29 @@ class SkateboardComponentController extends Controller
     {
         $data = $request->validated();
 
-        $skateboardComponent->update([
+        $skateboardComponent->fill([
             'name' => $data['name'],
             'price_centavos' => Money::toCentavos($data['price']),
             'stock' => $data['stock'],
             'low_stock_threshold' => $data['low_stock_threshold'],
             'is_active' => $request->boolean('is_active', true),
         ]);
+        $changes = AuditLog::changesOf($skateboardComponent);
+        $skateboardComponent->save();
+
+        if ($changes) {
+            $name = $skateboardComponent->name;
+
+            AuditLog::record(
+                AuditLog::ACTION_COMPONENT_UPDATED,
+                isset($changes['stock'])
+                    ? "Changed stock of {$name} from {$changes['stock'][0]} to {$changes['stock'][1]}."
+                    : "Edited {$name}: ".implode(', ', array_keys($changes)).'.',
+                $skateboardComponent,
+                $name,
+                $changes
+            );
+        }
 
         return back()->with('success', 'Component updated.');
     }

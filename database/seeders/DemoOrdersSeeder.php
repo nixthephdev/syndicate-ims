@@ -12,12 +12,13 @@ use App\Services\InventoryService;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 /**
  * A simulated store history for demos and the defense: months of orders
- * following the shop's REAL rules — pickup or delivery, 50% deposit on
- * delivery, GCash or cash-on-pickup, custom boards from /customize (one
+ * following the shop's REAL rules — pickup or delivery, GCash in full or a
+ * 50% deposit, custom boards from /customize (one
  * build_key + hardware colours, so the admin's 3D card has real builds to
  * draw), fulfillment stages, cancellations.
  *
@@ -42,15 +43,19 @@ use Illuminate\Support\Str;
  */
 class DemoOrdersSeeder extends Seeder
 {
-    /** Real Albay-area places, same province as the shop's branches. */
+    /**
+     * Real Albay-area places, same province as the shop's branches — spelled
+     * exactly as PSGC spells them (resources/data/ph-address), so a demo
+     * order's address opens correctly in the change-address dropdowns.
+     */
     private const ADDRESSES = [
         ['barangay' => 'Tagas', 'city' => 'Daraga', 'province' => 'Albay', 'postal_code' => '4501'],
         ['barangay' => 'Anislag', 'city' => 'Daraga', 'province' => 'Albay', 'postal_code' => '4501'],
-        ['barangay' => 'Rawis', 'city' => 'Legazpi City', 'province' => 'Albay', 'postal_code' => '4500'],
-        ['barangay' => 'Bogtong', 'city' => 'Legazpi City', 'province' => 'Albay', 'postal_code' => '4500'],
-        ['barangay' => "Em's Barrio", 'city' => 'Legazpi City', 'province' => 'Albay', 'postal_code' => '4500'],
-        ['barangay' => 'Victory Village', 'city' => 'Legazpi City', 'province' => 'Albay', 'postal_code' => '4500'],
-        ['barangay' => 'Poblacion', 'city' => 'Camalig', 'province' => 'Albay', 'postal_code' => '4502'],
+        ['barangay' => 'Bgy. 42 - Rawis', 'city' => 'City of Legazpi', 'province' => 'Albay', 'postal_code' => '4500'],
+        ['barangay' => 'Bgy. 41 - Bogtong', 'city' => 'City of Legazpi', 'province' => 'Albay', 'postal_code' => '4500'],
+        ['barangay' => "Bgy. 1 - Em's Barrio (Pob.)", 'city' => 'City of Legazpi', 'province' => 'Albay', 'postal_code' => '4500'],
+        ['barangay' => 'Bgy. 28 - Victory Village North (Pob.)', 'city' => 'City of Legazpi', 'province' => 'Albay', 'postal_code' => '4500'],
+        ['barangay' => 'Barangay 1 (Pob.)', 'city' => 'Camalig', 'province' => 'Albay', 'postal_code' => '4502'],
         ['barangay' => 'Poblacion', 'city' => 'Guinobatan', 'province' => 'Albay', 'postal_code' => '4503'],
     ];
 
@@ -82,6 +87,12 @@ class DemoOrdersSeeder extends Seeder
 
     public function run(InventoryService $inventory): void
     {
+        // Paying each order through the real InventoryService would also
+        // fire its "payment received" / "low stock" notifications — hundreds
+        // of backdated alerts flooding every staff bell. The history is
+        // simulated; the bell should only hear about real activity.
+        Notification::fake();
+
         $this->inventory = $inventory;
         $this->hardwareColors = $this->loadHardwareColors();
 
@@ -145,18 +156,20 @@ class DemoOrdersSeeder extends Seeder
 
         $subtotal = array_sum(array_column($lines, 'line_total_centavos'));
         $isDelivery = random_int(1, 100) <= 35;
-        // Delivery always pays its 50% deposit by GCash; pickup can pay cash.
-        $method = (! $isDelivery && random_int(1, 100) <= 30) ? Order::PAYMENT_METHOD_CASH : Order::PAYMENT_METHOD_GCASH;
+        // Always GCash. The 50% deposit is the customer's choice — taken
+        // more often for delivery, where they'd rather pay the rest on
+        // arrival.
+        $isDeposit = random_int(1, 100) <= ($isDelivery ? 65 : 25);
 
         $attributes = [
             'order_number' => 'SYN-'.$placedAt->format('Ymd').'-'.strtoupper(Str::random(6)),
             'user_id' => $customer->id,
             'status' => Order::STATUS_AWAITING_PAYMENT,
             'fulfillment_method' => $isDelivery ? Order::FULFILLMENT_DELIVERY : Order::FULFILLMENT_PICKUP,
-            'payment_method' => $method,
+            'payment_method' => Order::PAYMENT_METHOD_GCASH,
             'subtotal_centavos' => $subtotal,
             'total_centavos' => $subtotal,
-            'deposit_centavos' => $isDelivery ? (int) ceil($subtotal / 2) : null,
+            'deposit_centavos' => $isDeposit ? (int) ceil($subtotal / 2) : null,
             'customer_name' => $customer->name,
             'customer_email' => $customer->email,
             'customer_phone' => $this->phones[$customer->id],
@@ -207,9 +220,7 @@ class DemoOrdersSeeder extends Seeder
             return;
         }
 
-        $paidAt = $order->payment_method === Order::PAYMENT_METHOD_CASH
-            ? $placedAt->copy()->addDays(random_int(0, 3))->addMinutes(random_int(30, 300))
-            : $placedAt->copy()->addMinutes(random_int(3, 90));
+        $paidAt = $placedAt->copy()->addMinutes(random_int(3, 90));
 
         $this->tally['paid']++;
 

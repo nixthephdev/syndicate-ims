@@ -20,7 +20,7 @@ class DashboardController extends Controller
      * deposit_centavos collected so far (the cash balance is still due on
      * delivery). See the revenue stats' own comment below.
      */
-    private const COLLECTED_AMOUNT_SQL = "CASE WHEN status = 'deposit_paid' THEN deposit_centavos ELSE total_centavos END";
+    private const COLLECTED_AMOUNT_SQL = Order::COLLECTED_AMOUNT_SQL;
 
     public function index(): Response
     {

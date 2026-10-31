@@ -1,22 +1,24 @@
 <?php
 
+use App\Http\Controllers\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
-use App\Http\Controllers\Admin\OrderPaymentController as AdminOrderPaymentController;
 use App\Http\Controllers\Admin\OrderFulfillmentController as AdminOrderFulfillmentController;
 use App\Http\Controllers\Admin\OrderStatusController as AdminOrderStatusController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\ProductVariantController as AdminProductVariantController;
+use App\Http\Controllers\Admin\SalesReportController as AdminSalesReportController;
 use App\Http\Controllers\Admin\SkateboardComponentController as AdminSkateboardComponentController;
-use App\Http\Controllers\Admin\IdVerificationController as AdminIdVerificationController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\DeployController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Shop\AddressController;
+use App\Http\Controllers\Shop\BalancePaymentController;
 use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CheckoutController;
 use App\Http\Controllers\Shop\CustomizeController;
-use App\Http\Controllers\Shop\IdVerificationController;
 use App\Http\Controllers\Shop\OrderController as ShopOrderController;
 use App\Http\Controllers\Shop\PartController;
 use App\Http\Controllers\Shop\PayMongoController;
@@ -122,6 +124,13 @@ Route::middleware('auth')->group(function () {
         ->name('payment.paymongo.create');
     Route::get('/orders/{order_number}/payment/return', [PayMongoController::class, 'returnFromCheckout'])
         ->name('payment.paymongo.return');
+
+    // The other half of a 50% deposit order, also by GCash — see
+    // BalancePaymentController.
+    Route::post('/orders/{order_number}/pay-balance', [BalancePaymentController::class, 'create'])
+        ->name('payment.balance.create');
+    Route::get('/orders/{order_number}/payment/balance-return', [BalancePaymentController::class, 'returnFromCheckout'])
+        ->name('payment.balance.return');
 });
 
 // No SSH on the target host = no way to run `php artisan migrate` there
@@ -131,16 +140,18 @@ Route::middleware('auth')->group(function () {
 Route::get('/deploy/migrate', [DeployController::class, 'migrate'])
     ->name('deploy.migrate');
 
-Route::middleware('auth')->group(function () {
-    // Buyer ID verification, customer half. The photo route streams from
-    // PRIVATE storage and is owner-or-staff only — see the controller's
-    // docblock for why these files are deliberately not under public/.
-    Route::get('/verify-id', [IdVerificationController::class, 'create'])->name('verify-id.create');
-    Route::post('/verify-id', [IdVerificationController::class, 'store'])->name('verify-id.store');
-    Route::get('/verify-id/{user}/photo', [IdVerificationController::class, 'show'])->name('verify-id.photo');
-});
+// A province's cities and barangays, for the address dropdowns. Public
+// reference data — throttled only so nobody scripts the whole country off it.
+Route::get('/address/cities', [AddressController::class, 'cities'])
+    ->middleware('throttle:120,1')
+    ->name('address.cities');
 
 Route::middleware('auth')->group(function () {
+    // The bell. Every signed-in user has one — staff get orders and stock,
+    // customers get updates on their own orders. JSON, polled.
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -170,15 +181,12 @@ Route::middleware(['auth', 'verified', 'role:staff'])
             ->only(['index', 'edit', 'update']);
 
         // Orders are read-only here apart from one narrow status transition —
-        // see Admin\OrderStatusController. Staff never write stock directly,
-        // except through the one cash-confirmation action below, which goes
-        // through the same InventoryService every confirmed payment uses.
+        // see Admin\OrderStatusController. Staff never write stock: only a
+        // PayMongo-confirmed payment does, through InventoryService.
         Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
         Route::get('orders/{order_number}', [AdminOrderController::class, 'show'])->name('orders.show');
         Route::patch('orders/{order_number}/status', [AdminOrderStatusController::class, 'update'])
             ->name('orders.status.update');
-        Route::patch('orders/{order_number}/confirm-payment', [AdminOrderPaymentController::class, 'confirm'])
-            ->name('orders.payment.confirm');
         // Where the order physically is — a different column from status,
         // and a different controller. See Admin\OrderFulfillmentController.
         Route::patch('orders/{order_number}/fulfillment', [AdminOrderFulfillmentController::class, 'update'])
@@ -190,26 +198,18 @@ Route::middleware(['auth', 'verified', 'role:staff'])
             ->name('products.variants.update');
         Route::delete('products/{product}/variants/{variant}', [AdminProductVariantController::class, 'destroy'])
             ->name('products.variants.destroy');
+
+        // Sales & trends for any date range, with a CSV export and a
+        // printable view — objective 8. Staff see the dashboard's revenue
+        // already, so this sits at the same level.
+        Route::get('sales', [AdminSalesReportController::class, 'index'])->name('sales.index');
+        Route::get('sales/export', [AdminSalesReportController::class, 'export'])->name('sales.export');
     });
 
-// ID verification review sits with the rest of /admin at role:staff, NOT
-// with user management below. Looking at a photo and deciding is counter
-// work; granting someone a role is not.
-Route::middleware(['auth', 'verified', 'role:staff'])
-    ->prefix('admin')
-    ->name('admin.')
-    ->group(function () {
-        Route::get('id-verifications', [AdminIdVerificationController::class, 'index'])
-            ->name('id-verifications.index');
-        Route::get('id-verifications/{user}', [AdminIdVerificationController::class, 'show'])
-            ->name('id-verifications.show');
-        Route::patch('id-verifications/{user}', [AdminIdVerificationController::class, 'update'])
-            ->name('id-verifications.update');
-    });
-
-// User management is a step above the rest of /admin — role:admin only, so
-// staff can run the shop day-to-day without being able to grant themselves
-// or anyone else more access.
+// User management and the audit log are a step above the rest of /admin —
+// role:admin only. Staff run the shop day-to-day without being able to grant
+// themselves more access, and the log exists to check on staff, so it is
+// not theirs to read.
 Route::middleware(['auth', 'verified', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
@@ -217,6 +217,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])
         Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
         Route::patch('users/{user}/role', [AdminUserController::class, 'updateRole'])->name('users.role.update');
         Route::patch('users/{user}/status', [AdminUserController::class, 'updateStatus'])->name('users.status.update');
+
+        Route::get('audit-log', [AdminAuditLogController::class, 'index'])->name('audit-log.index');
+        Route::get('audit-log/export', [AdminAuditLogController::class, 'export'])->name('audit-log.export');
     });
 
 require __DIR__.'/auth.php';

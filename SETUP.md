@@ -1,222 +1,190 @@
-# Setting up Syndicate IMS on another Windows laptop
+# Run Syndicate IMS on a Windows laptop
 
-One-time install. After this, running it day to day is a double-click on
-`start-syndicate.bat`.
+This package includes the source code, PHP dependencies (`vendor`), built
+frontend (`public/build`), images, and 3D models. You need **XAMPP with PHP
+and MySQL**. Composer, Node.js, and npm are not required to run this package.
+The package was checked with PHP 8.0.30; the application requires PHP 8.0.2+.
 
-Everything is included in the handover folder — you do **not** need Composer,
-Node.js, npm, or an internet connection to install it. Only XAMPP.
+This is a fresh installation with a separate database and sample catalogue.
+It does not copy or synchronize the hosted site's customers, orders,
+inventory, or uploads. Credentials are configured separately on the laptop.
+Internet is required for Gmail, PayMongo, and external maps. The local app
+can run offline using email logs for demos; PayMongo payments need internet.
 
----
+## 1. Install XAMPP and extract the ZIP
 
-## 1. Install XAMPP
+Install XAMPP from <https://www.apachefriends.org/>. Extract the ZIP so that
+these files exist directly inside this directory (avoid double nesting):
 
-Download from <https://www.apachefriends.org> and install with the defaults.
-
-**The app needs PHP 8.0.2 or newer.** Any current XAMPP is fine (they ship
-8.2). To check, open a terminal and run `C:\xampp\php\php.exe -v`.
-
-You only need **MySQL** from XAMPP. Apache is not used — the app serves
-itself with PHP's own server (see step 6). Leave Apache off; it avoids a
-port-80 fight with Skype, IIS or anything else.
-
-## 2. Copy the project in
-
-Put the handover folder at exactly:
-
-```
-C:\xampp\htdocs\syndicate-ims
+```text
+C:\xampp\htdocs\syndicate-ims\artisan
+C:\xampp\htdocs\syndicate-ims\start-syndicate.bat
+C:\xampp\htdocs\syndicate-ims\vendor\autoload.php
 ```
 
-Other paths work, but every command below assumes this one.
+Start **MySQL** in XAMPP Control Panel. Apache is not needed; the launcher
+uses PHP's local server. Keep MySQL running while using the system.
 
-## 3. Start MySQL
+## 2. Create a fresh local database
 
-Open **XAMPP Control Panel** → click **Start** next to **MySQL**.
+Open **Command Prompt** and run:
 
-It needs to be running whenever you use the app. Tick *Autostart* in XAMPP's
-Config if you'd rather not think about it.
-
-## 4. Create the database
-
-In XAMPP Control Panel click **Shell**, then:
-
-```
-mysql -u root -e "CREATE DATABASE syndicate_ims CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```bat
+C:\xampp\mysql\bin\mysql.exe -u root -e "CREATE DATABASE syndicate_ims_local CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ```
 
-XAMPP's MySQL has no root password by default. If yours does, add `-p`.
+If MySQL root has a password, add `-p` after `-u root` and enter it when
+prompted. If that database exists, choose a different name for a fresh
+install instead of deleting the existing database.
 
-## 5. Build the database
+## 3. Configure the local environment
 
-The handover folder already contains a configured `.env` — mail and the
-encryption key are set up, so there is nothing to fill in. Just check that
-`DB_DATABASE` matches the database you created in step 4 (it should already
-say `syndicate_ims`), then:
+In Command Prompt:
 
-```
-cd C:\xampp\htdocs\syndicate-ims
-php artisan migrate --seed
-```
-
-<details>
-<summary>If there is no <code>.env</code> in the folder</summary>
-
-Then it was packaged with `-Clean` and you configure it yourself:
-
-```
+```bat
+cd /d C:\xampp\htdocs\syndicate-ims
 copy .env.example .env
-php artisan key:generate
+notepad .env
 ```
 
-Open `.env` and set `DB_DATABASE=syndicate_ims`, `DB_USERNAME=root`,
-`DB_PASSWORD=` (blank), `APP_URL=http://localhost:8000` and
-`APP_TIMEZONE=Asia/Manila`, then run the migrate command above. Mail needs
-setting up too — see step 6.
-</details>
+Copy the example only on first installation. Set these values in `.env`:
 
-`--seed` loads the product catalogue and the three accounts in step 7. Run it
-**once**. Re-running the seeder duplicates the catalogue — it has no dedupe
-guard.
-
-Optional, for a dashboard with realistic charts instead of an empty one:
-
-```
-php artisan db:seed --class=DemoOrdersSeeder
+```dotenv
+APP_URL=http://localhost:8000
+APP_TIMEZONE=Asia/Manila
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=syndicate_ims_local
+DB_USERNAME=root
+DB_PASSWORD=
 ```
 
-That adds ~90 fake orders over the last 45 days. The customers in it are
-obviously fake (`@example.com` addresses) — say so if anyone asks to see
-"the real customer list".
+Set `DB_PASSWORD` if your MySQL account uses one. Leave `DEPLOY_TOKEN`
+empty. Keep `QUEUE_CONNECTION=sync`; no queue worker is required.
 
-## 6. Email — already done, unless you're setting up from scratch
+Generate this installation's encryption key and build the fresh database:
 
-The app emails a 6-digit code for **registration, password reset and
-checkout**. If mail doesn't work, nobody can sign up or place an order.
-
-**The shipped `.env` already has working mail credentials, so skip this
-step.** Send yourself a password reset from the login page if you want to
-confirm it.
-
-<details>
-<summary>Only if you need to point it at a different mailbox</summary>
-
-Two options:
-
-**Option A — the shop's own Gmail (best).** Sign in to the shop's account,
-turn on 2-Step Verification, create an *App Password* (Google account →
-Security → App passwords), then in `.env`:
-
+```bat
+C:\xampp\php\php.exe artisan key:generate
+C:\xampp\php\php.exe artisan migrate --seed
+C:\xampp\php\php.exe artisan storage:link
 ```
+
+These are first-install commands. The seeder resets the sample account
+passwords; do not run it each startup. Do not run `migrate:fresh` on a database
+you want to keep. Keep the generated `APP_KEY` for this installation.
+If `storage:link` fails on Windows, enable Developer Mode or run that command
+from an administrator Command Prompt.
+
+## 4. Configure Gmail email delivery
+
+Registration, password recovery, and checkout use email codes. For real email,
+use the shop's Gmail account with 2-Step Verification enabled. Create an app
+password for this laptop at <https://myaccount.google.com/apppasswords>.
+Enter the credentials directly into the laptop's `.env`:
+
+```dotenv
 MAIL_MAILER=smtp
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
-MAIL_USERNAME=syndicatesupplyco63@gmail.com
-MAIL_PASSWORD="the16charapppassword"
+MAIL_USERNAME=your-shop-account@gmail.com
+MAIL_PASSWORD="your-google-app-password"
 MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS="syndicatesupplyco63@gmail.com"
+MAIL_FROM_ADDRESS="your-shop-account@gmail.com"
 MAIL_FROM_NAME="Syndicate Supply Co."
 ```
 
-Google rejects a normal account password here. It must be an App Password,
-and 2-Step Verification has to be on before that option appears.
+Replace both email placeholders with the actual sending account. Use the app
+password, not the regular Google password. Some managed accounts do not permit
+app passwords. Changing the Google account password revokes app passwords;
+update `.env` if that happens. Using the same mailbox does not disable the
+hosted copy. A separate app password lets you manage laptop access independently.
 
-**Option B — no real email (demo only).** Leave `MAIL_MAILER=log`. Nothing is
-sent; each code is written to `storage\logs\laravel.log` instead. Everything
-still works, you just read the code out of that file. Fine for a walkthrough,
-useless for real customers.
+For a demo without real email, keep `MAIL_MAILER=log`. Emails and codes are
+written to `storage\logs\laravel.log` instead of being sent. Watch them using
+PowerShell (Ctrl+C stops watching):
 
-</details>
-
-## 7. Run it
-
-Double-click **`start-syndicate.bat`**, or:
-
-```
-cd C:\xampp\htdocs\syndicate-ims
-php artisan serve
+```powershell
+Get-Content C:\xampp\htdocs\syndicate-ims\storage\logs\laravel.log -Tail 80 -Wait
 ```
 
-Then open <http://localhost:8000>.
+## 5. Configure PayMongo GCash test payments
 
-Stop it with `Ctrl+C`, or just close the window.
+Get the shop's PayMongo **test secret key** from its dashboard and set:
 
-### Signing in
-
-| Account | Email | Password |
-|---|---|---|
-| Admin | `admin@syndicate.test` | `password` |
-| Staff | `staff@syndicate.test` | `password` |
-| Customer | `customer@syndicate.test` | `password` |
-
-Staff and admin land in the admin panel at `/admin`. Change these passwords
-before anyone real uses this.
-
-### Showing it on a phone
-
-Serve on the network instead of just this machine:
-
-```
-php artisan serve --host=0.0.0.0 --port=8000
+```dotenv
+PAYMONGO_SECRET_KEY=sk_test_REPLACE_WITH_YOUR_TEST_KEY
 ```
 
-Find the laptop's IP with `ipconfig` (the IPv4 address, usually
-`192.168.x.x`), then open `http://192.168.x.x:8000` on a phone connected to
-the **same wifi**. Windows Firewall may ask to allow PHP the first time —
-say yes, or it won't reach you.
+Test payments do not transfer real money. The laptop and browser need internet.
+Using the existing PayMongo test account does not disable the hosted copy;
+test transactions appear under that same account, while order records remain
+in each installation's separate database.
 
----
+The app redirects the browser to PayMongo, then retrieves the payment status
+from PayMongo when the browser returns. This local test flow does not need a
+public webhook. Complete the return in the **same laptop browser** and keep
+the app running. If the checkout tab is closed before returning, reopen the
+order and press Pay again so the app can check the previous payment intent.
 
-## Things to fill in before real use
+This handoff is not a verified setup for accepting live public payments.
+Live operation needs public HTTPS, live account configuration, and reliable
+webhook reconciliation.
 
-**GCash payments (PayMongo, test mode).** Put the PayMongo **test** secret key
-in `.env`:
+After changing `.env`, run the following and restart the launcher:
 
+```bat
+cd /d C:\xampp\htdocs\syndicate-ims
+C:\xampp\php\php.exe artisan config:clear
 ```
-PAYMONGO_SECRET_KEY=sk_test_...
-```
 
-It is in the PayMongo dashboard under Developers > API keys. A test key moves
-no real money: PayMongo's GCash page shows "Authorize" / "Fail" buttons
-instead of a real GCash login. The laptop needs internet to reach PayMongo.
-Without the key, orders still work but the order page says GCash payment is
-not set up.
+## 6. Start and sign in
 
-Cash on pickup needs nothing: staff press **Confirm cash received** on the
-order in the admin panel when the customer pays at the branch.
+Start MySQL in XAMPP, then double-click `start-syndicate.bat`. Open
+<http://localhost:8000>. Keep its window open. Close it or press Ctrl+C to stop.
+Use `localhost` consistently rather than switching to `127.0.0.1`.
 
----
+| Role | Email | Initial password |
+| --- | --- | --- |
+| Admin | admin@syndicate.test | password |
+| Staff | staff@syndicate.test | password |
+| Customer | customer@syndicate.test | password |
 
-## If something goes wrong
+Admin and staff use `/admin`. Change sample passwords before operational use.
+Sample `.test` addresses cannot receive email; register with a real email
+address to test Gmail or use the log option. Review sample prices and stock.
 
-**The site loads as plain unstyled text, no error anywhere.**
-A leftover `public\hot` file is telling the browser to fetch styles from a
-build server that isn't running. Delete `C:\xampp\htdocs\syndicate-ims\public\hot`
-and reload. This is the single most common problem — check it first.
+Check the catalogue, 3D customizer, admin login, registration email code, and
+a PayMongo test payment. Confirm the local order becomes paid in admin.
 
-**`SQLSTATE[HY000] [2002]` or "connection refused".**
-MySQL isn't running. Start it in XAMPP Control Panel.
+## Troubleshooting
 
-**"Failed to open stream" / "vendor/autoload.php not found".**
-The `vendor` folder didn't copy across. It's ~67 MB and thousands of files —
-copying can silently truncate. Re-copy it.
+- **Database connection refused:** Start MySQL and check the `DB_*` settings.
+- **Missing styles:** Confirm `public\build\manifest.json` exists. The launcher
+  removes leftover `public\hot` files that point at a development server.
+- **Missing vendor/autoload.php:** Re-extract the full ZIP, including `vendor`.
+- **No email code:** Check Gmail settings, internet, and `storage\logs\laravel.log`.
+  With `MAIL_MAILER=log`, reading the log is expected.
+- **TLS/certificate errors:** Check the laptop clock and configure PHP's
+  `curl.cainfo` / `openssl.cafile` with a valid CA bundle. Keep TLS verification on.
+- **Port 8000 in use:** Stop the other process, or manually run
+  `C:\xampp\php\php.exe artisan serve --host=localhost --port=8080`
+  and update `APP_URL` to match. The launcher always uses port 8000.
+- **Uploaded images missing:** Run `artisan storage:link`; original uploaded
+  files are not included in this clean package.
 
-**`Address already in use` on port 8000.**
-Something else has the port. Use another: `php artisan serve --port=8080`.
+## Local access and backups
 
-**Nobody receives their code / checkout says it can't send.**
-Mail isn't configured — see step 6. With `MAIL_MAILER=log` this is expected;
-read the code from `storage\logs\laravel.log`.
+`localhost` means this laptop. Customers cannot access it over the internet.
+The system is unavailable when the laptop sleeps or shuts down. This local
+database does not synchronize with the hosted system.
 
-**"Please provide a valid cache path" or permission errors.**
-Make sure `storage` and `bootstrap\cache` exist and aren't read-only.
+Back up the local MySQL database, `storage\app`, and `.env` together. Keep
+backups private; `.env` contains the encryption key and service credentials.
+Moving hosted data into this installation is a separate migration.
 
----
-
-## What this install is and isn't
-
-It runs on **this laptop only**, at `localhost`. It is not on the internet;
-nobody else can reach it unless they're on the same wifi and you used the
-`--host=0.0.0.0` form above.
-
-That is deliberate. There is no hosting to pay for, nothing to expire, and
-no external service that can fail during a demonstration.
+Service references: [Google app passwords](https://support.google.com/accounts/answer/185833),
+[Gmail SMTP](https://developers.google.com/workspace/gmail/imap/imap-smtp),
+[PayMongo e-wallet flow](https://docs.paymongo.com/docs/payment-acceptance-e-wallets),
+[PayMongo testing](https://docs.paymongo.com/docs/payment-channels-testing).

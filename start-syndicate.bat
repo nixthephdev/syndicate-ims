@@ -58,6 +58,13 @@ if not exist "vendor\autoload.php" (
     exit /b 1
 )
 
+if not exist "public\build\manifest.json" (
+    echo   [X] The frontend build is missing.
+    echo       Re-extract the full handoff ZIP, including public\build.
+    pause
+    exit /b 1
+)
+
 REM --- the unstyled-site trap ------------------------------------------
 if exist "public\hot" (
     echo   [!] Found a leftover public\hot file.
@@ -84,4 +91,4 @@ echo.
 REM Give the server a moment to bind before the browser races it.
 start "" /b cmd /c "timeout /t 2 >nul & start http://localhost:8000"
 
-"%PHP%" artisan serve
+"%PHP%" artisan serve --host=localhost --port=8000

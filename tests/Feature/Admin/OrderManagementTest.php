@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\SkateboardComponent;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -105,6 +106,63 @@ class OrderManagementTest extends TestCase
                 ->where('order.items.0.name', 'Test Tee (M)')
                 ->where('can.cancel', true)
                 ->where('can.fulfil', false)
+            );
+    }
+
+    public function test_board_downloads_keep_each_ordered_part_and_its_snapshot_colour(): void
+    {
+        $order = $this->order();
+        $deck = SkateboardComponent::factory()->deck()->create(['mesh_name' => 'syndicateGREEN']);
+        $wheels = SkateboardComponent::factory()->wheels()->create(['mesh_name' => 'bbRED']);
+        $trucks = SkateboardComponent::factory()->trucks()->create();
+        $bolts = SkateboardComponent::factory()->bolts()->create();
+        $lines = [];
+
+        foreach ([[$deck, null], [$wheels, null], [$trucks, '#e7312f'], [$bolts, '#2b2b2b']] as [$component, $color]) {
+            $lines[] = $order->items()->create([
+                'purchasable_type' => SkateboardComponent::class,
+                'purchasable_id' => $component->id,
+                'name_snapshot' => $component->name,
+                'unit_price_centavos' => 10000,
+                'quantity' => 1,
+                'line_total_centavos' => 10000,
+                'customization' => ['build_key' => 'board-one', 'color' => $color],
+            ]);
+        }
+
+        // A loose group may contain multiple variants of the same part.
+        foreach (['#0400c2', '#00c202'] as $color) {
+            $order->items()->create([
+                'purchasable_type' => SkateboardComponent::class,
+                'purchasable_id' => $trucks->id,
+                'name_snapshot' => 'Loose trucks',
+                'unit_price_centavos' => 10000,
+                'quantity' => 1,
+                'line_total_centavos' => 10000,
+                'customization' => ['color' => $color],
+            ]);
+        }
+
+        $deck->update(['name' => 'Renamed after checkout']);
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.orders.show', $order->order_number))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('order.builds', 2)
+                ->where('order.builds.0.key', 'board-one')
+                ->has('order.builds.0.download_parts', 4)
+                ->where('order.builds.0.download_parts.0.id', $lines[0]->id)
+                ->where('order.builds.0.download_parts.0.name', $lines[0]->name_snapshot)
+                ->where('order.builds.0.download_parts.0.type', 'deck')
+                ->where('order.builds.0.download_parts.0.mesh', 'syndicateGREEN')
+                ->where('order.builds.0.download_parts.1.mesh', 'bbRED')
+                ->where('order.builds.0.download_parts.2.color', '#e7312f')
+                ->where('order.builds.0.download_parts.3.color', '#2b2b2b')
+                ->where('order.builds.1.key', 'loose')
+                ->has('order.builds.1.download_parts', 2)
+                ->where('order.builds.1.download_parts.0.color', '#0400c2')
+                ->where('order.builds.1.download_parts.1.color', '#00c202')
             );
     }
 

@@ -27,7 +27,7 @@ function isDescendantOf(object, ancestor) {
  * preload fired at import time (before Scene.jsx's module body runs) would
  * race that and fall back to the default Google CDN decoder path instead.
  */
-export default function Board({ activeMeshName, boltsColor, trucksColor }) {
+export default function Board({ activeMeshName, boltsColor, trucksColor, visiblePart = null }) {
     const { scene: cachedScene } = useGLTF('/models/board.glb');
 
     // useGLTF caches the parsed scene by URL, and this component mutates it
@@ -106,18 +106,20 @@ export default function Board({ activeMeshName, boltsColor, trucksColor }) {
         scene.traverse((child) => {
             if (!child.isMesh) return;
 
-            const isCore =
+            const isBolts =
                 child === coreRef.current.bolts ||
+                isDescendantOf(child, coreRef.current.bolts);
+            const isTrucks =
                 child === coreRef.current.trucks ||
-                isDescendantOf(child, coreRef.current.bolts) ||
                 isDescendantOf(child, coreRef.current.trucks);
 
-            if (!isCore) child.visible = false;
+            child.visible = (isBolts && (!visiblePart || visiblePart === 'bolts'))
+                || (isTrucks && (!visiblePart || visiblePart === 'trucks'));
         });
 
         // No deck picked yet — the customizer opens empty on purpose, so
         // everything above stays hidden and only Bolts/Trucks are shown.
-        if (!activeMeshName) return;
+        if (!activeMeshName || (visiblePart && visiblePart !== 'deck')) return;
 
         const needle = activeMeshName.toLowerCase();
         const active = Object.entries(meshMapRef.current).find(([name]) =>
@@ -130,7 +132,7 @@ export default function Board({ activeMeshName, boltsColor, trucksColor }) {
                 if (c.isMesh) c.visible = true;
             });
         }
-    }, [activeMeshName, scene]);
+    }, [activeMeshName, scene, visiblePart]);
 
     // Bolts/Trucks are a live material recolour, not a mesh swap — there is
     // only ever the one physical part, so "picking a colour" means setting

@@ -238,6 +238,7 @@ class OrderController extends Controller
                 'trucks_color' => null,
                 'bolts_color' => null,
                 'parts' => [],
+                'download_parts' => [],
             ];
 
             // ponytail: a "Separate parts" group with two decks previews the
@@ -261,6 +262,13 @@ class OrderController extends Controller
             }
 
             $groups[$key]['parts'][] = $item->name_snapshot;
+            $groups[$key]['download_parts'][] = [
+                'id' => $item->id,
+                'name' => $item->name_snapshot,
+                'type' => $part->type,
+                'mesh' => $part->mesh_name,
+                'color' => $item->customization['color'] ?? null,
+            ];
         }
 
         return array_values($groups);

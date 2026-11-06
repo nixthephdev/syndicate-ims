@@ -15,7 +15,7 @@ import {
 import { HARDWARE_COLORS } from '@/Components/Customizer/hardwareColors';
 import { useConfirm } from '@/Components/Admin/ConfirmDialog';
 import { useLiveReload } from '@/utils/useLiveReload';
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useId, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 
 // The customizer's own 3D viewer, lazy-loaded so Three.js only downloads
@@ -39,32 +39,53 @@ const fileSafe = (text) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replac
  * underneath — a reference picture that still says which order it's for
  * once it's been saved somewhere else.
  */
-function downloadBoardImage(container, orderNumber, build) {
-    const source = container?.querySelector('canvas');
-    if (!source) return;
+async function downloadBoardImage(capture, orderNumber, build, part) {
+    const source = await createImageBitmap(await capture());
+    const label = part
+        ? `${part.name}${part.color ? ` (${colorLabel(part.color)})` : ''}`
+        : build.label;
 
     const out = document.createElement('canvas');
     out.width = source.width;
     out.height = source.height;
     const ctx = out.getContext('2d');
-    ctx.fillStyle = '#111111';
+    ctx.fillStyle = part ? '#e5e5e5' : '#111111';
     ctx.fillRect(0, 0, out.width, out.height);
     ctx.drawImage(source, 0, 0);
+    source.close();
 
     const pad = Math.round(out.width * 0.025);
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillStyle = part ? '#333333' : 'rgba(255,255,255,0.75)';
     ctx.font = `600 ${Math.max(14, Math.round(out.width * 0.022))}px sans-serif`;
-    ctx.fillText(`${orderNumber} · ${build.label}`, pad, out.height - pad);
+    ctx.fillText(`${orderNumber} · ${label}`, pad, out.height - pad, out.width - pad * 2);
 
     const link = document.createElement('a');
-    link.download = `${orderNumber}-${fileSafe(build.label)}.png`;
+    link.download = `${orderNumber}-${fileSafe(build.key)}-${fileSafe(label)}${part ? `-${part.id}` : ''}.png`;
     link.href = out.toDataURL('image/png');
     link.click();
 }
 
 /** One custom board, assembled in 3D, with its own download button. */
 function BuildCard({ build, orderNumber }) {
-    const viewer = useRef(null);
+    const selectId = useId();
+    const [selectedId, setSelectedId] = useState('all');
+    const [capture, setCapture] = useState(null);
+    const [downloading, setDownloading] = useState(false);
+    const [downloadError, setDownloadError] = useState('');
+    const onCaptureReady = useCallback((callback) => setCapture(() => callback), []);
+    const part = build.download_parts.find((item) => String(item.id) === selectedId);
+
+    const download = async () => {
+        setDownloading(true);
+        setDownloadError('');
+        try {
+            await downloadBoardImage(capture, orderNumber, build, part);
+        } catch {
+            setDownloadError('Could not download the image. Please try again.');
+        } finally {
+            setDownloading(false);
+        }
+    };
 
     return (
         <Card className="mt-6 overflow-hidden">
@@ -75,14 +96,38 @@ function BuildCard({ build, orderNumber }) {
                         {build.parts.join(' · ')}
                     </p>
                 </div>
-                <SecondaryButton
-                    icon={ArrowDownTrayIcon}
-                    onClick={() => downloadBoardImage(viewer.current, orderNumber, build)}
-                >
-                    Download image
-                </SecondaryButton>
+                <div className="flex flex-wrap items-end gap-3">
+                    <div className="min-w-0">
+                        <label htmlFor={selectId} className="mb-1 block text-xs text-white/50 admin-light:text-ink-900/60">
+                            Preview and download
+                        </label>
+                        <select
+                            id={selectId}
+                            value={selectedId}
+                            disabled={downloading}
+                            onChange={(event) => {
+                                if (event.target.value === selectedId) return;
+                                setCapture(null);
+                                setDownloadError('');
+                                setSelectedId(event.target.value);
+                            }}
+                            className="max-w-full rounded-md border-white/15 bg-ink-900 text-sm text-white focus:border-volt-500 focus:ring-volt-500 admin-light:border-ink-900/15 admin-light:bg-white admin-light:text-ink-900 sm:max-w-xs"
+                        >
+                            <option value="all">{build.label === 'Separate parts' ? 'All parts together' : 'Complete board'}</option>
+                            {build.download_parts.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                    {item.name}{item.color ? ` (${colorLabel(item.color)})` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <SecondaryButton icon={ArrowDownTrayIcon} disabled={!capture || downloading} onClick={download}>
+                        {downloading ? 'Downloading…' : part ? 'Download part' : 'Download image'}
+                    </SecondaryButton>
+                </div>
             </div>
-            <div ref={viewer} className="relative h-80 bg-white/[0.02] admin-light:bg-ink-900/[0.03] sm:h-96">
+            {downloadError && <p role="alert" className="px-6 pt-3 text-sm text-red-400 admin-light:text-red-600">{downloadError}</p>}
+            <div className={`relative h-80 sm:h-96 ${part ? 'bg-[#e5e5e5]' : 'bg-white/[0.02] admin-light:bg-ink-900/[0.03]'}`}>
                 <Suspense
                     fallback={
                         <p className="flex h-full items-center justify-center text-xs uppercase tracking-widest text-white/30 admin-light:text-ink-900/40">
@@ -91,10 +136,14 @@ function BuildCard({ build, orderNumber }) {
                     }
                 >
                     <Scene
-                        deckMeshName={build.deck_mesh}
-                        wheelsMeshName={build.wheels_mesh}
-                        trucksColor={build.trucks_color}
-                        boltsColor={build.bolts_color}
+                        deckMeshName={part?.type === 'deck' ? part.mesh : build.deck_mesh}
+                        wheelsMeshName={part?.type === 'wheels' ? part.mesh : build.wheels_mesh}
+                        trucksColor={part?.type === 'trucks' ? part.color : build.trucks_color}
+                        boltsColor={part?.type === 'bolts' ? part.color : build.bolts_color}
+                        visiblePart={part?.type ?? null}
+                        selectionKey={selectedId}
+                        fitVisible
+                        onCaptureReady={onCaptureReady}
                         transparentBackground
                         preserveDrawingBuffer
                         enablePan={false}
@@ -103,7 +152,7 @@ function BuildCard({ build, orderNumber }) {
                 </Suspense>
             </div>
             <p className="border-t border-white/10 px-6 py-3 text-xs text-white/30 admin-light:border-ink-900/10 admin-light:text-ink-900/45">
-                Drag to rotate — the download saves the angle you're looking at. Hardware colours are the ones the customer picked.
+                Choose the complete board or an individual part, then drag to rotate. The download saves the current view in the customer's chosen colours.
             </p>
         </Card>
     );
@@ -217,7 +266,7 @@ export default function Show({ order, can }) {
 
             <div className="mt-4 grid gap-6 lg:grid-cols-3">
                 {/* Items + totals */}
-                <div className="lg:col-span-2">
+                <div className="min-w-0 lg:col-span-2">
                     <Card className="overflow-hidden">
                         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-6 py-4 admin-light:border-ink-900/10">
                             <div className="flex items-center gap-3">
@@ -231,6 +280,7 @@ export default function Show({ order, can }) {
                             </p>
                         </div>
 
+                        <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-white/10 admin-light:divide-ink-900/10">
                             <thead className="bg-white/[0.04] admin-light:bg-ink-900/[0.04]">
                                 <tr>
@@ -302,6 +352,7 @@ export default function Show({ order, can }) {
                                 </tr>
                             </tfoot>
                         </table>
+                        </div>
 
                         <p className="border-t border-white/10 bg-white/[0.04] px-6 py-3 text-xs text-white/40 admin-light:border-ink-900/10 admin-light:bg-ink-900/[0.04] admin-light:text-ink-900/50">
                             Item names and prices are snapshots taken when the

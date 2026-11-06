@@ -2,12 +2,13 @@
 // useGLTF() for the first time. See utils/dracoLoader.js.
 import '@/utils/dracoLoader';
 
-import { Suspense } from 'react';
+import { Suspense, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import Board from './Board';
 import Wheels from './Wheels';
 import AutoFitCamera from './AutoFitCamera';
+import PreviewCapture from './PreviewCapture';
 import { useTheme } from '@/utils/useTheme';
 
 function LoadingFallback() {
@@ -69,6 +70,10 @@ export default function Scene({
     // instead of a blank image — the admin order page's "Download image".
     // Off by default: it costs a little GPU memory nothing else needs.
     preserveDrawingBuffer = false,
+    visiblePart = null,
+    selectionKey = null,
+    fitVisible = false,
+    onCaptureReady = null,
 }) {
     // <color> sets a raw Three.js scene background — outside Tailwind's
     // reach entirely, so the theme has to be read directly here rather than
@@ -80,6 +85,7 @@ export default function Scene({
     // Canvas defaults to a transparent GL context when no background color
     // is attached.
     const { theme } = useTheme();
+    const controlsRef = useRef();
 
     return (
         <Canvas
@@ -105,9 +111,12 @@ export default function Scene({
             )}
 
             <Suspense fallback={<LoadingFallback />}>
-                <Board activeMeshName={deckMeshName} boltsColor={boltsColor} trucksColor={trucksColor} />
-                <Wheels activeMeshName={wheelsMeshName} />
+                <Board activeMeshName={deckMeshName} boltsColor={boltsColor} trucksColor={trucksColor} visiblePart={visiblePart} />
+                <Wheels activeMeshName={!visiblePart || visiblePart === 'wheels' ? wheelsMeshName : null} />
                 {autoFit && <AutoFitCamera focusName={autoFitFocusName} />}
+                {(fitVisible || onCaptureReady) && (
+                    <PreviewCapture selectionKey={selectionKey} fitVisible={fitVisible} controlsRef={controlsRef} onCaptureReady={onCaptureReady} />
+                )}
             </Suspense>
 
             {/* AutoFitCamera sets camera.position/up directly for a capture
@@ -117,6 +126,7 @@ export default function Scene({
                 rather than merely disabled, or it would fight that. */}
             {!autoFit && (
                 <OrbitControls
+                    ref={controlsRef}
                     target={MODEL_CENTER}
                     enableDamping
                     dampingFactor={0.05}
